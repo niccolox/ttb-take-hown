@@ -1,0 +1,6 @@
+paddleocr==3.2.0
+paddlepaddle==3.2.2
+opencv-python-headless
+rapidfuzz
+pillow
+pytest

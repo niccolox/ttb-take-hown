@@ -1,0 +1,458 @@
+{
+  "summary": {
+    "machine": "16-core CPU (dev box), paddle CPU wheel",
+    "engine": "PaddleOCR (PP-OCR v5 default pipeline, textline orientation on)",
+    "init_s": 11.69,
+    "warmup_first_infer_s": 2.53,
+    "n_labels": 15,
+    "latency_p50_s": 2.19,
+    "latency_p95_s": 2.65,
+    "latency_max_s": 2.78,
+    "field_location_rate": 0.948,
+    "caps_trap_discriminated": true
+  },
+  "rows": [
+    {
+      "id": "spirits_clean",
+      "degrade": null,
+      "latency_s": 2.1,
+      "fields": {
+        "brand": {
+          "located": true,
+          "score": 100.0
+        },
+        "class_type": {
+          "located": true,
+          "score": 100.0
+        },
+        "abv_line": {
+          "located": true,
+          "score": 100.0
+        },
+        "net_line": {
+          "located": true,
+          "score": 100.0
+        }
+      },
+      "warning": {
+        "caps_prefix_in_raw": true,
+        "titlecase_prefix_in_raw": false,
+        "token_coverage": 100.0
+      },
+      "expect": "all fields readable; warning exact w/ caps+contrast OK",
+      "n_text_blocks": 10
+    },
+    {
+      "id": "malt_clean",
+      "degrade": null,
+      "latency_s": 2.08,
+      "fields": {
+        "brand": {
+          "located": true,
+          "score": 100.0
+        },
+        "class_type": {
+          "located": true,
+          "score": 100.0
+        },
+        "abv_line": {
+          "located": true,
+          "score": 100.0
+        },
+        "net_line": {
+          "located": true,
+          "score": 100.0
+        }
+      },
+      "warning": {
+        "caps_prefix_in_raw": true,
+        "titlecase_prefix_in_raw": false,
+        "token_coverage": 100.0
+      },
+      "expect": "all fields readable",
+      "n_text_blocks": 10
+    },
+    {
+      "id": "wine_no_abv_table",
+      "degrade": null,
+      "latency_s": 2.15,
+      "fields": {
+        "brand": {
+          "located": true,
+          "score": 100.0
+        },
+        "class_type": {
+          "located": true,
+          "score": 100.0
+        },
+        "net_line": {
+          "located": true,
+          "score": 100.0
+        }
+      },
+      "warning": {
+        "caps_prefix_in_raw": true,
+        "titlecase_prefix_in_raw": false,
+        "token_coverage": 100.0
+      },
+      "expect": "ABV absent \u2192 NOT REQUIRED (table wine); sulfites present",
+      "n_text_blocks": 10
+    },
+    {
+      "id": "trap_titlecase_warning",
+      "degrade": null,
+      "latency_s": 2.26,
+      "fields": {
+        "brand": {
+          "located": true,
+          "score": 100.0
+        },
+        "class_type": {
+          "located": true,
+          "score": 100.0
+        },
+        "abv_line": {
+          "located": true,
+          "score": 100.0
+        },
+        "net_line": {
+          "located": true,
+          "score": 100.0
+        }
+      },
+      "warning": {
+        "caps_prefix_in_raw": false,
+        "titlecase_prefix_in_raw": true,
+        "token_coverage": 100.0
+      },
+      "expect": "prefix caps check FAILS (title case)",
+      "n_text_blocks": 10
+    },
+    {
+      "id": "trap_word_substitution",
+      "degrade": null,
+      "latency_s": 2.08,
+      "fields": {
+        "brand": {
+          "located": true,
+          "score": 100.0
+        },
+        "class_type": {
+          "located": true,
+          "score": 100.0
+        },
+        "abv_line": {
+          "located": true,
+          "score": 100.0
+        },
+        "net_line": {
+          "located": true,
+          "score": 100.0
+        }
+      },
+      "warning": {
+        "caps_prefix_in_raw": true,
+        "titlecase_prefix_in_raw": false,
+        "token_coverage": 98.2
+      },
+      "expect": "warning text diff catches 'defect' vs 'defects'",
+      "n_text_blocks": 10
+    },
+    {
+      "id": "trap_all_bold_warning",
+      "degrade": null,
+      "latency_s": 2.19,
+      "fields": {
+        "brand": {
+          "located": true,
+          "score": 100.0
+        },
+        "class_type": {
+          "located": true,
+          "score": 100.0
+        },
+        "abv_line": {
+          "located": true,
+          "score": 100.0
+        },
+        "net_line": {
+          "located": true,
+          "score": 100.0
+        }
+      },
+      "warning": {
+        "caps_prefix_in_raw": true,
+        "titlecase_prefix_in_raw": false,
+        "token_coverage": 100.0
+      },
+      "expect": "weight contrast: no-contrast violation (\u00a716.22(a)(2) body may not be bold)",
+      "n_text_blocks": 10
+    },
+    {
+      "id": "trap_missing_warning",
+      "degrade": null,
+      "latency_s": 1.99,
+      "fields": {
+        "brand": {
+          "located": true,
+          "score": 100.0
+        },
+        "class_type": {
+          "located": true,
+          "score": 100.0
+        },
+        "abv_line": {
+          "located": true,
+          "score": 100.0
+        },
+        "net_line": {
+          "located": true,
+          "score": 100.0
+        }
+      },
+      "warning": {
+        "caps_prefix_in_raw": false,
+        "titlecase_prefix_in_raw": false,
+        "token_coverage": 36.3
+      },
+      "expect": "warning absent \u2192 finding (coverage gate permitting)",
+      "n_text_blocks": 6
+    },
+    {
+      "id": "trap_abv_within_band",
+      "degrade": null,
+      "latency_s": 2.17,
+      "fields": {
+        "brand": {
+          "located": true,
+          "score": 100.0
+        },
+        "class_type": {
+          "located": true,
+          "score": 100.0
+        },
+        "abv_line": {
+          "located": true,
+          "score": 100.0
+        },
+        "net_line": {
+          "located": true,
+          "score": 100.0
+        }
+      },
+      "warning": {
+        "caps_prefix_in_raw": true,
+        "titlecase_prefix_in_raw": false,
+        "token_coverage": 100.0
+      },
+      "expect": "app=45.0 \u2192 WITHIN TOLERANCE amber (spirits \u00b10.3), never green",
+      "n_text_blocks": 10
+    },
+    {
+      "id": "trap_abv_outside_band",
+      "degrade": null,
+      "latency_s": 2.19,
+      "fields": {
+        "brand": {
+          "located": true,
+          "score": 100.0
+        },
+        "class_type": {
+          "located": true,
+          "score": 100.0
+        },
+        "abv_line": {
+          "located": true,
+          "score": 100.0
+        },
+        "net_line": {
+          "located": true,
+          "score": 100.0
+        }
+      },
+      "warning": {
+        "caps_prefix_in_raw": true,
+        "titlecase_prefix_in_raw": false,
+        "token_coverage": 100.0
+      },
+      "expect": "app=45.0 \u2192 MISMATCH (outside \u00b10.3)",
+      "n_text_blocks": 10
+    },
+    {
+      "id": "photo_skew",
+      "degrade": "skew",
+      "latency_s": 2.78,
+      "fields": {
+        "brand": {
+          "located": true,
+          "score": 100.0
+        },
+        "class_type": {
+          "located": true,
+          "score": 100.0
+        },
+        "abv_line": {
+          "located": true,
+          "score": 100.0
+        },
+        "net_line": {
+          "located": true,
+          "score": 100.0
+        }
+      },
+      "warning": {
+        "caps_prefix_in_raw": true,
+        "titlecase_prefix_in_raw": false,
+        "token_coverage": 100.0
+      },
+      "expect": "fields recoverable after deskew/rotation",
+      "n_text_blocks": 10
+    },
+    {
+      "id": "photo_glare",
+      "degrade": "glare",
+      "latency_s": 2.65,
+      "fields": {
+        "brand": {
+          "located": true,
+          "score": 100.0
+        },
+        "class_type": {
+          "located": true,
+          "score": 100.0
+        },
+        "abv_line": {
+          "located": true,
+          "score": 100.0
+        },
+        "net_line": {
+          "located": true,
+          "score": 100.0
+        }
+      },
+      "warning": {
+        "caps_prefix_in_raw": true,
+        "titlecase_prefix_in_raw": false,
+        "token_coverage": 100.0
+      },
+      "expect": "glare region \u2192 low conf \u2192 NEEDS REVIEW on affected fields",
+      "n_text_blocks": 11
+    },
+    {
+      "id": "photo_blur_dark",
+      "degrade": "blur_dark",
+      "latency_s": 2.34,
+      "fields": {
+        "brand": {
+          "located": true,
+          "score": 100.0
+        },
+        "class_type": {
+          "located": false,
+          "score": 76.5
+        },
+        "abv_line": {
+          "located": true,
+          "score": 100.0
+        },
+        "net_line": {
+          "located": true,
+          "score": 87.5
+        }
+      },
+      "warning": {
+        "caps_prefix_in_raw": false,
+        "titlecase_prefix_in_raw": false,
+        "token_coverage": 88.4
+      },
+      "expect": "degrades to NEEDS REVIEW, never false verdicts",
+      "n_text_blocks": 10
+    },
+    {
+      "id": "photo_curved",
+      "degrade": "curved",
+      "latency_s": 2.29,
+      "fields": {
+        "brand": {
+          "located": true,
+          "score": 100.0
+        },
+        "class_type": {
+          "located": true,
+          "score": 100.0
+        },
+        "abv_line": {
+          "located": true,
+          "score": 100.0
+        },
+        "net_line": {
+          "located": true,
+          "score": 100.0
+        }
+      },
+      "warning": {
+        "caps_prefix_in_raw": true,
+        "titlecase_prefix_in_raw": false,
+        "token_coverage": 100.0
+      },
+      "expect": "edge shading tolerated or NEEDS REVIEW",
+      "n_text_blocks": 10
+    },
+    {
+      "id": "photo_lowres",
+      "degrade": "lowres",
+      "latency_s": 2.27,
+      "fields": {
+        "brand": {
+          "located": true,
+          "score": 100.0
+        },
+        "class_type": {
+          "located": false,
+          "score": 76.5
+        },
+        "net_line": {
+          "located": false,
+          "score": 66.7
+        }
+      },
+      "warning": {
+        "caps_prefix_in_raw": false,
+        "titlecase_prefix_in_raw": false,
+        "token_coverage": 59.8
+      },
+      "expect": "small text unreadable \u2192 NEEDS REVIEW(unreadable)",
+      "n_text_blocks": 14
+    },
+    {
+      "id": "decorative_font",
+      "degrade": null,
+      "latency_s": 2.53,
+      "fields": {
+        "brand": {
+          "located": true,
+          "score": 100.0
+        },
+        "class_type": {
+          "located": true,
+          "score": 100.0
+        },
+        "abv_line": {
+          "located": true,
+          "score": 100.0
+        },
+        "net_line": {
+          "located": true,
+          "score": 100.0
+        }
+      },
+      "warning": {
+        "caps_prefix_in_raw": true,
+        "titlecase_prefix_in_raw": false,
+        "token_coverage": 100.0
+      },
+      "expect": "stylized brand still located (fuzzy) or honest NEEDS REVIEW",
+      "n_text_blocks": 10
+    }
+  ]
+}

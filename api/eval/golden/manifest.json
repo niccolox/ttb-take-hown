@@ -1,0 +1,197 @@
+[
+  {
+    "file": "spirits_clean.jpg",
+    "id": "spirits_clean",
+    "degrade": null,
+    "expect": "all fields readable; warning exact w/ caps+contrast OK",
+    "truth": {
+      "brand": "OLD TOM DISTILLERY",
+      "class_type": "Kentucky Straight Bourbon Whiskey",
+      "abv_line": "45% Alc./Vol. (90 Proof)",
+      "net_line": "750 mL",
+      "beverage_type": "distilled_spirits"
+    }
+  },
+  {
+    "file": "malt_clean.jpg",
+    "id": "malt_clean",
+    "degrade": null,
+    "expect": "all fields readable",
+    "truth": {
+      "brand": "STONE'S THROW",
+      "class_type": "American Pale Ale",
+      "abv_line": "5.2% ALC/VOL",
+      "net_line": "12 FL OZ",
+      "beverage_type": "malt_beverage"
+    }
+  },
+  {
+    "file": "wine_no_abv_table.jpg",
+    "id": "wine_no_abv_table",
+    "degrade": null,
+    "expect": "ABV absent \u2192 NOT REQUIRED (table wine); sulfites present",
+    "truth": {
+      "brand": "SEABREEZE CELLARS",
+      "class_type": "California Chardonnay \u2014 Table Wine",
+      "abv_line": null,
+      "net_line": "750 mL",
+      "beverage_type": "wine"
+    }
+  },
+  {
+    "file": "trap_titlecase_warning.jpg",
+    "id": "trap_titlecase_warning",
+    "degrade": null,
+    "expect": "prefix caps check FAILS (title case)",
+    "truth": {
+      "brand": "OLD TOM DISTILLERY",
+      "class_type": "Kentucky Straight Bourbon Whiskey",
+      "abv_line": "45% Alc./Vol. (90 Proof)",
+      "net_line": "750 mL",
+      "beverage_type": "distilled_spirits"
+    }
+  },
+  {
+    "file": "trap_word_substitution.jpg",
+    "id": "trap_word_substitution",
+    "degrade": null,
+    "expect": "warning text diff catches 'defect' vs 'defects'",
+    "truth": {
+      "brand": "OLD TOM DISTILLERY",
+      "class_type": "Kentucky Straight Bourbon Whiskey",
+      "abv_line": "45% Alc./Vol. (90 Proof)",
+      "net_line": "750 mL",
+      "beverage_type": "distilled_spirits"
+    }
+  },
+  {
+    "file": "trap_all_bold_warning.jpg",
+    "id": "trap_all_bold_warning",
+    "degrade": null,
+    "expect": "weight contrast: no-contrast violation (\u00a716.22(a)(2) body may not be bold)",
+    "truth": {
+      "brand": "OLD TOM DISTILLERY",
+      "class_type": "Kentucky Straight Bourbon Whiskey",
+      "abv_line": "45% Alc./Vol. (90 Proof)",
+      "net_line": "750 mL",
+      "beverage_type": "distilled_spirits"
+    }
+  },
+  {
+    "file": "trap_missing_warning.jpg",
+    "id": "trap_missing_warning",
+    "degrade": null,
+    "expect": "warning absent \u2192 finding (coverage gate permitting)",
+    "truth": {
+      "brand": "OLD TOM DISTILLERY",
+      "class_type": "Kentucky Straight Bourbon Whiskey",
+      "abv_line": "45% Alc./Vol. (90 Proof)",
+      "net_line": "750 mL",
+      "beverage_type": "distilled_spirits"
+    }
+  },
+  {
+    "file": "trap_abv_within_band.jpg",
+    "id": "trap_abv_within_band",
+    "degrade": null,
+    "expect": "app=45.0 \u2192 WITHIN TOLERANCE amber (spirits \u00b10.3), never green",
+    "truth": {
+      "brand": "OLD TOM DISTILLERY",
+      "class_type": "Kentucky Straight Bourbon Whiskey",
+      "abv_line": "45.2% Alc./Vol.",
+      "net_line": "750 mL",
+      "beverage_type": "distilled_spirits"
+    }
+  },
+  {
+    "file": "trap_abv_outside_band.jpg",
+    "id": "trap_abv_outside_band",
+    "degrade": null,
+    "expect": "app=45.0 \u2192 MISMATCH (outside \u00b10.3)",
+    "truth": {
+      "brand": "OLD TOM DISTILLERY",
+      "class_type": "Kentucky Straight Bourbon Whiskey",
+      "abv_line": "46% Alc./Vol. (92 Proof)",
+      "net_line": "750 mL",
+      "beverage_type": "distilled_spirits"
+    }
+  },
+  {
+    "file": "photo_skew.jpg",
+    "id": "photo_skew",
+    "degrade": "skew",
+    "expect": "fields recoverable after deskew/rotation",
+    "truth": {
+      "brand": "OLD TOM DISTILLERY",
+      "class_type": "Kentucky Straight Bourbon Whiskey",
+      "abv_line": "45% Alc./Vol. (90 Proof)",
+      "net_line": "750 mL",
+      "beverage_type": "distilled_spirits"
+    }
+  },
+  {
+    "file": "photo_glare.jpg",
+    "id": "photo_glare",
+    "degrade": "glare",
+    "expect": "glare region \u2192 low conf \u2192 NEEDS REVIEW on affected fields",
+    "truth": {
+      "brand": "OLD TOM DISTILLERY",
+      "class_type": "Kentucky Straight Bourbon Whiskey",
+      "abv_line": "45% Alc./Vol. (90 Proof)",
+      "net_line": "750 mL",
+      "beverage_type": "distilled_spirits"
+    }
+  },
+  {
+    "file": "photo_blur_dark.jpg",
+    "id": "photo_blur_dark",
+    "degrade": "blur_dark",
+    "expect": "degrades to NEEDS REVIEW, never false verdicts",
+    "truth": {
+      "brand": "STONE'S THROW",
+      "class_type": "American Pale Ale",
+      "abv_line": "5.2% ALC/VOL",
+      "net_line": "12 FL OZ",
+      "beverage_type": "malt_beverage"
+    }
+  },
+  {
+    "file": "photo_curved.jpg",
+    "id": "photo_curved",
+    "degrade": "curved",
+    "expect": "edge shading tolerated or NEEDS REVIEW",
+    "truth": {
+      "brand": "STONE'S THROW",
+      "class_type": "American Pale Ale",
+      "abv_line": "5.2% ALC/VOL",
+      "net_line": "12 FL OZ",
+      "beverage_type": "malt_beverage"
+    }
+  },
+  {
+    "file": "photo_lowres.jpg",
+    "id": "photo_lowres",
+    "degrade": "lowres",
+    "expect": "small text unreadable \u2192 NEEDS REVIEW(unreadable)",
+    "truth": {
+      "brand": "SEABREEZE CELLARS",
+      "class_type": "California Chardonnay \u2014 Table Wine",
+      "abv_line": null,
+      "net_line": "750 mL",
+      "beverage_type": "wine"
+    }
+  },
+  {
+    "file": "decorative_font.jpg",
+    "id": "decorative_font",
+    "degrade": null,
+    "expect": "stylized brand still located (fuzzy) or honest NEEDS REVIEW",
+    "truth": {
+      "brand": "OLD TOM DISTILLERY",
+      "class_type": "Kentucky Straight Bourbon Whiskey",
+      "abv_line": "45% Alc./Vol. (90 Proof)",
+      "net_line": "750 mL",
+      "beverage_type": "distilled_spirits"
+    }
+  }
+]
