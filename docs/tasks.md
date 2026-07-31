@@ -1,0 +1,31 @@
+- [ ] **T4/ceo-review (P1, human: ~1h / CC: ~10min) — api** — Bake OCR models into image at build; warmup inference at boot; /healthz ready-after-warmup
+- [ ] **T3/ceo-review (P1, human: ~1h / CC: ~10min) — api** — Upload hardening: type/size/40MP pixel caps, safe decode, error taxonomy at route boundary
+- [ ] **T1/ceo-review (P1, human: ~2h / CC: ~15min) — api** — Run M0 OCR feasibility spike (PaddleOCR vs tesseract.js on 8-label golden set, report fidelity + latency)
+- [ ] **T2/ceo-review (P1, human: ~2h / CC: ~15min) — api** — Process worker pool for OCR (N=cores, bounded queue, 429 on full, respawn on crash)
+- [ ] **T3/design-review (P1, human: ~1h / CC: ~10min) — api** — Two-axis overall status + absent-field disposition split (MISMATCH vs NEEDS REVIEW) + partial-result preservation
+- [ ] **T1/design-review (P1, human: ~4h / CC: ~30min) — web** — Build master-detail layout (Start-a-check / Applications list / Selected label) with fixed-order result rows and stable streaming
+- [ ] **T4/design-review (P1, human: ~2h / CC: ~20min) — web** — Keyboard-complete flow as M1 acceptance: native controls, focus order stable during streaming, focus-to-error, live regions, crop-zoom dialog
+- [ ] **T2/design-review (P1, human: ~2h / CC: ~20min) — web** — Implement all banner/state copy strings and 3-visual-family verdict lozenges with next-action language
+- [ ] **T7/eng-review (P1, human: ~1h / CC: ~10min) — api** — EXIF transpose + angle classifier + HEIC/WebP decode; static export served by FastAPI
+- [ ] **T2/eng-review (P1, human: ~4h / CC: ~30min) — api** — M0 on target hardware: latency/memory/warmup on exact Fly VM class; warning exact-match rate gate; raw-vs-preprocessed; bold precision kill-gate; FP/FN curves on ~25-image calibration set
+- [ ] **T4/eng-review (P1, human: ~4h / CC: ~30min) — api** — In-process job API (submit/status/result/cancel) with two-priority scheduling and Retry-After
+- [ ] **T1/eng-review (P1, human: ~1d / CC: ~1h) — api** — Build locator as named component: line clustering, reading order, cross-line join, per-field calibrated thresholds + ambiguity margin, synthetic-layout test corpus
+- [ ] **T3/eng-review (P1, human: ~4h / CC: ~30min) — api** — Worker supervision: shared measured pool, queue-vs-exec timeouts, terminate-and-replace, recycle policy, thread pinning, warmed-spare shed-load
+- [ ] **T5/eng-review (P1, human: ~2h / CC: ~15min) — api** — Warning three-outcome model + char-level confusable handling + statutory constant provenance/checksum; coverage gate before absent→MISMATCH
+- [ ] **T6/eng-review (P1, human: ~2h / CC: ~15min) — web** — Evidence as coordinates: client-side crop rendering from retained file, object-URL cleanup, bounded responses
+- [ ] **T3/devex-review (P1, human: ~1h / CC: ~10min) — api** — Pin /api/verify contract: multipart image + application JSON, versioned envelope, reason codes, status enum; keep /docs reachable; curl example in CI
+- [ ] **T2/devex-review (P1, human: ~2h / CC: ~15min) — docs** — README skeleton at M1: setup, run, curl, 6-line architecture, samples, troubleshooting table (exit 137, port, Docker), memory floor
+- [ ] **T1/devex-review (P1, human: ~2h / CC: ~20min) — infra** — CI builds + publishes GHCR image; compose pulls prebuilt by default; make smoke as clean-machine proof
+- [ ] **T8/ceo-review (P2, human: ~1h / CC: ~10min) — api** — Structured stage-timing logs + /metrics-lite counters (p50/p95, verdict distribution)
+- [ ] **T7/ceo-review (P2, human: ~30min / CC: ~5min) — infra** — Always-on instance (or keep-alive) for evaluation window; document in README
+- [ ] **T5/ceo-review (P2, human: ~1h / CC: ~10min) — web** — CSV export formula-injection escaping; batch cap 500 + virtualized results table
+- [ ] **T6/ceo-review (P2, human: ~30min / CC: ~5min) — web** — In-flight verify button disable; empty-form inline prompt; beforeunload batch warning
+- [ ] **T6/design-review (P2, human: ~1h / CC: ~10min) — web** — Evaluator sample chooser: five named proof-point examples incl. small batch
+- [ ] **T5/design-review (P2, human: ~2h / CC: ~15min) — web** — Warning grouped check UI: summary + three subchecks + disclosure diff with labeled language
+- [ ] **T7/design-review (P2, human: ~1h / CC: ~10min) — web** — UI constants tokens (18px base, 48px inputs, 44px targets, Public Sans, verdict colors AA/deuteranopia)
+- [ ] **T8/eng-review (P2, human: ~2h / CC: ~15min) — api** — Security invariants: element-only rendering of OCR text, forwarded-header-only rate limit + global ceiling, lifecycle limits, log redaction (no raw values/OCR text)
+- [ ] **T9/eng-review (P2, human: ~2h / CC: ~15min) — api** — Test suites: fuzzy boundary table, multi-line reassembly, load 3×pool, CSV manifest matrix, ABV confusables/proof-only
+- [ ] **T10/eng-review (P2, human: ~2h / CC: ~15min) — web** — Batch client state machine reducer + interaction tests (edit-during-check, retry-after-cancel, undo-after-partial)
+- [ ] **T5/devex-review (P2, human: ~1h / CC: ~10min) — docs** — No-Docker contributor path + frontend dev loop (uvicorn + next dev proxy); OCR_WORKERS/APP_PORT env vars documented
+- [ ] **T4/devex-review (P2, human: ~2h / CC: ~15min) — infra** — make test/eval/lint targets; vendored models by checksum; locked deps; base image by digest; no-egress CI test; golden set committed with provenance
+- [ ] **T8/design-review (P3, human: ~1h / CC: ~10min) — web** — Print-friendly single-label report view
