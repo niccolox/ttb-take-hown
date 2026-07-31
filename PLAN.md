@@ -32,13 +32,13 @@ A single web app around a **local OCR pipeline + deterministic rules engine**:
 - **OCR**: PaddleOCR (PP-OCRv4) server-side — chosen for scene-text strength (angled, curved, stylized label typography). Returns word-level text + bounding boxes + calibrated per-word confidences. OCR is **verbatim by construction**: it preserves case and misspellings, so the planted title-case warning trap is caught naturally, with no LLM autocorrect risk. In-browser tesseract.js is the documented zero-infra alternative; the M0 spike measures both against the golden set before the choice is locked.
 - **Targeted verification, not open extraction** (key design insight): the agent supplies the expected values, so the system *searches* for them instead of classifying fields blind:
   - Brand name / class-type: fuzzy-search the application's string across OCR tokens (normalized: case-fold, collapse whitespace, unify apostrophes/quotes). Exact hit → MATCH; normalized-equal → **LIKELY MATCH** (own chip: "case/punctuation differs — confirm", both strings shown — normalization is a policy call the tool surfaces, not silently decides); no acceptable hit → MISMATCH.
-  - ABV: regex all `%`/`Proof` patterns in OCR text ("45% Alc./Vol.", "45% ABV", "90 Proof" → 45.0); compare at the label's stated precision (44.9 ≠ 45.0; TTB rounding tolerances documented as out of scope).
+  - ABV — three-band comparison (cross-model synthesis, Rev 2.1): exact match at stated precision → **MATCH** (green). Differing but within the commodity band → **WITHIN TOLERANCE — confirm** (amber, LIKELY-MATCH family, never green; evidence crop mandatory; granted only when digit-level OCR confidence is high, else NEEDS REVIEW). Outside the band or across a class boundary → **MISMATCH**. Bands (magnitude heuristics): wine ±1.0pp >14% / ±1.5pp ≤14% (§4.36, tier selected by the label-stated value); spirits ±0.3pp (§5.65(c)); malt ±0.3pp (§7.65(c)). **Legal grounding stated honestly**: the CFR tolerances govern label-vs-actual product, not label-vs-application — the warrant for tolerating drift is Form 5100.31 allowable-revision item 11 (ABV statement may change without a new COLA), with the CFR bands used only as the magnitude reference; the UI note cites both. Override table (no band ever rescues): wine class breaks at 14/21/24%; "non-alcoholic" 0.5% (zero tolerance, adjacency statement required); malt "low/reduced alcohol" hard cap 2.5%; sub-0.5% products at 0.01 precision, zero tolerance; malt stated to nearest 0.1. Range labels ("Alcohol _% to _%"): parsed; application value inside the range → amber confirm; spread-limit check (2pp/3pp wine tiers) is a cited P3 rule. Within-band digit-misread cases (3/8, 5/6, 0/9 confusables) join the golden set and **ABV false-MATCH rate is its own M0 metric**.
   - Net contents: regex value+unit (750 mL, 0.75 L, 25.4 fl oz) with unit conversion.
   - ABV↔Proof label-internal cross-check: when the label states both, verify proof = 2 × ABV; disagreement → dedicated "Label internal consistency" MISMATCH row showing both parsed values.
-  - Government warning — three sub-results, not one: **anchor** the `GOVERNMENT WARNING` text block, then check **text** (normalize whitespace only; exact compare against the 27 CFR 16.21 statutory text; word-level diff on mismatch — whitespace tokenization, case-sensitive token compare), **prefix caps** (all-caps asserted from raw OCR output, its own line), and **bold** (stroke-width heuristic on the prefix crop, `yes|no|unknown`; `unknown` renders "bold: confirm visually" — unverifiable legal formatting never folds into MATCH). Type size, placement, contrast documented as not checked.
+  - Government warning — three sub-results, not one: **anchor** the `GOVERNMENT WARNING` text block, then check **text** (normalize whitespace only; exact compare against the 27 CFR 16.21 statutory text; word-level diff on mismatch — whitespace tokenization, case-sensitive token compare), **prefix caps** (all-caps asserted from raw OCR output, its own line), and **weight contrast — two-sided requirement per §16.22(a)(2)** (prefix must be bold AND body must NOT be bold — an all-bold warning is also a violation). The stroke-width heuristic measures prefix-vs-body contrast and reports three outcomes: `contrast OK` / `no contrast — violation, side indeterminate ("confirm which side")` / `unknown → confirm visually`. **No side ever passes solely from the heuristic**; each direction has its own M0 kill-gate, validated only on printed-and-photographed samples (never raw synthetic renders). Type size (1/2/3mm by container), characters-per-inch caps (40/25/12), placement, and contrast documented as not checked, each with its §16.22 citation.
   - Fields with no application data are **NOT CHECKED** and excluded from overall status.
 - **Visual provenance** (unlocked by OCR bounding boxes — both outside voices called this the highest-trust feature): every field verdict shows the actual image crop it was read from, so agents distinguish faithful reads from OCR errors at a glance.
-- **Per-field verdicts**: MATCH / LIKELY MATCH / MISMATCH / NEEDS REVIEW / NOT CHECKED. NEEDS REVIEW always carries a reason code — `unreadable` (low OCR confidence), `absent from label`, or `system error` — each demands a different agent action. Overall status is worst of the checked fields. **Framing**: screening assistant — the all-clear state reads "All checks matched — ready for agent sign-off", never an approval verdict.
+- **Per-field verdicts**: MATCH / LIKELY MATCH (incl. WITHIN TOLERANCE) / MISMATCH / NEEDS REVIEW / NOT CHECKED / **NOT REQUIRED** (grey informational, Rev 2.1: application supplied a value but the label legally omits the field — e.g., ABV on ≤14% "table"/"light" wine, cross-checked against the label's Class/Type result; or "not required federally — confirm" for malt where flavored-alcohol status and state law are unknowable; excluded from the worst-of fold, rendered with its citation). NEEDS REVIEW always carries a reason code — `unreadable` (low OCR confidence), `absent from label`, or `system error` — each demands a different agent action. Overall status is worst of the checked fields. **Framing**: screening assistant — the all-clear state reads "All checks matched — ready for agent sign-off", never an approval verdict.
 - **Batch mode**: multi-file drag-drop; per-file inline application data is the primary path ("apply to all" only for genuinely shared fields), CSV manifest mapping `filename → application record` as the power-user path. Items process independently at bounded concurrency: a failed item never blocks the batch and is individually retryable; cancel stops unstarted items; navigating away mid-batch warns. Local OCR at ~1-2s/label × concurrency 4 ≈ 300 labels in ~2 minutes, rows streaming in as they complete.
 - **UI**: one screen, specified in detail in "UI Specification" below. No settings, no navigation.
 
@@ -53,7 +53,7 @@ A single web app around a **local OCR pipeline + deterministic rules engine**:
 
 Single-label mode is the same structure with a one-item list auto-selected. Explicit on-screen headings ("Start a check", "Applications", "Selected label") make the page scannable by headlines. Quiet product identity line (name + "TTB label screening — prototype") so the first screen is unmistakable.
 
-**Form (single or per-row)**: mirrors Jenny's printed checklist in fixed order — Brand Name, Class/Type, Alcohol Content, Net Contents. Government Warning check is always-on and automatic (statutory constant, no input). Verify with empty form prompts inline: "Enter at least one field to check — the Government Warning is always checked." Strict tab order, Enter submits, values persist across labels ("Check another label" clears image, keeps form). Editing a field after results marks that row's result stale with an explicit "Re-check" action (no silent auto re-verification). "Apply to all" shows a confirmation naming the field, value, and affected-file count, and supports undo.
+**Form (single or per-row)**: beverage-type selector FIRST (Wine / Distilled Spirits / Malt Beverage / Not specified — required record metadata; "Not specified" applies the strictest band ±0.3 with a "commodity not specified" note, routes absent-ABV to confirm-visually, and does not satisfy the empty-form check; changing it marks commodity-dependent results stale for Re-check), then Jenny's printed checklist in fixed order — Brand Name, Class/Type, Alcohol Content, Net Contents. The selector flows through batch per-row editing, "apply to all", the CSV manifest (`beverage_type` column with enum validation + T9 test rows), and the export. Government Warning check is always-on and automatic (statutory constant, no input). Verify with empty form prompts inline: "Enter at least one field to check — the Government Warning is always checked." Strict tab order, Enter submits, values persist across labels ("Check another label" clears image, keeps form). Editing a field after results marks that row's result stale with an explicit "Re-check" action (no silent auto re-verification). "Apply to all" shows a confirmation naming the field, value, and affected-file count, and supports undo.
 
 **Overall status — two axes, precedence defined.** Screening result: `mismatch found` / `no mismatch found` / `screening incomplete`. Attention state: `action required` / `none`. Field precedence for the summary: MISMATCH > NEEDS REVIEW > LIKELY MATCH > MATCH; NOT CHECKED excluded; a system error marks the record `screening incomplete` while **preserving completed field results** (a timeout never converts finished checks into a blanket failure). All-NOT-CHECKED records read "Nothing to check yet — enter application data."
 
@@ -67,7 +67,7 @@ Single-label mode is the same structure with a one-item list auto-selected. Expl
 
 **Evidence crops**: ≥64px thumbnail height, click-to-enlarge into an accessible dialog showing the crop's location outlined on the full label image; never hover-only. No bounding box → verbatim text fallback with "no image region available."
 
-**Government warning — a grouped check, not one row**: one-line summary + three labeled subchecks (Text exact / ALL-CAPS prefix / Bold), evidence crop, differences revealed by a button (not permanently expanded) using labeled language — "Expected", "Found", "Different capitalization", "Missing word" — with one plain sentence ("The label says 'birth defect' where the required text says 'birth defects'."), never red/green-only or strikethrough-only. Persistent note listing what is NOT checked (type size, placement, contrast).
+**Government warning — a grouped check, not one row**: one-line summary + three labeled subchecks (Text exact / ALL-CAPS prefix / Weight contrast — prefix vs body), evidence crop, differences revealed by a button (not permanently expanded) using labeled language — "Expected", "Found", "Different capitalization", "Missing word" — with one plain sentence ("The label says 'birth defect' where the required text says 'birth defects'."), never red/green-only or strikethrough-only. Persistent note listing what is NOT checked (type size, placement, contrast).
 
 **Errors are inline, persistent, adjacent to their cause — never toasts.** Distinct copy per class (unsupported type, oversized, corrupt image, CSV format, filename mapping, server busy with honest expectation, OCR failure, timeout, network, export failure), each with a recovery action and preservation of entered data. Loading stages in plain words, three max: "Reading the label… / Checking fields… / Almost done" + elapsed seconds. Item states named: Waiting / Uploading / Ready / Queued / Checking / Complete / Canceled / Could not finish. Cancel is labeled "Cancel waiting checks" (it does not interrupt in-flight items). "Results are stored only in this browser tab" is visibly stated near Export, not buried in an exit warning.
 
@@ -102,23 +102,23 @@ Single-label mode is the same structure with a one-item list auto-selected. Expl
 
 ## Milestones
 
-0. **M0 — Feasibility spike (half a day, before any UI)**: script running the OCR pipeline against ~8 representative labels (clean, small-text, skewed, glare, curved bottle, decorative font, title-case warning trap, word-substitution trap) reporting per-field read fidelity + latency for PaddleOCR vs tesseract.js. Proves or breaks the riskiest premise (OCR fidelity on stylized label typography) first; if both engines fail the golden set, the fallback conversation happens before UI work. The spike script becomes the permanent eval harness.
+0. **M0 — Feasibility spike (half a day, before any UI)**: script running the OCR pipeline against ~8 representative labels (clean, small-text, skewed, glare, curved bottle, decorative font, title-case warning trap, word-substitution trap, all-bold warning trap [printed-and-photographed], within-tolerance ABV digit-misread pair) reporting per-field read fidelity + latency for PaddleOCR vs tesseract.js. Proves or breaks the riskiest premise (OCR fidelity on stylized label typography) first; if both engines fail the golden set, the fallback conversation happens before UI work. The spike script becomes the permanent eval harness.
 1. **M1 — Core verify loop**: single-label upload + form → OCR → rules engine → results panel. Includes minute-one failure modes: file-type/size validation, non-label image → NEEDS REVIEW with a plain message, OCR/system-failure and timeout states, and a "Try a sample" demo button (bundled labels: clean match, deliberate mismatch, bad photo — prefilled data). Deployed.
-2. **M2 — Verification hardening**: statutory warning anchor + exact-match + word-level diff, prefix-caps and bold-heuristic checks, per-field evidence crops (bounding boxes), ABV/net-contents parsers, ABV↔Proof cross-check, normalization rules, unit tests, adversarial golden set (AI-generated labels incl. the title-case and word-substitution traps).
+2. **M2 — Verification hardening**: statutory warning anchor + exact-match + word-level diff, prefix-caps and weight-contrast checks, commodity-aware ABV rules (three-band comparison, override table, NOT REQUIRED disposition, beverage-type selector plumbing incl. CSV/contract), per-field evidence crops (bounding boxes), ABV/net-contents parsers, ABV↔Proof cross-check, normalization rules, unit tests, adversarial golden set (AI-generated labels incl. the title-case and word-substitution traps).
 3. **M3 — Batch mode**: multi-upload, per-file inline data with "apply to all" for shared fields, CSV manifest path, concurrent processing, results table + CSV export.
 4. **M4 — Polish**: accessibility pass (keyboard, contrast, large text), remaining empty/loading states, README (setup, approach, assumptions, trade-offs, measured p50/p95, firewall/on-prem story), sample labels in repo.
 
 ## Non-goals
 
 - COLA integration, auth/user accounts, persistence, PII handling.
-- Full TTB rulebook (beverage-type-specific rules, standards of fill) beyond core field checks — documented limitation.
+- Full TTB rulebook beyond core field checks — documented limitation. (Rev 2.1: core commodity awareness — tolerances, ABV requiredness, molded-glass caveat — is now IN scope at M2; standards of fill, appellations, age statements, and deeper type rules remain out.)
 - Cloud ML assistance of any kind (user decision at premise gate) — a future *optional* VLM assist for hard photos would sit behind the `Extractor` interface and is listed in TODOS.md, not in scope.
 
 ## Assumptions
 
 - Application data is entered/uploaded by the agent (no COLA feed).
 - One image per label application; front/back merging deferred (TODOS.md) and the single-image assumption stated in the README as a scoping choice.
-- Bold detection is a stroke-width heuristic on the anchored prefix crop; `unknown` yields "confirm visually", never a failure.
+- Weight-contrast detection compares the anchored prefix crop against the warning body (three outcomes, Rev 2.1); `unknown`/indeterminate yields "confirm visually", never a failure.
 - English-language labels only for the prototype.
 - OCR fidelity on decorative typography is the load-bearing risk, and it is *measured at M0*, not assumed: script-font brand names that OCR misreads route to NEEDS REVIEW (with the evidence crop shown) rather than false MISMATCH — the honest degradation path.
 
@@ -172,7 +172,7 @@ Single-label mode is the same structure with a one-item list auto-selected. Expl
 
 **Warning check honesty (supersedes "verbatim by construction" phrasing):** OCR is probabilistic transcription; the comparison is exact but its input is not. Three outcomes: **verified match** (every glyph well-evidenced), **definite mismatch** (image evidence supports the differing glyphs — one-char legal mutations distinguished from one-char OCR confusables I/l/1, O/0 at character level, not word level), **unable to verify** (uncertainty could explain the difference). M0 measures warning-paragraph exact-match rate as its own gate; the golden corpus separates real photos from synthetic renders and includes OCR-error-vs-label-error discrimination cases.
 
-**Statutory constant provenance:** authoritative source + effective version recorded; checksum test guards editorial drift; the exact set of legally-neutral normalizations is enumerated (whitespace collapse only; NFC documented as applied to *search text*, never to the statutory constant).
+**Statutory constant provenance:** authoritative source (§16.21 verbatim from eCFR, effective version recorded) + the §16.22 format matrix carried alongside; checksum test guards editorial drift; the exact set of legally-neutral normalizations is enumerated (whitespace collapse only; NFC documented as applied to *search text*, never to the statutory constant).
 
 **Bold heuristic has an M0 kill-gate:** relative same-label comparison as specified, but if measured precision is poor, the feature ships as always-"confirm visually" — a confidently wrong bold verdict is disqualifying, an honest unknown is not. Synthetic labels are excluded from validating this heuristic.
 
@@ -219,7 +219,7 @@ CODE PATHS                                          USER FLOWS
   └── [PLANNED ★★ ] load: 3× pool → clean 429s
 [+] web/batch reducer
   └── [PLANNED ★★★] edit-during-check, retry-after-cancel, undo interactions
-GAPS: 0 unplanned; every path above is a named milestone deliverable (M0-M3)
+GAPS (Rev 2.1): commodity-aware rules, selector plumbing, contract amendments, and new golden cases added as tasks T11-T13 below; all other paths remain named milestone deliverables (M0-M3)
 ```
 
 ### Worktree Parallelization Strategy (Phase 3)
@@ -250,6 +250,9 @@ Lanes: **A**: M0 → locator → pool/jobs (sequential, shared api/). **B**: rul
  "fields":[{"field":"brand_name","status":"MISMATCH","label_value":"…","application_value":"…",
             "reason_code":"value_differs","evidence":{"bbox":[100,120,420,190],"region_quality":0.91}}]}
 ```
+Rev 2.1 contract amendments (made pre-M1, schema_version stays "1"): `application` JSON gains required `beverage_type` (`wine|distilled_spirits|malt_beverage|unspecified`); status enum gains `NOT_REQUIRED` and `WITHIN_TOLERANCE`; reason codes gain `within_tolerance_confirm`, `not_required_for_commodity`, `not_visible_in_image`, `commodity_unspecified`.
+```json
+```
 Machine reason codes are separate from display copy. Evidence is coordinates (client crops from its retained file). Zero-field curl request → 200 with warning-only results (documented). Status enum spelling pinned (`MATCH|LIKELY_MATCH|MISMATCH|NEEDS_REVIEW|NOT_CHECKED`). FastAPI `/docs`, `/redoc`, `/openapi.json` stay enabled (static mount must not swallow them — acceptance criterion) and the README carries one tested copy-paste `curl -F image=@samples/clean.jpg …` example. Batch is client-orchestrated via the job API — stated explicitly so nobody hunts for `/api/batch`.
 
 **README is an M1 exit criterion, not M4** (it is a graded deliverable and the first thing the evaluator reads): M1 ships setup + run + curl + 6-line architecture argument + sample walk-through; M4 is the polish pass (measured numbers, trade-offs). Two-minute skim order: what it does (screenshot) → one-command run → five samples → architecture → why rules-not-LLM issue verdicts → measured latency with hardware context (commit, CPU, workers, dataset; estimates labeled as estimates until M0 data lands) → limitations → test commands → on-prem notes.
@@ -258,6 +261,40 @@ Machine reason codes are separate from display copy. Evidence is coordinates (cl
 
 **Reproducibility:** locked Python + npm dependencies; base image pinned by digest; OCR models vendored/fetched by checksum at build (never at runtime — enforced by an automated **no-egress test** in CI, which is also the firewall story made testable); golden-set expected metrics versioned with tolerated ranges; sample/golden images committed at M0 under `api/eval/golden/` with provenance + licensing notes (AI-generated, redistributable).
 
+
+---
+
+## Research Integration (Revision 2 — 2026-07-31, /autoplan cycle 2)
+
+Fourteen research documents (`docs/research/`) were folded into this plan. Auto-approved changes:
+
+**Regulatory correctness (from `ttb-labeling-rules.md`, eCFR primary text):**
+- ABV tolerances and class-boundary overrides now in the rules engine (edit above) — the highest-impact correction of the cycle; the prior rule false-MISMATCHed compliant labels.
+- Two-sided bold check on the warning (prefix bold, body not-bold), with an all-bold adversarial golden case added to the M0 corpus.
+- **Commodity awareness enters M2 scope (reverses a gate decision — see gate item):** a beverage-type selector (wine / distilled spirits / malt) drives (a) which ABV tolerance applies, (b) whether a missing ABV is compliant (optional on ≤14% "table"/"light" wine and unflavored malt) vs a finding, and (c) phrasings for the sulfite/aspartame checks — which are **informational presence-observations outside the verdict fold** (the application carries no SO₂/aspartame data, so they can never be verdicts). Without the selector, absent-ABV dispositions are wrong for two of three commodities.
+- Net contents may be legally molded into the glass (spirits/malt only — §5.70/§7.70; wine has no such caveat) — absent net contents routes to "not visible in the submitted image"/unverifiable **unless coverage provenance establishes a full-container view**; a finding is possible only past that gate (codex refinement — blanket "never MISMATCH" was itself a false-PASS channel).
+- ABV-statement format checks (three authorized sentence shapes, §5.65(b)/§7.65(b)) added as cited P3 rules.
+
+**Input-distribution facts (from `cola-fact-sheet.md`, TTB's own filing specs):**
+- The M0 corpus and upload path now target TTB's stated input distribution: JPEG/PNG only, ≤1.5MB per label image, 120-170 dpi at "Medium" JPEG quality, cropped to label edges — our caps and downscale settings validated against the agency's own numbers.
+- **Per-panel uploads are the norm in real filings** (brand/back/neck each a separate file): the single-image assumption is restated as the prototype's loudest limitation, and the multi-image TODO moves to the top of the P2 queue.
+- Allowable revisions (Form 5100.31 items 1-24) mean a bottle may legitimately differ from its registry label in shape, color, fonts, ABV statement, net contents, and address — documented in the README as *why* field-by-field comparison with per-field rules is the only sound verification model.
+
+**Product framing (from `cola-swot.md`, `cola-prescreen-market.md`, strategy playbooks):**
+- README strategic paragraph gains three beats: (1) this is Treasury's own named priority use case ("document processing and regulatory intake", Treasury AI Strategy, Sept 2025); (2) TTB's own FAQ admits consistency "can be addressed only to a limited degree by a Web-based system" — the official warrant for deterministic, citation-backed checks; (3) the open-stack build is the seed of a public screening commons (nationalize-by-absorption) rather than a private toll booth.
+- **Demo narrative updated:** the batch proof point becomes "post-shutdown Monday — 300 queued labels triaged before lunch" (Oct 2025 shutdown, 85% of TTB furloughed, Q4 = 30-40% of craft-spirits sales), with Janet's importer as secondary framing.
+- Per-field regulatory citations (requirement basis + section + ttb.gov link per check) confirmed as the underserved differentiator — P2, first in queue after ship-blockers.
+
+**Revision 2.1 — dual-voice review of this revision (Claude 19 findings, Codex 10; full convergence on the top item):** the tolerance rule as first drafted was a category error — CFR tolerances govern label-vs-actual product, not label-vs-application — and created a false-PASS channel (OCR digit misreads landing inside ±1.5 turning real errors green). Fixed with the three-band model: exact→green, within-band→amber confirm (never green, digit-confidence-gated), outside→red; legal warrant restated as allowable-revision item 11 with CFR bands as magnitude only. Bold collapsed to a three-outcome contrast model (no side passes from the heuristic alone; per-direction kill-gates; printed-photo validation). NOT REQUIRED added as a sixth disposition with the wine table/light cross-check. Selector specified end-to-end (form-first, Not-specified default, CSV column, contract amendment, stale-on-change). Net-contents absence coverage-gated. Consistency debt cleared (stale test specs, error-map supersession, coverage-diagram claim, Non-goals line).
+
+| # | Phase | Decision | Classification | Principle | Rationale |
+|---|-------|----------|----------------|-----------|-----------|
+| 35 | Rev2 | Commodity awareness into M2 (reverses gate decision) | **User ratification required** | P1 | Regulatory correctness: absent-ABV wrong for 2 of 3 commodities without it |
+| 36 | Rev2 | ABV three-band model (exact/amber-band/red) | Mechanical | P1 | Both voices: green tolerance-MATCH was a false-PASS channel; category error on CFR grounding |
+| 37 | Rev2 | Bold → three-outcome contrast model | Mechanical | P5 | Both voices: per-side attribution exceeds what the heuristic measures |
+| 38 | Rev2 | NOT REQUIRED disposition + coverage-gated net-contents absence | Mechanical | P1 | Codex: blanket never-MISMATCH was itself a false-PASS channel |
+
+**Doctrine checks (failure/success playbooks — confirmations, no changes):** the plan already sits at the documented intersection — measured slices (M0 gates, CI assertions), humans deciding (screening-only authority), open components behind an interface (national AI Action Plan preference), federated-tier compliance shape (Treasury strategy), evals-as-gates (Palantir/NIST doctrine), and the Algorithm's ordering (requirements questioned at the premise gate before anything was optimized).
 
 ---
 
@@ -342,7 +379,7 @@ APPROACH C: B′ + queue infrastructure  (ideal-architecture variant)
                            | worker crash / OOM           | WorkerDied            | Y        | respawn pool worker          | NEEDS REVIEW (system error) + Retry
                            | model file missing at boot   | StartupError          | Y        | fail /healthz, no traffic    | deploy fails loudly, not silently
   locator                  | warning anchor not found     | (not exceptional)     | Y        | field verdict                | NEEDS REVIEW (absent from label)
-                           | no ABV/net-contents pattern  | (not exceptional)     | Y        | field verdict                | NEEDS REVIEW (absent from label)
+                           | no ABV/net-contents pattern  | (not exceptional)     | Y        | field verdict                | SUPERSEDED (Rev 2.1): commodity-aware — NOT REQUIRED / not-visible / coverage-gated finding
                            | low word confidence (<0.6)   | (not exceptional)     | Y        | field verdict                | NEEDS REVIEW (unreadable) + crop
   batch client             | one item fails               | per-item error        | Y        | row error, rest continue     | red row + per-row Retry
                            | navigate away mid-batch      | beforeunload          | Y        | warn dialog                  | "Batch in progress — leave?"
@@ -392,7 +429,7 @@ No catch-all handlers: the route boundary maps the named taxonomy above; anythin
   NEW INTEGRATIONS: none external (by design)
   NEW ERROR PATHS: all rows of Section 2 table
 ```
-- Unit (pytest): every parser/normalizer/comparator branch incl. boundary ("44.9 vs 45", "0.75 L vs 750 mL", quote unification, NFC); warning diff token cases; caps check on title-case trap; overall-status fold incl. NOT CHECKED exclusion.
+- Unit (pytest): every parser/normalizer/comparator branch incl. boundary (tolerance-band edges per commodity e.g. 40.3 vs 40.31 spirits, class-boundary overrides 14/21/24% and 2.5%/0.5%, range labels, "0.75 L vs 750 mL", quote unification, NFC); warning diff token cases; caps check on title-case trap; overall-status fold incl. NOT CHECKED exclusion.
 - Golden-set eval (M0 harness, pinned OCR version, snapshot expectations): 2am-Friday test = title-case trap yields caps-line MISMATCH; hostile-QA set = cat photo, 0-byte file, PDF renamed .png, 20MB image, script-font brand.
 - Integration: API route happy + every 4xx/timeout path. E2E smoke (Playwright): sample button → verdicts render <5s.
 - Chaos: kill an OCR worker mid-batch → affected row NEEDS REVIEW(system), batch completes.
@@ -435,7 +472,7 @@ No catch-all handlers: the route boundary maps the named taxonomy above; anythin
 ## Required Outputs (CEO phase)
 
 ### NOT in scope
-- Full CFR rules engine w/ citations (TODOS P3) · COLA integration (Marcus: years away) · multi-image front/back (TODOS P2, assumption documented) · retry-with-escalation (TODOS P3) · application-PDF ingestion (TODOS P2) · optional on-prem VLM assist (TODOS P3) · cloud ML anything (user decision) · beverage-type checklist (taste decision at final gate, provisional defer).
+- Full CFR rules engine w/ citations (TODOS P3) · COLA integration (Marcus: years away) · multi-image front/back (TODOS P2, assumption documented) · retry-with-escalation (TODOS P3) · application-PDF ingestion (TODOS P2) · optional on-prem VLM assist (TODOS P3) · cloud ML anything (user decision) · beverage-type checklist — REVERSED at Rev 2.1 gate: core commodity awareness now M2 scope (deeper type rules remain deferred).
 
 ### What already exists
 Greenfield repo (README only). Leverage map: PaddleOCR/OpenCV (Layer-1 OCR + preprocessing), rapidfuzz (fuzzy matching), embedded 27 CFR 16.21 text (statutory constant), FastAPI/Next.js (commodity scaffolding). Nothing is being rebuilt that a maintained library provides.
@@ -603,6 +640,6 @@ Synthesized from all four review phases. P1 blocks ship; P2 lands same branch; P
 
 **VERDICT:** ENG CLEARED — CEO/Design/DX open items are the gate decisions below; ready to implement once the final approval gate resolves.
 
-**APPROVED at final gate (2026-07-31):** user accepted all recommendations — batch mode kept, LIKELY MATCH explicit, beverage-type checklist deferred (TODOS P2), UI constants stand in for a design system.
+**APPROVED at final gate (2026-07-31):** user accepted all recommendations — batch mode kept, LIKELY MATCH explicit, UI constants stand in for a design system. **Rev 2.1 RATIFIED at gate (2026-07-31): research integration approved — commodity awareness into M2 (reversing the earlier deferral), ABV three-band model, NOT REQUIRED disposition, weight-contrast bold model.**
 
 NO UNRESOLVED DECISIONS

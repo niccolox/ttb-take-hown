@@ -7,7 +7,7 @@ Deferred scope from the 2026-07-31 plan review (/autoplan). Format: what / why /
 - [ ] **Retry-with-escalation extraction** — On `readable: partial`, retry with higher effort / image crops before settling on NEEDS REVIEW. Why: fewer human fallbacks; deferred because it adds latency variance against the 5s budget. Effort: M → S. Priority: P3.
 - [x] **Visual field highlighting on the label image** — MOVED INTO SCOPE (M2) by the local-OCR pivot: PaddleOCR bounding boxes make evidence crops reliable, so every verdict shows the image region it was read from.
 - [ ] **Optional VLM assist for hard photos** — When OCR confidence is low, an *on-prem* vision model (behind the `Extractor` interface) could attempt the read before falling back to NEEDS REVIEW. Why: recovers Jenny's worst-photo cases without violating the no-cloud-API decision. Effort: L → M. Priority: P3. Depends on: M0 fidelity data showing where OCR actually fails.
-- [ ] **Beverage-type-aware required-field checklist** — Beer/wine/spirits differ in required fields (e.g., ABV optional for some beer/wine). Status: DEFERRED at /autoplan final gate 2026-07-31. Effort: M → S. Priority: P2.
+- [x] **Beverage-type-aware required-field checklist** — MOVED INTO SCOPE (M2) at Rev 2.1 gate 2026-07-31: regulatory research made it a correctness requirement (absent-ABV wrong for 2 of 3 commodities). Deeper type rules (standards of fill, appellations, age) remain deferred.
 - [ ] **Application-side ingestion (PDF/screenshot of the COLA form)** — Extract application fields automatically so agents don't re-enter data into a standalone tool; without this, total task time may not beat eyeballing. Why: kills the duplicate-entry tax without requiring COLA integration. Effort: M → S. Priority: P2. (Codex CEO voice, finding 9.)
 
 ## From competitor comparison (Esemianczuk/ttb-label-reviewer, 2026-07-31)
@@ -43,3 +43,10 @@ Deferred scope from the 2026-07-31 plan review (/autoplan). Format: what / why /
 
 ## From competitor comparison (ambika-garg/alcohol-label-verification-app, 2026-07-31)
 - [ ] **Full-path reachability assertion in make smoke** — The clean golden sample must produce the all-green verdict through the deployed API path (not just unit-level passes). Why: a competitor shipped a per-unit-tested warning validator whose format sub-check was never wired, making PASS structurally unreachable — 40 green unit tests hid it. Effort: S → S. Priority: P1.
+
+## From regulatory research (27 CFR via eCFR, 2026-07-31)
+- [ ] **P1: Tolerance- and commodity-aware ABV comparison** — Wine ±1.0pp (>14%)/±1.5pp (≤14%), spirits ±0.3pp, malt ±0.3pp with the 0.5% floor; class-boundary overrides (14% wine, 0.5% non-alcoholic). Replaces strict equality AND the earlier ±0.25 guess. Source: §§4.36, 5.65(c), 7.65(c). Priority: P1 — the current plan rule produces false MISMATCHes on legally compliant labels.
+- [ ] **Two-sided warning bold check** — body of the statement may NOT be bold (§16.22(a)(2) second clause); add all-bold adversarial golden case. Priority: P2.
+- [ ] **ABV statement format checks with citations** — three authorized sentence formats + abbreviations (§5.65(b), §7.65(b)) as cited regexes. Priority: P3.
+- [ ] **Commodity-aware absent-ABV disposition** — missing ABV is compliant on ≤14% "table"/"light" wine and unflavored malt; upgrade beverage-type checklist TODO to correctness requirement. Source: §4.36(a), §7.63(a)(3). Priority: P2.
+- [ ] **Molded-in-glass net contents caveat** — spirits/malt net contents may be embossed in the container, invisible in label artwork → "not visible in submitted image", never MISMATCH. Source: §5.63(b)(2), §7.63(a)(5). Priority: P2.
