@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Label Check — TTB label screening (prototype)</title>
+<style>
+:root{
+  --ink:#1b1b1b; --paper:#fafaf8; --line:#d6d2c8; --accent:#005ea2;
+  --green:#2e7d32; --green-bg:#e8f5e9; --amber:#8a6d00; --amber-bg:#fff7d6;
+  --red:#b3261e; --red-bg:#fdecea; --grey:#5f5f5f; --grey-bg:#efefef;
+}
+*{box-sizing:border-box}
+body{margin:0;font:18px/1.5 "Public Sans","DejaVu Sans",system-ui,sans-serif;
+     color:var(--ink);background:var(--paper)}
+header{border-bottom:3px solid var(--accent);padding:14px 24px}
+header h1{font-size:22px;margin:0}
+header p{margin:2px 0 0;color:var(--grey);font-size:16px}
+main{max-width:1180px;margin:0 auto;padding:20px;display:grid;
+     grid-template-columns:420px 1fr;gap:24px}
+@media(max-width:900px){main{grid-template-columns:1fr}}
+h2{font-size:19px;border-bottom:1px solid var(--line);padding-bottom:6px}
+section.panel{background:#fff;border:1px solid var(--line);border-radius:8px;padding:18px}
+label{display:block;font-weight:600;margin:12px 0 4px;font-size:16px}
+input[type=text],select{width:100%;height:48px;font-size:18px;padding:0 12px;
+  border:2px solid var(--line);border-radius:6px;background:#fff}
+input:focus,select:focus,button:focus{outline:3px solid var(--accent);outline-offset:2px}
+.filebtn,button.primary{display:block;width:100%;min-height:48px;font-size:18px;
+  font-weight:700;border-radius:6px;border:2px solid var(--accent);cursor:pointer}
+button.primary{background:var(--accent);color:#fff;margin-top:18px}
+button.primary:disabled{opacity:.5;cursor:wait}
+.filebtn{background:#fff;color:var(--accent);text-align:center;line-height:44px}
+.samples button{display:block;width:100%;text-align:left;margin:6px 0;padding:10px 12px;
+  min-height:44px;border:1px solid var(--line);border-radius:6px;background:#fff;
+  cursor:pointer;font-size:16px}
+.samples .shows{color:var(--grey);font-size:14px;display:block}
+.inline-error{background:var(--red-bg);border:1px solid var(--red);color:var(--red);
+  padding:10px 12px;border-radius:6px;margin-top:12px;display:none}
+#preview{max-width:100%;border:1px solid var(--line);border-radius:6px;margin-top:10px;display:none}
+.banner{padding:16px;border-radius:8px;font-size:20px;font-weight:700;display:none;margin-bottom:14px}
+.banner.green{background:var(--green-bg);color:var(--green);display:block}
+.banner.amber{background:var(--amber-bg);color:var(--amber);display:block}
+.banner.red{background:var(--red-bg);color:var(--red);display:block}
+.row{display:grid;grid-template-columns:170px 110px 1fr 96px;gap:12px;align-items:start;
+  padding:12px 0;border-bottom:1px solid var(--line)}
+.row .fname{font-weight:700}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;
+  font-size:16px;font-weight:700;white-space:nowrap}
+.chip.green{background:var(--green-bg);color:var(--green)}
+.chip.amber{background:var(--amber-bg);color:var(--amber)}
+.chip.red{background:var(--red-bg);color:var(--red)}
+.chip.grey{background:var(--grey-bg);color:var(--grey)}
+.vals{font-size:16px}
+.vals .lbl{color:var(--grey)}
+.note{font-size:15px;color:#444;margin-top:2px}
+.cite{font-size:13px;color:var(--grey);font-style:italic}
+canvas.crop{height:64px;border:1px solid var(--line);border-radius:4px;cursor:zoom-in}
+.sub{margin:6px 0 0 0;padding:8px 10px;background:#f6f5f2;border-radius:6px;font-size:15px}
+.stage{color:var(--grey);font-size:16px;display:none;margin-top:12px}
+dialog{border:2px solid var(--ink);border-radius:8px;max-width:90vw}
+dialog canvas{max-width:86vw}
+.storage-note{font-size:14px;color:var(--grey);margin-top:10px}
+footer{padding:18px 24px;color:var(--grey);font-size:14px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Label Check</h1>
+  <p>TTB label screening — prototype. Screens labels; the agent decides.</p>
+</header>
+<main>
+  <section class="panel" aria-labelledby="start-h">
+    <h2 id="start-h">Start a check</h2>
+    <label for="file" class="filebtn" id="filebtn">Choose label image (PNG/JPG)</label>
+    <input type="file" id="file" accept="image/png,image/jpeg" style="position:absolute;left:-9999px">
+    <img id="preview" alt="Selected label preview">
+    <div class="samples" id="samples" aria-label="Try a sample">
+      <h2 style="margin-top:18px">Try a sample</h2>
+    </div>
+    <form id="form">
+      <label for="bev">Beverage type</label>
+      <select id="bev">
+        <option value="unspecified">Not specified (strictest checks)</option>
+        <option value="wine">Wine</option>
+        <option value="distilled_spirits">Distilled spirits</option>
+        <option value="malt_beverage">Malt beverage (beer)</option>
+      </select>
+      <label for="brand">Brand name</label><input type="text" id="brand" autocomplete="off">
+      <label for="ct">Class / type</label><input type="text" id="ct" autocomplete="off">
+      <label for="abv">Alcohol content</label><input type="text" id="abv" placeholder="e.g. 45% Alc./Vol.">
+      <label for="net">Net contents</label><input type="text" id="net" placeholder="e.g. 750 mL">
+      <p class="note">The Government Warning is always checked — no entry needed.</p>
+      <button class="primary" id="go" type="submit">Verify label</button>
+      <div class="inline-error" id="err" role="alert"></div>
+      <p class="stage" id="stage" aria-live="polite"></p>
+    </form>
+    <p class="storage-note">Results are stored only in this browser tab.</p>
+  </section>
+
+  <section class="panel" aria-labelledby="res-h">
+    <h2 id="res-h">Selected label — results</h2>
+    <div class="banner" id="banner"></div>
+    <div id="rows"></div>
+    <p class="note" id="empty">No results yet — choose an image (or a sample) and press
+      <strong>Verify label</strong>.</p>
+    <button class="primary" id="again" style="display:none" type="button">Check another label</button>
+  </section>
+</main>
+<dialog id="zoom"><canvas id="zoomc"></canvas><p class="note">Region outlined on the full label. Press Esc to close.</p></dialog>
+<footer>Prototype for the Treasury take-home exercise — not an official TTB system; no
+  approval authority. Type size, placement, and contrast are not checked (27 CFR §16.22).</footer>
+<script src="app.js"></script>
+</body>
+</html>
