@@ -163,6 +163,7 @@ class Locator:
     def find_warning(self, expected_tokens: int = 44) -> LocatedField:
         anchor_idx = next((i for i, l in enumerate(self.lines)
                            if WARNING_ANCHOR_RE.search(l.text)), None)
+        self._warning_block: list[Line] = []
         if anchor_idx is None:
             return LocatedField(found=False)
         block = [self.lines[anchor_idx]]
@@ -177,8 +178,23 @@ class Locator:
             prev = line
             if tokens >= expected_tokens:
                 break
+        self._warning_block = block
         text = whitespace_only(" ".join(l.text for l in block))
         return LocatedField(found=True, text=text,
                             box=union([l.box for l in block]),
                             score=100.0,
                             min_conf=min(l.min_conf for l in block))
+
+    def warning_prefix_body(self):
+        """After find_warning(): (prefix_box, body_box) for the weight-contrast
+        heuristic — prefix = the anchor's first two words ('GOVERNMENT WARNING:'),
+        body = the remainder of the block. None when unavailable."""
+        block = getattr(self, "_warning_block", [])
+        if not block:
+            return None
+        first = block[0]
+        prefix_words = first.words[:2]
+        body_boxes = [w.box for w in first.words[2:]] +             [w.box for line in block[1:] for w in line.words]
+        if not prefix_words or not body_boxes:
+            return None
+        return union([w.box for w in prefix_words]), union(body_boxes)

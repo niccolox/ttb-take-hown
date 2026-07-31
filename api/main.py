@@ -134,7 +134,9 @@ async def api_verify(image: UploadFile = File(...), application: str = Form("{}"
         except Exception:
             return JSONResponse({"error": "This check didn't finish — retry.",
                                  "code": "system_error"}, status_code=500)
-    result = verify(words, app_data)
+    import numpy as np
+    gray = np.array(img.convert("L"))
+    result = verify(words, app_data, image_gray=gray)
     result["timing_ms"]["ocr"] = round((time.perf_counter() - t0) * 1000)
     return result
 

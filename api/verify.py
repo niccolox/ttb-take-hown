@@ -83,7 +83,7 @@ def _text_field(name: str, expected: str | None, locator: Locator) -> FieldResul
                        "Application and label differ.", _evidence(loc))
 
 
-def verify(words: list[Word], application: dict) -> dict:
+def verify(words: list[Word], application: dict, image_gray=None) -> dict:
     t0 = time.perf_counter()
     bev = BevType(application.get("beverage_type", "unspecified"))
     locator = Locator(words)
@@ -159,8 +159,15 @@ def verify(words: list[Word], application: dict) -> dict:
 
     # government warning — always-on
     warn_loc = locator.find_warning()
+    wc_outcome = "unknown"
+    if warn_loc.found and image_gray is not None:
+        regions = locator.warning_prefix_body()
+        if regions:
+            from .rules.contrast import weight_contrast
+            wc_outcome, _wc_detail = weight_contrast(image_gray, *regions)
     wr = validate_warning(warn_loc.text if warn_loc.found else None,
-                          region_quality_ok=(warn_loc.min_conf >= CONF_FLOOR) if warn_loc.found else True)
+                          region_quality_ok=(warn_loc.min_conf >= CONF_FLOOR) if warn_loc.found else True,
+                          weight_contrast=wc_outcome)
     sub = [{"check": c.value, "outcome": wr.outcomes[c].value, "detail": wr.details[c]}
            for c in SubCheck if c in wr.outcomes]
     text_o = wr.outcomes.get(SubCheck.TEXT)
