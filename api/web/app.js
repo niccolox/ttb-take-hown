@@ -36,6 +36,8 @@ const ITEM_STATES = {   // item lifecycle (UI spec: named states)
  *  alcohol_content,net_contents}, state, result, override, stale} */
 let items = [];
 let selectedId = null;
+let sessionDirty = false;         // tab state diverges from the DuckDB store
+let lastSavedAt = null;
 let running = false, cancelRequested = false;
 let filter = "all";
 
@@ -60,6 +62,7 @@ async function addItem(panelFiles, app = {}, registry = null) {
     panels.push({ file: p.file, panel: p.panel || "front",
                   bitmap: await createImageBitmap(p.file).catch(() => null) });
   }
+  markSessionDirty();
   items.push({ id, file: f, bitmap: panels[0].bitmap, panels, registry,
                app: { beverage_type: "unspecified", brand_name: "", class_type: "",
                       fanciful_name: "", origin: "", vintage: "", appellation: "",
@@ -191,6 +194,19 @@ function itemState(it) {        // the reviewer's override IS the main status
   return autoState(it);
 }
 
+function markSessionDirty() {
+  sessionDirty = true;
+  updateSaveButton();
+}
+
+function updateSaveButton() {
+  const btn = $("saveSession");
+  if (btn.disabled) return;                       // mid-save; persistSession restores it
+  btn.textContent = sessionDirty || !lastSavedAt
+    ? "Save session" + (sessionDirty && lastSavedAt ? " •" : "")
+    : `Saved ✓ ${lastSavedAt.slice(11, 16)}`;
+}
+
 function itemTitle(it) {
   // Applications are identified the way TTB identifies them: brand name plus
   // fanciful name ('Chateau Le Coteau — "Pelopee"'); the filename is the
@@ -243,6 +259,7 @@ function renderList() {
   }
   $("filters").style.display = items.length > 1 ? "flex" : "none";
   $("saveSession").style.display = items.length ? "inline-block" : "none";
+  updateSaveButton();
   for (const btn of $("filters").querySelectorAll("button")) {
     btn.setAttribute("aria-pressed", String(btn.dataset.f === filter));
     const c = counts[btn.dataset.f];
@@ -397,7 +414,7 @@ function renderDetail() {
     <p class="note">The Government Warning is always checked — no entry needed.</p>`;
   form.addEventListener("change", (e) => {
     const k = e.target.dataset.k;
-    if (k) { it.app[k] = e.target.value.trim(); markStale(it); renderList();
+    if (k) { it.app[k] = e.target.value.trim(); markStale(it); markSessionDirty(); renderList();
              if (it.stale) staleNote.style.display = "block"; }
   });
   d.appendChild(form);
@@ -551,6 +568,7 @@ function renderResult(container, it) {
                     `${pad(now.getHours())}:${pad(now.getMinutes())}`;
       it.override = { value: v, at: stamp, original: auto };
     }
+    markSessionDirty();
     renderDetail(); renderList();
     persistSession().catch(() => err("Decision kept in this tab — saving to the server failed."));
   });
@@ -624,6 +642,7 @@ async function runOne(it) {
     if (!res.ok) throw new Error(body.error || "This check didn't finish — retry.");
     it.result = body; it.state = "done"; it.errorMsg = null;
     it.elapsedMs = performance.now() - t0;
+    markSessionDirty();
   } catch (e) {
     it.state = "error"; it.errorMsg = e.message;
   }
@@ -811,9 +830,12 @@ async function persistSession(showProgress = false) {
   const res = await fetch("/api/session", { method: "POST", body: fd });
   const body = await res.json();
   if (!res.ok) throw new Error(body.error || "Save failed — retry.");
+  sessionDirty = false;
+  lastSavedAt = body.saved_at || null;
   if (showProgress) {
     $("progress").textContent = `Session saved (${items.length} labels) at ${body.saved_at}.`;
   }
+  updateSaveButton();
   refreshSessionUI();
   return body;
 }
@@ -827,7 +849,7 @@ $("saveSession").addEventListener("click", async () => {
   } catch (e) {
     err(e.message);
   } finally {
-    btn.disabled = false; btn.textContent = "Save session";
+    btn.disabled = false; updateSaveButton();
   }
 });
 
@@ -863,8 +885,11 @@ $("restoreBtn").addEventListener("click", async () => {
       it.override = rec.override || null;
     }
     if (items.length && selectedId === null) select(items[0].id);
+    sessionDirty = false;
+    lastSavedAt = s.saved_at || null;
     $("progress").textContent = `Restored ${s.items.length} label(s) from the saved session.`;
     renderList(); renderDetail();
+    updateSaveButton();
   } catch {
     err("Couldn't restore the saved session — retry.");
   } finally {
