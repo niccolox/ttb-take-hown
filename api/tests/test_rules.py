@@ -37,8 +37,21 @@ def test_titlecase_trap_fails_caps_only():
     text = STATUTORY_WARNING.replace("GOVERNMENT WARNING:", "Government Warning:")
     r = validate_warning(text)
     assert r.outcomes[SubCheck.PREFIX_CAPS] == Outcome.FAIL
-    # body wording is otherwise correct → text check FAILS too (prefix token differs)
-    assert r.outcomes[SubCheck.TEXT] == Outcome.FAIL
+    # wording is correct — the failure is (only) the caps requirement, so the
+    # trap is reported by the sub-check that names the actual defect
+    assert r.outcomes[SubCheck.TEXT] == Outcome.PASS
+
+
+def test_all_caps_body_passes():
+    """Common on real labels: entire warning printed in capitals. §16.21 fixes
+    the words, not the body's case — 'ACCORDING' vs 'According' must PASS."""
+    r = validate_warning(STATUTORY_WARNING.upper(), weight_contrast="ok")
+    assert r.outcomes[SubCheck.TEXT] == Outcome.PASS
+    assert r.outcomes[SubCheck.PREFIX_CAPS] == Outcome.PASS
+    # and a real wording change in a caps body still fails
+    bad = STATUTORY_WARNING.upper().replace("BIRTH DEFECTS", "BIRTH DEFECT")
+    r2 = validate_warning(bad)
+    assert r2.outcomes[SubCheck.TEXT] == Outcome.FAIL
 
 def test_word_substitution_trap():
     text = STATUTORY_WARNING.replace("birth defects", "birth defect")
@@ -289,3 +302,43 @@ def test_verify_multi_match_beats_not_found():
     merged = verify_multi([(front, None), (back, None)], app)
     by = {f["field"]: f for f in merged["fields"]}
     assert by["brand_name"]["status"] == "MATCH"      # back's not-found never demotes
+
+
+def test_recover_orphans_panel_suffix_grouping(tmp_path, monkeypatch):
+    """Panel files ({ttb_id}_back.jpg) must never be looked up as TTB IDs
+    (the 404 '26203001000245_back not found' bug), and panels of one COLA
+    recover into ONE entry."""
+    import api.eval.colacloud_pipeline as cp
+    d = tmp_path / "wine"; d.mkdir()
+    # entry already in manifest, with panel files referenced
+    (d / "111_front.jpg").write_bytes(b"x"); (d / "111_back.jpg").write_bytes(b"x")
+    # true orphan with two panels
+    (d / "222_front.jpg").write_bytes(b"x"); (d / "222_back.jpg").write_bytes(b"x")
+    manifest = [{"id": "111", "file": "111_front.jpg",
+                 "files": [{"file": "111_front.jpg", "panel": "front"},
+                           {"file": "111_back.jpg", "panel": "back"}],
+                 "application": {}, "provenance": {}}]
+    (d / "manifest.json").write_text(__import__("json").dumps(manifest))
+    monkeypatch.setattr(cp, "OUT_BASE", tmp_path)
+
+    looked_up = []
+    class FakeColas:
+        def get(self, tid):
+            looked_up.append(tid)
+            return {"ttb_id": tid, "brand_name": "B", "class_name": "C",
+                    "abv": 12.0, "volume": 750, "volume_unit": "milliliters"}
+    class FakeClient:
+        colas = FakeColas()
+        def close(self): pass
+    monkeypatch.setattr(cp, "setup_logging", lambda: None)
+    import colacloud
+    monkeypatch.setattr(colacloud, "ColaCloud", lambda api_key: FakeClient())
+    monkeypatch.setattr(cp.time, "sleep", lambda s: None)
+
+    n = cp.recover_orphans("wine", api_key="k")
+    assert looked_up == ["222"]          # never '222_back', never '111*'
+    out = __import__("json").loads((d / "manifest.json").read_text())
+    assert len(out) == 2 and n == 2
+    e = [m for m in out if m["id"] == "222"][0]
+    assert e["file"] == "222_front.jpg"
+    assert [f["panel"] for f in e["files"]] == ["front", "back"]

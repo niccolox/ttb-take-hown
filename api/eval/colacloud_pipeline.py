@@ -26,6 +26,7 @@ import json
 import logging
 import logging.handlers
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -290,24 +291,52 @@ def recover_orphans(tname: str, *, api_key: str, sleep: float = 8.0,
         return 0
     manifest = _load_manifest(out_dir)
     have = {m["id"] for m in manifest}
-    orphans = [p for p in sorted(out_dir.glob("*.jpg")) + sorted(out_dir.glob("*.png"))
-               if p.stem not in have]
-    log.info("recover_orphans: type=%s manifest=%d orphans=%d", tname, len(have), len(orphans))
-    if not orphans:
+    # A file is an orphan only if NO manifest entry references it. Panel files
+    # are named {ttb_id}_{panel}.ext — the stem is NOT the TTB ID, so strip the
+    # panel suffix to key the detail lookup, and group panels of the same COLA
+    # into one recovered entry (one detail view per COLA, not per file).
+    referenced = {m["file"] for m in manifest}
+    for m in manifest:
+        referenced.update(f_["file"] for f_ in m.get("files") or [])
+    by_id: dict[str, list[Path]] = {}
+    for p in sorted(out_dir.glob("*.jpg")) + sorted(out_dir.glob("*.png")):
+        if p.name in referenced:
+            continue
+        ttb_id = re.sub(r"_(front|back|main|unknown)$", "", p.stem)
+        if ttb_id in have:          # entry exists; stray panel file, not an orphan
+            continue
+        by_id.setdefault(ttb_id, []).append(p)
+    log.info("recover_orphans: type=%s manifest=%d orphans=%d (files=%d)",
+             tname, len(have), len(by_id), sum(len(v) for v in by_id.values()))
+    if not by_id:
         return len(manifest)
 
     client = ColaCloud(api_key=api_key)
     try:
-        for p in orphans:
-            detail = _with_rate_limit(lambda p=p: client.colas.get(p.stem),
-                                      progress=progress)
+        for ttb_id, paths in by_id.items():
+            try:
+                detail = _with_rate_limit(lambda t=ttb_id: client.colas.get(t),
+                                          progress=progress)
+            except Exception as exc:
+                if "404" in str(exc):   # not a real COLA id — skip, don't kill the run
+                    log.warning("recover_orphans: %s not found in registry — skipped", ttb_id)
+                    progress(f"skipped {ttb_id}: not found in registry")
+                    time.sleep(sleep)
+                    continue
+                raise
             d = detail.model_dump() if hasattr(detail, "model_dump") else dict(detail)
-            entry = build_entry(d, bev, p.name)
+            # front first so entry["file"] (the UI's primary image) is the front
+            panel_of = lambda p: (re.search(r"_(front|back|main|unknown)$", p.stem)
+                                  or [None, "front"])[1]
+            paths.sort(key=lambda p: 0 if panel_of(p) in ("front", "main") else 1)
+            entry = build_entry(d, bev, paths[0].name)
+            entry["files"] = [{"file": p.name, "panel": panel_of(p)} for p in paths]
             entry["provenance"]["image_panel"] = "recovered"
             manifest.append(entry)
             _save_manifest(out_dir, manifest)
-            log.info("recovered %s brand=%r", p.stem, d.get("brand_name"))
-            progress(f"recovered {p.stem}: {d.get('brand_name','')[:40]}")
+            log.info("recovered %s panels=%s brand=%r", ttb_id,
+                     [p.name for p in paths], d.get("brand_name"))
+            progress(f"recovered {ttb_id}: {d.get('brand_name','')[:40]}")
             time.sleep(sleep)
         return len(manifest)
     except Exception:

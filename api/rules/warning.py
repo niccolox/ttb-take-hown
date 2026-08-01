@@ -49,11 +49,15 @@ class WarningResult:
 
 
 def word_diff(expected: str, found: str) -> list[tuple[str, str]]:
-    """Word-level diff after whitespace-only normalization, case-sensitive tokens
-    (PLAN.md: tokenize on whitespace after the comparator's normalization)."""
+    """Word-level diff after whitespace-only normalization. Tokens match
+    case-insensitively: §16.21 prescribes the WORDS; capitals are mandated only
+    for the "GOVERNMENT WARNING:" heading (§16.22(a)(2)), which the separate
+    prefix_caps sub-check enforces on raw OCR. All-caps bodies are common and
+    compliant — 'ACCORDING' vs 'According' is not a wording deviation."""
     e, f = whitespace_only(expected).split(), whitespace_only(found).split()
+    ec, fc = [t.casefold() for t in e], [t.casefold() for t in f]
     out = []
-    for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, e, f).get_opcodes():
+    for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, ec, fc).get_opcodes():
         if op == "equal":
             out.extend(("equal", t) for t in e[i1:i2])
         else:
