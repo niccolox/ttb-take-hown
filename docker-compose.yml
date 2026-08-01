@@ -6,4 +6,6 @@ services:
     mem_limit: 4g          # PaddleOCR + buffers; exit 137 during warmup = raise this
     environment:
       - PORT=8123
-      - COLACLOUD_API_KEY=${COLACLOUD_API_KEY:-}   # read from .env (or shell) for registry pipelines
+    env_file:                  # host .env → container env (registry pipelines key)
+      - path: .env
+        required: false        # compose runs fine when .env doesn't exist yet

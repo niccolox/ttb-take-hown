@@ -11,7 +11,9 @@ services:
     mem_limit: 4g
     environment:
       - PORT=8123
-      - COLACLOUD_API_KEY=${COLACLOUD_API_KEY:-}   # pass through for registry pipelines
+    env_file:                  # host .env → container env (registry pipelines key)
+      - path: .env
+        required: false
     volumes:
       - ./api:/app/api          # live source (code, web UI, eval corpora incl. pulls)
       - ./scripts:/app/scripts
