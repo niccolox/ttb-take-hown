@@ -53,6 +53,28 @@ def test_all_caps_body_passes():
     r2 = validate_warning(bad)
     assert r2.outcomes[SubCheck.TEXT] == Outcome.FAIL
 
+
+def test_ocr_space_drop_passes():
+    """OCR often glues adjacent words ('BEVERAGESDURING'). Spacing is not a
+    §16.21 wording requirement — whitespace-stripped char stream must be equal,
+    so a space drop passes but a real word change still fails."""
+    glued = STATUTORY_WARNING.replace("beverages during", "beveragesduring")
+    r = validate_warning(glued)
+    assert r.outcomes[SubCheck.TEXT] == Outcome.PASS
+    still_bad = STATUTORY_WARNING.replace("beverages during", "beverageduring")  # word changed too
+    assert validate_warning(still_bad).outcomes[SubCheck.TEXT] == Outcome.FAIL
+
+
+def test_trailing_neighbor_text_passes_interior_insert_fails():
+    """The located region may absorb the next label line (real case: back strip
+    ends '... HEALTH PROBLEMS. IMPORTED BY:'). Trailing neighbor copy is not a
+    wording defect; text inserted INSIDE the statement still fails."""
+    r = validate_warning(STATUTORY_WARNING.upper() + " IMPORTED BY: SOMEONE")
+    assert r.outcomes[SubCheck.TEXT] == Outcome.PASS
+    interior = STATUTORY_WARNING.replace("(2) Consumption",
+                                         "ENJOY RESPONSIBLY (2) Consumption")
+    assert validate_warning(interior).outcomes[SubCheck.TEXT] == Outcome.FAIL
+
 def test_word_substitution_trap():
     text = STATUTORY_WARNING.replace("birth defects", "birth defect")
     r = validate_warning(text)

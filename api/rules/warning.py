@@ -108,8 +108,18 @@ def validate_warning(extracted_verbatim: str | None,
     else:
         diff = word_diff(STATUTORY_WARNING, extracted_verbatim)
         exact = all(op == "equal" for op, _ in diff)
+        if not exact:
+            # OCR word segmentation is unreliable (dropped/inserted spaces yield
+            # tokens like "BEVERAGESDURING"), and the located region can absorb a
+            # neighboring line (e.g. a trailing "IMPORTED BY:"). The statute
+            # prescribes the words: pass iff the full statutory statement appears
+            # CONTIGUOUSLY in the whitespace-stripped character stream — any
+            # wording change, omission, or interior insertion breaks containment.
+            squash = lambda s: "".join(whitespace_only(s).casefold().split())
+            exact = squash(STATUTORY_WARNING) in squash(extracted_verbatim)
         outcomes[SubCheck.TEXT] = Outcome.PASS if exact else Outcome.FAIL
-        details[SubCheck.TEXT] = plain_sentence(diff)
+        details[SubCheck.TEXT] = ("The label's warning text matches the required text."
+                                  if exact else plain_sentence(diff))
         result_diff = diff
     caps = bool(PREFIX_CAPS_RE.search(extracted_verbatim))
     outcomes[SubCheck.PREFIX_CAPS] = Outcome.PASS if caps else Outcome.FAIL
