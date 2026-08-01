@@ -15,7 +15,7 @@ Usage:
 Quota notes (docs.colacloud.us): each detail fetch counts against the monthly
 detail-view quota (free tier: 200/mo, 10 req/min burst). The pipeline sleeps
 between detail calls and prints remaining quota from the response headers.
-Output: api/eval/colacloud/{wine|beer|spirits}/ + manifest.json per type,
+Output: api/eval/colacloud/<type>/ + manifest.json per type (one dir per TYPES key),
 auto-registered as UI eval sets by api/main.py.
 """
 
@@ -190,7 +190,8 @@ def pick_panels(detail: dict) -> list[tuple[str, str]]:
     if not panels:
         url, pos = pick_image(detail)
         if url:
-            panels.append((url, pos or "front"))
+            pos = pos if pos in ("front", "back", "main") else "unknown"
+            panels.append((url, pos))
     return panels
 
 
@@ -199,14 +200,20 @@ def _load_manifest(out_dir: Path) -> list[dict]:
     if p.exists():
         try:
             return json.loads(p.read_text())
-        except json.JSONDecodeError:
-            return []
+        except json.JSONDecodeError as exc:
+            # NEVER treat a corrupt manifest as empty — a subsequent save would
+            # overwrite the whole corpus's metadata. Abort loudly instead.
+            raise RuntimeError(
+                f"{p} is corrupt ({exc}); refusing to continue — restore it from "
+                f"git/backup or delete the directory to re-pull") from exc
     return []
 
 
 def _save_manifest(out_dir: Path, manifest: list[dict]) -> None:
-    (out_dir / "manifest.json").write_text(
-        json.dumps(manifest, indent=2, ensure_ascii=False, default=str))  # SDK dates
+    # atomic: a reader (or a crash) never sees a half-written manifest
+    tmp = out_dir / "manifest.json.tmp"
+    tmp.write_text(json.dumps(manifest, indent=2, ensure_ascii=False, default=str))
+    os.replace(tmp, out_dir / "manifest.json")
 
 
 def _with_rate_limit(fn, *, progress, attempts: int = 4):
@@ -219,8 +226,7 @@ def _with_rate_limit(fn, *, progress, attempts: int = 4):
             if "429" not in msg and "Too many requests" not in msg:
                 raise
             wait = 65
-            import re as _re
-            if m := _re.search(r"retry after (\d+)", msg):
+            if m := re.search(r"retry after (\d+)", msg):
                 wait = int(m.group(1)) + 5
             if i == attempts - 1:
                 log.error("rate limit: giving up after %d attempts: %s", attempts, msg[:200])
@@ -292,6 +298,9 @@ def pull_type(tname: str, *, api_key: str, per_type: int = 4, query: str | None 
             detail = _with_rate_limit(lambda s=summary: client.colas.get(s.ttb_id),
                                       progress=progress)
             d = detail.model_dump() if hasattr(detail, "model_dump") else dict(detail)
+            if not re.fullmatch(r"\d{8,16}", str(summary.ttb_id) or ""):
+                log.warning("skipping non-numeric ttb_id %r (filename safety)", summary.ttb_id)
+                continue
             panels = pick_panels(d)
             if not panels:
                 time.sleep(sleep)

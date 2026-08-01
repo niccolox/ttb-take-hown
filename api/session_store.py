@@ -37,7 +37,8 @@ def _connect():
         """)
     # verification-status columns (added after v1 — migrate in place)
     for col, typ in (("verification_status", "TEXT"), ("final_status", "TEXT"),
-                     ("review_complete", "BOOLEAN"), ("elapsed_ms", "INTEGER")):
+                     ("review_complete", "BOOLEAN"), ("elapsed_ms", "INTEGER"),
+                     ("registry", "TEXT")):
         con.execute(f"ALTER TABLE session_items ADD COLUMN IF NOT EXISTS {col} {typ}")
     con.execute("""
         CREATE TABLE IF NOT EXISTS session_panels (
@@ -65,14 +66,16 @@ def save_session(items: list[dict], panel_blobs: list[tuple[int, str, str, str, 
                 con.execute(
                     """INSERT INTO session_items
                        (idx, file_name, state, override, application, result,
-                        verification_status, final_status, review_complete, elapsed_ms)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        verification_status, final_status, review_complete, elapsed_ms,
+                        registry)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     [i, it.get("file_name") or "", it.get("state") or "waiting",
                      json.dumps(ov) if ov is not None else None,
                      json.dumps(it.get("application") or {}),
                      json.dumps(it["result"]) if it.get("result") else None,
                      it.get("verification_status"), it.get("final_status"),
-                     bool(it.get("review_complete")), it.get("elapsed_ms")])
+                     bool(it.get("review_complete")), it.get("elapsed_ms"),
+                     json.dumps(it["registry"]) if it.get("registry") else None])
             for idx, panel, fname, mime, data in panel_blobs:
                 con.execute("INSERT INTO session_panels VALUES (?, ?, ?, ?, ?)",
                             [idx, panel, fname, mime, data])
@@ -101,7 +104,8 @@ def load_session() -> dict | None:
                 return None
             rows = con.execute("""
                 SELECT idx, file_name, state, override, application, result,
-                       verification_status, final_status, review_complete, elapsed_ms
+                       verification_status, final_status, review_complete, elapsed_ms,
+                       registry
                 FROM session_items ORDER BY idx""").fetchall()
             panels = con.execute("""
                 SELECT item_idx, panel, file_name FROM session_panels
@@ -119,9 +123,10 @@ def load_session() -> dict | None:
                     "verification_status": vstatus, "final_status": fstatus,
                     "review_complete": bool(complete) if complete is not None else False,
                     "elapsed_ms": elapsed,
+                    "registry": json.loads(registry) if registry else None,
                     "panels": by_item.get(idx, []),
                 } for idx, fname, state, override, app, result,
-                      vstatus, fstatus, complete, elapsed in rows],
+                      vstatus, fstatus, complete, elapsed, registry in rows],
             }
         finally:
             con.close()

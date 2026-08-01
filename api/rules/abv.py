@@ -42,7 +42,9 @@ RANGE_RE = re.compile(rf"(?:ALC(?:OHOL)?\.?\s*)?{_PCT}\s*%?\s*TO\s*{_PCT}\s*%", 
 PCT_RE = re.compile(
     rf"(?:ALC(?:OHOL)?\.?\s*)?{_PCT}\s*%\s*(?:ALC(?:OHOL)?\.?)?\s*(?:/|BY)?\s*(?:VOL(?:UME)?\.?)?"
     rf"|ALC(?:OHOL)?\.?\s*{_PCT}\s*(?:%|PERCENT)", re.I)
-PROOF_RE = re.compile(rf"{_PCT}\s*PROOF", re.I)
+# proof needs 3 digits (80-151 proof spirits are routine); \b stops "101" matching as "01"
+_PROOF_NUM = r"(\d{1,3}(?:\.\d{1,2})?)"
+PROOF_RE = re.compile(rf"\b{_PROOF_NUM}\s*PROOF", re.I)
 
 
 def parse_abv(text: str) -> AbvReading:

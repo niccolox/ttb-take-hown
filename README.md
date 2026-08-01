@@ -143,12 +143,12 @@ specified in [PLAN.md](PLAN.md) and is deliberately not shipped un-measured.
 
 ## What's deliberately out (and where that's written down)
 
-Single image per label (real filings upload each panel separately — the top
-deferred item), standards of fill/appellations/age statements, COLA
-integration, auth/persistence, type-size and placement rules (physical-scale
-checks a photo can't prove — each labeled "not checked" with its §16.22
-citation in the UI). Full ledger: [TODOS.md](TODOS.md); every scope decision
-with rationale: [PLAN.md](PLAN.md) (38-decision audit trail).
+Standards of fill/appellations/age statements, COLA e-filing integration,
+authentication, type-size and placement rules (physical-scale checks a photo
+can't prove — each labeled "not checked" with its §16.22 citation in the UI).
+Multi-panel (front+back) labels and session persistence, once deferred, have
+since shipped. Full ledger: [TODOS.md](TODOS.md); every scope decision with
+rationale: [PLAN.md](PLAN.md) (38-decision audit trail).
 
 ## How this was built (the paper trail)
 
@@ -170,10 +170,15 @@ with rationale: [PLAN.md](PLAN.md) (38-decision audit trail).
 
 ## Assumptions & trade-offs (summary)
 
-Application data is agent-entered (no COLA feed); one image per label
-(stated in-UI); English labels; bold-weight measurement is conservative by
-contract; results live only in the browser tab (stateless server, nothing
-stored); public-demo hardening (rate limiting, per-IP caps) is specified in
-PLAN.md but not enabled by default in the local build. The honest failure
+Application data is agent-entered or loaded from COLA Cloud registry pulls;
+up to 4 label panels per application (front+back pairing in-UI); English
+labels; bold-weight measurement is conservative by contract. Review sessions
+(including uploaded label images and agent decisions) auto-save server-side
+to a DuckDB store at `api/data/state.duckdb` — "Clear saved session" (or
+`DELETE /api/session`) wipes it; the store is gitignored and stays on the
+host. Beyond `/api/verify`, the full HTTP surface (sessions, eval corpora,
+registry pipelines) is browsable at `/docs`. Public-demo hardening (rate
+limiting, per-IP caps) is specified in PLAN.md but not enabled by default
+in the local build. The honest failure
 mode everywhere is **NEEDS REVIEW with a reason and a crop** — never a
 confident wrong answer.

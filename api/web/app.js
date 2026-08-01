@@ -405,7 +405,8 @@ function renderDetail() {
     img.className = "thumb";
     img.alt = `${p.panel} label panel ${p.file.name}`;
     if ((it.panels || []).length > 1) img.title = `${p.panel} panel`;
-    p.file.arrayBuffer().then(() => { img.src = URL.createObjectURL(p.file); });
+    p.thumbUrl ||= URL.createObjectURL(p.file);   // one URL per panel, reused across renders
+    img.src = p.thumbUrl;
     d.appendChild(img);
     if ((it.panels || []).length > 1) {
       const cap = document.createElement("div");
@@ -612,7 +613,7 @@ function renderResult(container, it) {
     }
     markSessionDirty();
     renderDetail(); renderList();
-    persistSession().catch(() => err("Decision kept in this tab — saving to the server failed."));
+    schedulePersist();                       // debounced — decisions still auto-save
   });
 
   const sorted = [...r.fields].sort((a, b) =>
@@ -698,7 +699,7 @@ function renderResult(container, it) {
     }
     markSessionDirty();
     renderDetail(); renderList();
-    persistSession().catch(() => err("Decision kept in this tab — saving to the server failed."));
+    schedulePersist();                       // debounced — decisions still auto-save
   });
   container.appendChild(ovBox);
 }
@@ -909,8 +910,9 @@ async function renderPipelines() {
     ? "Pull real approved COLAs per commodity; the registry record is the ground truth."
     : "Set COLACLOUD_API_KEY on the server (free key at app.colacloud.us) to enable pulls.";
   let anyRunning = false;
-  for (const t of ["wine", "beer", "spirits", "imported_wine", "champagne"]) {
+  for (const t of Object.keys(data.pipelines)) {   // server is the source of truth
     const st = data.pipelines[t];
+    if (!st) continue;
     if (st.status === "running") anyRunning = true;
     const b = document.createElement("button");
     b.type = "button";
@@ -962,7 +964,7 @@ async function persistSession(showProgress = false) {
   for (const it of items) {
     const panels = (it.panels || []).map((p) => ({ panel: p.panel, file: p.file.name }));
     meta.push({ file_name: it.file.name, state: it.state, override: packOverride(it),
-                application: it.app, result: it.result, panels,
+                application: it.app, result: it.result, panels, registry: it.registry || null,
                 verification_status: autoState(it),      // machine verdict
                 final_status: itemState(it),             // after agent decisions
                 review_complete: reviewComplete(it),
@@ -998,6 +1000,8 @@ $("saveSession").addEventListener("click", async () => {
 
 $("clearSession").addEventListener("click", async () => {
   err("");
+  clearTimeout(persistTimer);              // a scheduled save must not resurrect the session
+  sessionDirty = false;
   await fetch("/api/session", { method: "DELETE" });
   $("progress").textContent = "Saved session cleared.";
   refreshSessionUI();
@@ -1017,7 +1021,7 @@ async function restoreSession({ quiet = false } = {}) {
                           panel: p.panel });
       }
       if (!panelFiles.length) continue;
-      const it = await addItem(panelFiles, rec.application);
+      const it = await addItem(panelFiles, rec.application, rec.registry || null);
       if (!it) continue;                       // already in the tab — don't double-import
       it.result = rec.result;
       it.state = rec.result ? "done" : (rec.state === "error" ? "waiting" : rec.state);

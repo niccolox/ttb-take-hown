@@ -134,17 +134,32 @@ class Locator:
         want = loose(expected)
         span = max_tokens or (len(expected.split()) + 2)
         best = LocatedField(found=False)
-        scores: list[float] = []
+        candidates: list[tuple[float, tuple, str]] = []  # (score, box, loose text)
         for text, boxes, conf in self._windows(span):
             s = fuzz.token_sort_ratio(want, loose(text))
-            scores.append(s)
+            candidates.append((s, union(boxes), loose(text)))
             if s > best.score:
                 best = LocatedField(found=s >= threshold, text=text, box=union(boxes),
                                     score=s, min_conf=conf)
-        top_others = sorted((s for s in scores if s < best.score), reverse=True)
-        # runner-up must come from a *different* region; approximation: next
-        # distinct score value
-        best.runner_up = top_others[0] if top_others else 0.0
+        # Ambiguity = a DIFFERENT READING scores close, in a different region.
+        # The same text printed twice (brand line + bottled-by line) is not
+        # ambiguous — either pick yields the same verdict. But an exact-tie
+        # with different text (e.g. scrambled word order) must flag: the old
+        # strict '<' dropped those ties silently.
+        def overlaps(a, b):
+            if not a or not b:
+                return False
+            ix = min(a[2], b[2]) - max(a[0], b[0])
+            iy = min(a[3], b[3]) - max(a[1], b[1])
+            if ix <= 0 or iy <= 0:
+                return False
+            inter = ix * iy
+            smaller = min((a[2]-a[0]) * (a[3]-a[1]), (b[2]-b[0]) * (b[3]-b[1]))
+            return smaller > 0 and inter / smaller > 0.5
+        best_text = loose(best.text)
+        rivals = [s for s, box, t in candidates
+                  if t != best_text and not overlaps(box, best.box)]
+        best.runner_up = max(rivals) if rivals else 0.0
         best.ambiguous = best.found and (best.score - best.runner_up) < AMBIGUITY_MARGIN \
             and best.runner_up >= threshold
         return best

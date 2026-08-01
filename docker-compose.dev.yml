@@ -11,7 +11,7 @@ services:
   labelcheck-dev:
     build: .
     ports:
-      - "8123:8123"
+      - "127.0.0.1:8123:8123"   # loopback only — the app is auth-less by design
     mem_limit: 4g
     environment:
       - PORT=8123

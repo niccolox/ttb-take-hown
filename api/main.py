@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -19,7 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps
 
 from .extractor import PaddleExtractor
-from .verify import verify, verify_multi
+from .verify import verify_multi
 
 MAX_BYTES = 8 * 1024 * 1024
 MAX_PIXELS = 40_000_000
@@ -70,7 +71,11 @@ SAMPLES = {
 
 @app.on_event("startup")
 def _warm():
-    pool.submit(extractor.warm, str(GOLDEN / "spirits_clean.jpg"))
+    fut = pool.submit(extractor.warm, str(GOLDEN / "spirits_clean.jpg"))
+    fut.add_done_callback(                    # a swallowed warm-up error = silent forever-503
+        lambda f: f.exception() and logging.getLogger("uvicorn.error").error(
+            "extractor warm-up FAILED — /healthz will report loading forever: %r",
+            f.exception()))
 
 
 @app.get("/healthz")
@@ -181,8 +186,11 @@ def corpus_image(name: str, fname: str):
     for m in manifest:
         allowed.update(f_["file"] for f_ in m.get("files") or [])
     if fname not in allowed:                       # manifest-listed files only (no paths)
-        return JSONResponse({"error": "unknown image"}, status_code=404)
-    return FileResponse(reg[name] / fname, media_type="image/jpeg")
+        return JSONResponse({"error": "unknown image", "code": "not_found"}, status_code=404)
+    target = (reg[name] / fname).resolve()
+    if not target.is_relative_to(reg[name].resolve()):   # containment even if a manifest lies
+        return JSONResponse({"error": "unknown image", "code": "not_found"}, status_code=404)
+    return FileResponse(target, media_type="image/jpeg")
 
 
 # ── registry pipelines (COLA Cloud pulls, one per commodity) ─────────────────
@@ -268,6 +276,7 @@ async def session_save(meta: str = Form("{}"),
     try:
         items = json.loads(meta)
         assert isinstance(items, list)
+        assert all(isinstance(it, dict) for it in items)
     except Exception:
         return JSONResponse({"error": "Bad session metadata.", "code": "bad_meta"},
                             status_code=400)
@@ -279,6 +288,8 @@ async def session_save(meta: str = Form("{}"),
     if len(uploads) != len(expected):
         return JSONResponse({"error": "Panel image count doesn't match metadata.",
                              "code": "panel_mismatch"}, status_code=400)
+    VALID_PANELS = ("front", "back", "main", "unknown")
+    MIME_BY_FORMAT = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp"}
     blobs = []
     total = 0
     for (idx, p), up in zip(expected, uploads):
@@ -287,8 +298,17 @@ async def session_save(meta: str = Form("{}"),
         if len(raw) > MAX_BYTES or total > 64 * 1024 * 1024:
             return JSONResponse({"error": "Session images too large.",
                                  "code": "too_large"}, status_code=413)
-        blobs.append((idx, p.get("panel") or "front", p.get("file") or "",
-                      up.content_type or "image/jpeg", raw))
+        # never store/replay a client-supplied MIME: validate the bytes are a real
+        # image and choose the MIME from the actual format (stored-XSS guard)
+        try:
+            probe = Image.open(io.BytesIO(raw))
+            probe.verify()
+            mime = MIME_BY_FORMAT[probe.format]
+        except Exception:
+            return JSONResponse({"error": "Session panel is not a PNG/JPG/WEBP image.",
+                                 "code": "bad_format"}, status_code=400)
+        panel = p.get("panel") if p.get("panel") in VALID_PANELS else "unknown"
+        blobs.append((idx, panel, p.get("file") or "", mime, raw))
     info = session_store.save_session(items, blobs)
     return {"saved": True, **info}
 
@@ -302,7 +322,9 @@ def session_panel(item_idx: int, panel: str):
         return JSONResponse({"error": "No such panel."}, status_code=404)
     data, mime = got
     from fastapi.responses import Response
-    return Response(content=data, media_type=mime)
+    return Response(content=data, media_type=mime,
+                    headers={"X-Content-Type-Options": "nosniff",
+                             "Content-Disposition": "inline"})
 
 
 @app.delete("/api/session")
@@ -364,6 +386,7 @@ async def api_verify(image: UploadFile = File(None),
 
     import numpy as np
     panels = []
+    scales = []                                  # OCR-space → original-bitmap factor per panel
     t0 = time.perf_counter()
     for up in uploads:
         raw = await up.read()
@@ -381,9 +404,12 @@ async def api_verify(image: UploadFile = File(None),
                 return JSONResponse({"error": "Image dimensions too large (max 40MP).",
                                      "code": "too_many_pixels"}, status_code=413)
             img = ImageOps.exif_transpose(img).convert("RGB")   # EXIF orientation (E1)
+            scale_back = 1.0
             if max(img.size) > 2000:
                 r = 2000 / max(img.size)
+                pre_w = img.width
                 img = img.resize((int(img.width * r), int(img.height * r)), Image.LANCZOS)
+                scale_back = pre_w / img.width   # evidence boxes map back to the client's bitmap
         except Exception:
             return JSONResponse({"error": "Couldn't read this image — the file may be "
                                            "corrupt.", "code": "decode_failed"}, status_code=422)
@@ -395,8 +421,21 @@ async def api_verify(image: UploadFile = File(None),
                 return JSONResponse({"error": "This check didn't finish — retry.",
                                      "code": "system_error"}, status_code=500)
         panels.append((words, np.array(img.convert("L"))))
+        scales.append(scale_back)
 
     result = verify_multi(panels, app_data)
+    # OCR ran on ≤2000px downscales; the browser draws crops on the ORIGINAL
+    # bitmap — scale every evidence box back to original coordinates
+    for f in result["fields"]:
+        ev = f.get("evidence")
+        if not ev:
+            continue
+        s = scales[ev.get("panel") or 0] if (ev.get("panel") or 0) < len(scales) else 1.0
+        if s != 1.0:
+            if ev.get("bbox"):
+                ev["bbox"] = [round(v * s, 1) for v in ev["bbox"]]
+            for d in ev.get("diff_boxes") or []:
+                d["box"] = [round(v * s, 1) for v in d["box"]]
     result["timing_ms"]["ocr"] = round((time.perf_counter() - t0) * 1000)
     return result
 

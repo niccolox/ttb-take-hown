@@ -132,12 +132,15 @@ def _text_field_one(name: str, expected: str | None, locator: Locator) -> FieldR
 
 def verify(words: list[Word], application: dict, image_gray=None) -> dict:
     t0 = time.perf_counter()
-    bev = BevType(application.get("beverage_type", "unspecified"))
+    try:
+        bev = BevType(application.get("beverage_type", "unspecified"))
+    except ValueError:                       # unknown type → strictest checks, never a 500
+        bev = BevType.UNSPECIFIED
     locator = Locator(words)
     fields: list[FieldResult] = []
 
     if len(words) < TEXT_MASS_FLOOR:
-        return _envelope("incomplete", [FieldResult(
+        return _envelope("screening_incomplete", [FieldResult(
             "image", "NEEDS_REVIEW", None, None, "not_a_label",
             "This doesn't look like a label — very little text was found. "
             "Try a clearer photo of the label itself.")], t0)
@@ -227,7 +230,12 @@ def verify(words: list[Word], application: dict, image_gray=None) -> dict:
     sub = [{"check": c.value, "outcome": wr.outcomes[c].value, "detail": wr.details[c]}
            for c in SubCheck if c in wr.outcomes]
     text_o = wr.outcomes.get(SubCheck.TEXT)
-    if text_o == Outcome.PASS and wr.outcomes[SubCheck.PREFIX_CAPS] == Outcome.PASS:
+    if text_o == Outcome.PASS and wr.outcomes[SubCheck.PREFIX_CAPS] == Outcome.PASS \
+            and wc_outcome == "no_contrast":
+        # §16.22(a)(2) violation the heuristic measured confidently: correct words,
+        # correct caps, but no bold contrast — a red finding, not fine print
+        w_status, w_code = "MISMATCH", "weight_contrast_violation"
+    elif text_o == Outcome.PASS and wr.outcomes[SubCheck.PREFIX_CAPS] == Outcome.PASS:
         w_status, w_code = "MATCH", None
     elif text_o == Outcome.NOT_FOUND:
         w_status, w_code = "NEEDS_REVIEW", "not_visible_in_image"
@@ -290,8 +298,11 @@ def _warn_evidence(warn_loc, diff_boxes: list[dict], text_outcome) -> dict | Non
     return ev
 
 
-_MERGE_RANK = {"MATCH": 5, "LIKELY_MATCH": 4, "WITHIN_TOLERANCE": 4,
-               "NOT_REQUIRED": 3, "MISMATCH": 2, "NEEDS_REVIEW": 1, "NOT_CHECKED": 0}
+# MISMATCH outranks NOT_REQUIRED: a wrong value PRINTED on any panel is a real
+# finding — legal absence elsewhere doesn't erase it. MATCH still beats MISMATCH
+# (the field legally lives on any panel; found-correct wins).
+_MERGE_RANK = {"MATCH": 6, "LIKELY_MATCH": 5, "WITHIN_TOLERANCE": 5,
+               "MISMATCH": 3, "NOT_REQUIRED": 2, "NEEDS_REVIEW": 1, "NOT_CHECKED": 0}
 
 
 def verify_multi(panels: list[tuple[list[Word], "object"]], application: dict) -> dict:
@@ -302,7 +313,7 @@ def verify_multi(panels: list[tuple[list[Word], "object"]], application: dict) -
     outranks unreadable/absent. Evidence carries the panel index."""
     t0 = time.perf_counter()
     if not panels:
-        return _envelope("incomplete", [], t0)
+        return _envelope("screening_incomplete", [], t0)
     per_panel = []
     for idx, (words, gray) in enumerate(panels):
         r = verify(words, application, image_gray=gray)

@@ -502,6 +502,7 @@ def test_session_store_roundtrip(tmp_path, monkeypatch):
     items = [{"file_name": "a_front.jpg", "state": "done",
               "verification_status": "done_red", "final_status": "done_green",
               "review_complete": True, "elapsed_ms": 2450,
+              "registry": {"fanciful_name": "Pelopee", "origin": "france"},
               "override": {"value": "PASS", "at": "2026-07-31 22:00",
                            "original": "Mismatch found"},
               "application": {"brand_name": "OLD TOM"},
@@ -521,6 +522,8 @@ def test_session_store_roundtrip(tmp_path, monkeypatch):
     assert s["items"][0]["final_status"] == "done_green"         # after agent decision
     assert s["items"][0]["review_complete"] is True
     assert s["items"][0]["elapsed_ms"] == 2450
+    assert s["items"][0]["registry"]["fanciful_name"] == "Pelopee"
+    assert s["items"][1]["registry"] is None
     assert s["items"][1]["review_complete"] is False
     assert s["items"][0]["result"]["screening_result"] == "no_mismatch_found"
     assert [p["panel"] for p in s["items"][0]["panels"]] == ["front", "back"]
@@ -534,3 +537,60 @@ def test_session_store_roundtrip(tmp_path, monkeypatch):
     assert ss.session_summary()["item_count"] == 1
     ss.clear_session()
     assert ss.load_session() is None
+
+
+# ── engineering-review regressions (2026-08-01) ──────────────────────────────
+
+def test_three_digit_proof_parses():
+    """100+ proof spirits are routine; \\d{1,2} misparsed '100 PROOF' as proof=0
+    → false INCONSISTENT for every bottled-in-bond bourbon."""
+    r = parse_abv("50% ALC/VOL (100 PROOF)")
+    assert r.percent == 50.0 and r.proof == 100.0
+    ok, _ = proof_consistency(r)
+    assert ok is True
+    r2 = parse_abv("101 PROOF")
+    assert r2.proof == 101.0 and r2.percent == 50.5
+
+
+def test_merge_mismatch_survives_not_required():
+    """A wrong value PRINTED on one panel is a finding; legal absence on the
+    other panel must not erase it (NOT_REQUIRED used to outrank MISMATCH)."""
+    from api.verify import _MERGE_RANK
+    assert _MERGE_RANK["MISMATCH"] > _MERGE_RANK["NOT_REQUIRED"]
+    assert _MERGE_RANK["MATCH"] > _MERGE_RANK["MISMATCH"]      # found-correct still wins
+    assert _MERGE_RANK["NOT_REQUIRED"] > _MERGE_RANK["NEEDS_REVIEW"]
+
+
+def test_unknown_beverage_type_never_500s():
+    from api.verify import verify
+    result = verify([], {"beverage_type": "cider"})            # falls back to strictest
+    assert result["screening_result"] == "screening_incomplete"
+
+
+def test_locator_tie_semantics():
+    """The same text printed twice (brand + bottled-by line) is NOT ambiguous —
+    either pick yields the same verdict. A different READING tying the score
+    (scrambled word order under token_sort) IS ambiguous; the old strict '<'
+    silently dropped exact-tie rivals."""
+    from api.locator import Locator, Word
+    dup = [Word("RESERVE", (10, 10, 100, 30), 0.95),
+           Word("RESERVE", (10, 200, 100, 220), 0.95)]
+    r = Locator(dup).find("RESERVE")
+    assert r.found and not r.ambiguous
+    scrambled = [Word("OLD", (10, 10, 60, 30), 0.95), Word("TOM", (70, 10, 120, 30), 0.95),
+                 Word("TOM", (10, 300, 60, 320), 0.95), Word("OLD", (70, 300, 120, 320), 0.95)]
+    r2 = Locator(scrambled).find("OLD TOM")
+    assert r2.found and r2.ambiguous
+
+
+def test_corrupt_manifest_refuses_instead_of_wiping(tmp_path):
+    from api.eval.colacloud_pipeline import _load_manifest, _save_manifest
+    d = tmp_path / "wine"; d.mkdir()
+    (d / "manifest.json").write_text("{ not json")
+    import pytest as _pytest
+    with _pytest.raises(RuntimeError, match="corrupt"):
+        _load_manifest(d)
+    # atomic save leaves no .tmp behind
+    _save_manifest(d, [{"id": "1", "file": "x.jpg"}])
+    assert not (d / "manifest.json.tmp").exists()
+    assert _load_manifest(d)[0]["id"] == "1"

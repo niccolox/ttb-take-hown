@@ -32,7 +32,7 @@ def parse_net_ml(text: str) -> float | None:
 
 
 def compare_net(app_text: str | None, label_text: str | None, tol_ml: float = 1.0):
-    """Returns (verdict, note): 'MATCH' | 'MISMATCH' | 'NEEDS_REVIEW'."""
+    """Returns (verdict, note): 'MATCH' | 'MISMATCH' | 'NEEDS_REVIEW' | 'NOT_CHECKED'."""
     if not app_text:
         return "NOT_CHECKED", "no application value entered"
     app_ml = parse_net_ml(app_text)
