@@ -1,0 +1,8 @@
+services:
+  labelcheck:
+    build: .
+    ports:
+      - "8123:8123"
+    mem_limit: 4g          # PaddleOCR + buffers; exit 137 during warmup = raise this
+    environment:
+      - PORT=8123

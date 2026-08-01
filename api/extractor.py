@@ -25,11 +25,29 @@ class PaddleExtractor:
         self._ready = False
 
     def warm(self, sample_path: str) -> None:
+        import os
+        from pathlib import Path
+
         from paddleocr import PaddleOCR
+
+        kwargs = dict(use_doc_orientation_classify=False, use_doc_unwarping=False,
+                      use_textline_orientation=True, lang="en")
+        # Offline/no-egress: paddlex's hoster lookup runs even when models are
+        # cached, so point at baked local model dirs explicitly when present
+        # (LABELCHECK_MODELS_DIR is set in the Docker image).
+        models = os.environ.get("LABELCHECK_MODELS_DIR")
+        if models and Path(models).exists():
+            m = Path(models)
+            kwargs.update(
+                text_detection_model_name="PP-OCRv5_server_det",
+                text_detection_model_dir=str(m / "PP-OCRv5_server_det"),
+                text_recognition_model_name="en_PP-OCRv5_mobile_rec",
+                text_recognition_model_dir=str(m / "en_PP-OCRv5_mobile_rec"),
+                textline_orientation_model_name="PP-LCNet_x1_0_textline_ori",
+                textline_orientation_model_dir=str(m / "PP-LCNet_x1_0_textline_ori"),
+            )
         with self._lock:
-            self._ocr = PaddleOCR(use_doc_orientation_classify=False,
-                                  use_doc_unwarping=False,
-                                  use_textline_orientation=True, lang="en")
+            self._ocr = PaddleOCR(**kwargs)
             self._ocr.predict(sample_path)          # first-inference warmup
             self._ready = True
 
