@@ -291,6 +291,12 @@ function renderList() {
     b.innerHTML = `<span class="fn">${esc(itemTitle(it))}</span>
       ${nPanels > 1 ? '<span class="loz grey">front+back</span>' : ""}
       <span class="loz ${cls}">${decided ? "✓ " : ""}${txt}${it.stale ? " ⟳" : ""}</span>`;
+    const mini = document.createElement("img");
+    mini.className = "mini"; mini.alt = "";           // decorative; the title names the label
+    mini.loading = "lazy";
+    if (!it.thumbUrl) it.thumbUrl = URL.createObjectURL(it.file);   // front panel, cached per item
+    mini.src = it.thumbUrl;
+    b.prepend(mini);
     b.addEventListener("click", () => select(it.id));
     list.appendChild(b);
   }
