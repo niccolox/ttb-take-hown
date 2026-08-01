@@ -286,6 +286,17 @@ function bannerFor(fields) {
 
 function renderResult(container, it) {
   const r = it.result;
+  if (it.elapsedMs != null) {                       // 5s target (Sarah's threshold) made visible
+    const s = it.elapsedMs / 1000;
+    const within = s < 5;
+    const timing = document.createElement("div");
+    timing.className = "timing " + (within ? "ok" : "over");
+    const ocr = r.timing_ms?.ocr != null ? ` (reading the label: ${(r.timing_ms.ocr / 1000).toFixed(1)}s)` : "";
+    timing.textContent = within
+      ? `⏱ Checked in ${s.toFixed(1)}s — within the 5-second target${ocr}`
+      : `⏱ Checked in ${s.toFixed(1)}s — OVER the 5-second target${ocr}`;
+    container.appendChild(timing);
+  }
   const [cls, text] = bannerFor(r.fields);
   const banner = document.createElement("div");
   banner.className = "banner " + cls; banner.textContent = text;
@@ -380,6 +391,7 @@ async function runOne(it) {
   err("");
   it.state = "checking"; it.stale = false; it.override = null;
   renderList(); if (sel() === it) renderDetail();
+  const t0 = performance.now();
   try {
     const fd = new FormData();
     fd.append("image", it.file);
@@ -388,6 +400,7 @@ async function runOne(it) {
     const body = await res.json();
     if (!res.ok) throw new Error(body.error || "This check didn't finish — retry.");
     it.result = body; it.state = "done"; it.errorMsg = null;
+    it.elapsedMs = performance.now() - t0;
   } catch (e) {
     it.state = "error"; it.errorMsg = e.message;
   }
