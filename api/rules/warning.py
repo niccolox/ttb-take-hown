@@ -23,8 +23,8 @@ STATUTORY_WARNING = (
 )
 STATUTORY_SOURCE = "27 CFR 16.21 (eCFR, current as of 2026-07-01)"
 
-PREFIX_CAPS_RE = re.compile(r"GOVERNMENT\s+WARNING\s*:")          # case-sensitive
-PREFIX_ANY_RE = re.compile(r"government\s+warning\s*:?", re.I)
+PREFIX_CAPS_RE = re.compile(r"GOVERNMENT\s*WARNING\s*:")          # case-sensitive
+PREFIX_ANY_RE = re.compile(r"government\s*warning\s*:?", re.I)
 
 
 class SubCheck(str, Enum):

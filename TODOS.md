@@ -10,6 +10,17 @@ Deferred scope from the 2026-07-31 plan review (/autoplan). Format: what / why /
 - [x] **Beverage-type-aware required-field checklist** — MOVED INTO SCOPE (M2) at Rev 2.1 gate 2026-07-31: regulatory research made it a correctness requirement (absent-ABV wrong for 2 of 3 commodities). Deeper type rules (standards of fill, appellations, age) remain deferred.
 - [ ] **Application-side ingestion (PDF/screenshot of the COLA form)** — Extract application fields automatically so agents don't re-enter data into a standalone tool; without this, total task time may not beat eyeballing. Why: kills the duplicate-entry tax without requiring COLA integration. Effort: M → S. Priority: P2. (Codex CEO voice, finding 9.)
 
+## From the complete review (red team + design + plan audit, 2026-08-01)
+- [ ] **Deployed URL** — PLAN M1 says "Deployed" and the brief asks for a deployed URL; nothing is deployed (loopback-only compose). Highest-impact open deliverable; needs rate limiting (S2) + 429 shedding + load test (T3) the day it goes public. Effort: M → S. Priority: P1.
+- [ ] **Warning: evaluate ALL anchor candidates, best wins** — locator takes the FIRST "GOVERNMENT WARNING"-like line; marketing text shadowing the real warning loses. Plan committed to best-candidate-wins. Effort: S → S. Priority: P2.
+- [ ] **Warning region quality gate beyond word confidence** — plan called for a blur/contrast metric because OCR misreads are often high-confidence; current gate is confidence-only. Effort: M → M. Priority: P3.
+- [ ] **Curved/arced text line grouping** — y-center clustering merges arced brand medallions into megalines, defeating line-scoped ABV/net parsing. Needs a corpus check. Effort: M → M. Priority: P3.
+- [ ] **Focus restoration after re-render** — list/detail rebuilds drop keyboard focus to body on every action; track and refocus the active element. Effort: S → S. Priority: P2.
+- [ ] **Decided-FAIL items invisible in filters** — a whole-label FAIL decision drops out of "Needs attention" (closed) and "Passed" (not green); only "All" shows it. Add a Failed row or include in Passed-as-decided. Effort: S → S. Priority: P3.
+- [ ] **CSV back-merge destroys the absorbed item's review** — merging a back panel via back_filename discards that row's result/overrides silently; warn or migrate them. Effort: S → S. Priority: P3.
+- [ ] **JS test harness** — the batch client state machine (stale/override/cancel/restore interactions) and csvCell formula guard have zero tests; plan committed to reducer tests. Effort: M → S. Priority: P2.
+- [ ] **HEIC acceptance** — plan wanted pillow-heif; shipped the named-fix error instead ("export as JPG"). Effort: S → S. Priority: P3.
+
 ## From the engineering review (/review, 2026-08-01) — deferred structural items
 - [ ] **Async endpoints block the event loop** — `api_verify` and `session_save` are `async def` but run PIL decode/resize, OCR future `.result()`, and DuckDB writes synchronously on the loop; one 40MP decode or a 64MB session save freezes /healthz and every in-flight request. Fix: make them sync `def` (FastAPI threadpool) or wrap in `asyncio.wrap_future`/`run_in_executor`. Effort: M → S. Priority: P1.
 - [ ] **OCR timeout abandons the job** — a timed-out extract keeps running under the extractor lock while the temp file is deleted; retries pile futures onto the 2-worker pool. Fix: cancellation token or per-request temp lifetime + busy 503 when the queue is deep. Effort: M → M. Priority: P2.

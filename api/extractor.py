@@ -38,6 +38,15 @@ class PaddleExtractor:
         models = os.environ.get("LABELCHECK_MODELS_DIR")
         if models and Path(models).exists():
             m = Path(models)
+            missing = [n for n in ("PP-OCRv5_server_det", "en_PP-OCRv5_mobile_rec",
+                                   "PP-LCNet_x1_0_textline_ori") if not (m / n).exists()]
+            if missing:
+                # a pin bump that changes paddle's default model set would
+                # otherwise fall through to a runtime download (egress) or a
+                # cryptic failure — name the problem instead
+                raise RuntimeError(
+                    f"LABELCHECK_MODELS_DIR={models} lacks baked models {missing}; "
+                    f"rebuild the image or unset the variable")
             kwargs.update(
                 text_detection_model_name="PP-OCRv5_server_det",
                 text_detection_model_dir=str(m / "PP-OCRv5_server_det"),

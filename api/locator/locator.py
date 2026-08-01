@@ -63,7 +63,7 @@ class LocatedField:
 
 
 AMBIGUITY_MARGIN = 5.0              # score points; closer than this → ambiguous
-WARNING_ANCHOR_RE = re.compile(r"g[o0]vernment\s+warn[i1l]ng", re.I)  # OCR confusables
+WARNING_ANCHOR_RE = re.compile(r"g[o0]vernment\s*warn[i1l]ng", re.I)  # OCR confusables
 
 
 def union(boxes: list[tuple[float, float, float, float]]):
@@ -175,7 +175,7 @@ class Locator:
         return LocatedField(found=False)
 
     # ── warning block reconstruction (anchor → grow by line adjacency) ──────
-    def find_warning(self, expected_tokens: int = 44) -> LocatedField:
+    def find_warning(self, expected_tokens: int = 60) -> LocatedField:
         anchor_idx = next((i for i, l in enumerate(self.lines)
                            if WARNING_ANCHOR_RE.search(l.text)), None)
         self._warning_block: list[Line] = []

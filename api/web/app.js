@@ -294,8 +294,7 @@ function renderList() {
     const [cls, txt] = ITEM_STATES[itemState(it)] || ITEM_STATES.waiting;
     const b = document.createElement("button");
     b.className = "list-item"; b.type = "button";
-    b.setAttribute("role", "option");
-    b.setAttribute("aria-current", String(it.id === selectedId));
+        b.setAttribute("aria-current", String(it.id === selectedId));
     b.title = it.file.name;                       // filename stays discoverable
     const decided = reviewComplete(it);
     b.innerHTML = `<span class="fn">${esc(itemTitle(it))}</span>
@@ -634,8 +633,9 @@ function renderResult(container, it) {
           ${["PASS", "NEEDS REVIEW", "FAIL"].map((v) =>
             `<button type="button" data-fov="${v}" data-field="${esc(f.field)}"
                title="${v} this field (agent decision)"
+               aria-label="${v} — ${esc(FIELD_LABELS[f.field] || f.field)} (agent decision)"
                aria-pressed="${String(fov?.value === v)}"
-               style="min-height:26px;font-size:11px;padding:1px 6px">${
+               style="min-height:40px;min-width:44px;font-size:14px;padding:2px 10px">${
                  { "PASS": "✓", "NEEDS REVIEW": "👁", "FAIL": "✗" }[v]}</button>`).join("")}
         </div>
       </div>
@@ -670,7 +670,9 @@ function renderResult(container, it) {
         }
         const open = () => zoomCrop(evBitmap, f.evidence.bbox, diffBoxes);
         c.addEventListener("click", open);
-        c.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") open(); });
+        c.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
+        });
       }
     }
   }
@@ -782,7 +784,9 @@ async function runOne(it) {
 
 $("verifyAll").addEventListener("click", async () => {
   if (running) return;
-  const queue = items.filter((it) => it.state === "waiting" || it.stale || it.state === "error");
+  $("verifyAll").disabled = true;
+  const queue = items.filter((it) =>
+    ["waiting", "error", "canceled"].includes(it.state) || it.stale);
   if (!queue.length) { err("Nothing to check — all labels are up to date."); return; }
   running = true; cancelRequested = false; renderList();
   let idx = 0;
@@ -799,6 +803,7 @@ $("verifyAll").addEventListener("click", async () => {
   });
   await Promise.all(workers);
   running = false;
+  $("verifyAll").disabled = false;
   renderList();
   clearTimeout(persistTimer);
   persistSession().catch(() => err("Results kept in this tab — saving to the server failed."));
@@ -963,7 +968,8 @@ async function persistSession(showProgress = false) {
   const fd = new FormData();
   for (const it of items) {
     const panels = (it.panels || []).map((p) => ({ panel: p.panel, file: p.file.name }));
-    meta.push({ file_name: it.file.name, state: it.state, override: packOverride(it),
+    meta.push({ file_name: it.file.name, state: it.state, stale: !!it.stale,
+                override: packOverride(it),
                 application: it.app, result: it.result, panels, registry: it.registry || null,
                 verification_status: autoState(it),      // machine verdict
                 final_status: itemState(it),             // after agent decisions
@@ -1024,8 +1030,10 @@ async function restoreSession({ quiet = false } = {}) {
       const it = await addItem(panelFiles, rec.application, rec.registry || null);
       if (!it) continue;                       // already in the tab — don't double-import
       it.result = rec.result;
-      it.state = rec.result ? "done" : (rec.state === "error" ? "waiting" : rec.state);
+      it.state = rec.result ? "done"
+        : (["error", "checking", "canceled"].includes(rec.state) ? "waiting" : rec.state);
       if (rec.elapsed_ms != null) it.elapsedMs = rec.elapsed_ms;   // timing chip survives
+      if (rec.stale) it.stale = true;          // out-of-date verdicts stay marked ⟳
       unpackOverride(it, rec.override);
     }
   if (items.length && selectedId === null) select(items[0].id);

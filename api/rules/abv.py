@@ -37,7 +37,7 @@ class AbvReading:
     raw: str = ""
 
 
-_PCT = r"(\d{1,2}(?:\.\d{1,2})?)"
+_PCT = r"\b(\d{1,2}(?:\.\d{1,2})?)"   # \b stops "100% AGAVE" matching as "00%"
 RANGE_RE = re.compile(rf"(?:ALC(?:OHOL)?\.?\s*)?{_PCT}\s*%?\s*TO\s*{_PCT}\s*%", re.I)
 PCT_RE = re.compile(
     rf"(?:ALC(?:OHOL)?\.?\s*)?{_PCT}\s*%\s*(?:ALC(?:OHOL)?\.?)?\s*(?:/|BY)?\s*(?:VOL(?:UME)?\.?)?"

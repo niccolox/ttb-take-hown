@@ -295,6 +295,8 @@ def pull_type(tname: str, *, api_key: str, per_type: int = 4, query: str | None 
         for summary in candidates:
             if taken >= per_type:
                 break
+            if summary.ttb_id in have:       # page shift between fetches → duplicate
+                continue
             detail = _with_rate_limit(lambda s=summary: client.colas.get(s.ttb_id),
                                       progress=progress)
             d = detail.model_dump() if hasattr(detail, "model_dump") else dict(detail)
@@ -331,6 +333,7 @@ def pull_type(tname: str, *, api_key: str, per_type: int = 4, query: str | None 
                                   "proof/ABV consistency apply (27 CFR 5.65(c)); "
                                   "state-of-origin claims must match the registry origin.")
             manifest.append(entry)
+            have.add(summary.ttb_id)
             _save_manifest(out_dir, manifest)        # incremental — crash-safe
             taken += 1
             q = getattr(client, "quota_info", None)

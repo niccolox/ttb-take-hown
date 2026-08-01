@@ -594,3 +594,92 @@ def test_corrupt_manifest_refuses_instead_of_wiping(tmp_path):
     _save_manifest(d, [{"id": "1", "file": "x.jpg"}])
     assert not (d / "manifest.json.tmp").exists()
     assert _load_manifest(d)[0]["id"] == "1"
+
+
+# ── complete-review regressions (red team, 2026-08-01) ───────────────────────
+
+def test_net_contents_restatement_not_summed():
+    """'12 FL OZ (355 mL)' is ONE declaration restated — the most common label
+    format; summing it double-counted to 710 mL → false MISMATCH on every
+    standard beer can. Genuine compounds still sum."""
+    assert abs(parse_net_ml("12 FL OZ (355 ML)") - 355) < 1
+    assert compare_net("355 mL", "NET CONTENTS 12 FL OZ (355 ML)")[0] == "MATCH"
+    assert abs(parse_net_ml("1 PINT 0.9 FL. OZ.") - 499.8) < 0.5   # compound sums
+    assert compare_net("750 mL", "750 ML (25.4 FL OZ)")[0] == "MATCH"
+
+
+def test_net_contents_keg_units():
+    """Registry pulls emit QT/GAL/BBL for kegged beer — previously unparseable
+    (every keg COLA landed NEEDS_REVIEW)."""
+    assert parse_net_ml("1 QT") == 946.4
+    assert parse_net_ml("1 GAL") == 3785.4
+    assert parse_net_ml("1 BBL") == 117347.8
+    assert compare_net("1 GAL", "1 GALLON")[0] == "MATCH"
+
+
+def test_agave_percent_not_abv():
+    """'100% AGAVE' matched as '00%' → ABV 0.0 → false mismatch + false proof
+    inconsistency on every tequila label. \\b guard; proof-only conversion
+    still yields the right percent."""
+    r = parse_abv("TEQUILA 100% AGAVE 80 PROOF")
+    assert r.proof == 80.0 and r.percent == 40.0        # derived from proof, not "00%"
+    ok, _ = proof_consistency(r)
+    assert ok is not False
+
+
+def test_merged_government_warning_anchor():
+    """OCR merges 'GOVERNMENTWARNING:' — the anchor must still fire (the
+    containment compare was space-insensitive but the gate wasn't)."""
+    from api.rules.warning import PREFIX_ANY_RE, PREFIX_CAPS_RE
+    assert PREFIX_ANY_RE.search("GOVERNMENTWARNING: (1) ACCORDING")
+    assert PREFIX_CAPS_RE.search("GOVERNMENTWARNING:")
+    r = validate_warning("GOVERNMENTWARNING: " + STATUTORY_WARNING.split(": ", 1)[1])
+    assert r.outcomes[SubCheck.TEXT] == Outcome.PASS
+
+
+def test_warning_block_survives_ocr_word_splits():
+    """44-token cap truncated compliant warnings when OCR split words (statute
+    is 42 words); cap now 60 — the gap rule is the real terminator."""
+    from api.locator import Locator, Word
+    toks = STATUTORY_WARNING.replace("machinery,", "machin ery,").replace(
+        "beverages", "bev erages").split()
+    words = [Word(t, (10 + (i % 5) * 90, 10 + (i // 5) * 24,
+                      90 + (i % 5) * 90, 30 + (i // 5) * 24), 0.95)
+             for i, t in enumerate(toks)]
+    loc = Locator(words)
+    w = loc.find_warning()
+    assert w.found
+    r = validate_warning(w.text)
+    assert r.outcomes[SubCheck.TEXT] == Outcome.PASS
+
+
+def test_internal_consistency_merge_worst_wins():
+    """An inconsistent proof/ABV pair PRINTED on any panel is a §5.65
+    violation — a consistent pair on the other panel must not mask it."""
+    from api.locator import Word
+    from api.verify import verify_multi
+    mk = lambda lines: [Word(w, (10 + i * 90, 10 + j * 30, 90 + i * 90, 28 + j * 30), 0.95)
+                        for j, t in enumerate(lines) for i, w in enumerate(t.split())]
+    good = mk(["OLD TOM DISTILLERY", "45% ALC/VOL (90 PROOF)"])
+    bad = mk(["OLD TOM DISTILLERY", "45% ALC/VOL (80 PROOF)"])
+    app = {"beverage_type": "distilled_spirits", "brand_name": "OLD TOM DISTILLERY",
+           "alcohol_content": "45% Alc./Vol."}
+    merged = verify_multi([(good, None), (bad, None)], app)
+    by = {f["field"]: f["status"] for f in merged["fields"]}
+    assert by["internal_consistency"] == "MISMATCH"
+
+
+def test_cross_line_proof_consistency():
+    """% and proof on separate lines: the §5.65(c) cross-check must still run
+    (it silently skipped whenever they weren't co-located)."""
+    from api.locator import Word
+    from api.verify import verify
+    words = [Word(w, (10 + i * 90, 10 + j * 30, 90 + i * 90, 28 + j * 30), 0.95)
+             for j, t in enumerate(["OLD TOM DISTILLERY", "45% ALC/VOL", "80 PROOF"])
+             for i, w in enumerate(t.split())]
+    r = verify(words, {"beverage_type": "distilled_spirits",
+                       "brand_name": "OLD TOM DISTILLERY",
+                       "alcohol_content": "45% Alc./Vol."})
+    by = {f["field"]: f for f in r["fields"]}
+    assert "internal_consistency" in by
+    assert by["internal_consistency"]["status"] == "MISMATCH"   # 45% vs 80 proof

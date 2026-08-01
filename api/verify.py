@@ -163,6 +163,13 @@ def verify(words: list[Word], application: dict, image_gray=None) -> dict:
     if not abv_loc.found:
         abv_loc = locator.find_regex(PROOF_RE)   # proof-only labels (converted 2:1)
     label_abv = parse_abv(abv_loc.text) if abv_loc.found else parse_abv("")
+    if abv_loc.found and label_abv.percent is not None and label_abv.proof is None:
+        # % and proof are routinely on separate lines — without this join the
+        # §5.65(c) cross-check silently never runs on real labels
+        proof_loc = locator.find_regex(PROOF_RE)
+        if proof_loc.found:
+            import dataclasses as _dc
+            label_abv = _dc.replace(label_abv, proof=parse_abv(proof_loc.text).proof)
     if app_abv_text:
         app_abv = parse_abv(app_abv_text).percent
         if abv_loc.found:
@@ -320,18 +327,27 @@ def verify_multi(panels: list[tuple[list[Word], "object"]], application: dict) -
         for f in r["fields"]:
             if f.get("evidence"):
                 f["evidence"]["panel"] = idx
+            elif f["field"] == "image" and len(panels) > 1:
+                f["note"] += f" (panel {idx + 1} of {len(panels)})"
         per_panel.append(r)
     if len(per_panel) == 1:
         return per_panel[0]
 
     merged: dict[str, dict] = {}
     order: list[str] = []
+    # internal_consistency is a per-panel DEFECT check: an inconsistent
+    # proof/ABV pair PRINTED on any panel is a violation — worst wins there,
+    # best wins everywhere else (fields legally live on any panel).
+    WORST_WINS = {"internal_consistency"}
     for r in per_panel:
         for f in r["fields"]:
             name = f["field"]
             if name not in merged:
                 merged[name] = f
                 order.append(name)
+            elif name in WORST_WINS:
+                if _MERGE_RANK.get(f["status"], 0) < _MERGE_RANK.get(merged[name]["status"], 0):
+                    merged[name] = f
             elif _MERGE_RANK.get(f["status"], 0) > _MERGE_RANK.get(merged[name]["status"], 0):
                 merged[name] = f
     fields = [merged[n] for n in order]
