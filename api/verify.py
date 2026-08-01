@@ -146,6 +146,14 @@ def verify(words: list[Word], application: dict, image_gray=None) -> dict:
     ct_result = _text_field("class_type", application.get("class_type"), locator)
     fields.append(ct_result)
 
+    # optional registry-derived fields (COLA Detail): checked only when supplied.
+    # grape_varietals uses the slash-alternation path — any listed varietal on
+    # the label satisfies the check.
+    for opt in ("fanciful_name", "origin", "vintage", "appellation", "grape_varietals"):
+        val = (application.get(opt) or "").strip()
+        if val:
+            fields.append(_text_field(opt, val, locator))
+
     # ABV — commodity-aware (Rev 2.1)
     app_abv_text = application.get("alcohol_content")
     abv_loc = locator.find_regex(PCT_RE)

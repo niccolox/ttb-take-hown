@@ -236,6 +236,28 @@ def test_all_caps_brand_matches_capitalized_application():
     assert _text_field("brand_name", "Stone's Throw", loc3).status == "NEEDS_REVIEW"
 
 
+def test_optional_registry_fields_verified_when_supplied():
+    """COLA Detail extras (fanciful name, origin, vintage, appellation,
+    varietals) become checked fields only when the application carries them."""
+    from api.locator import Word
+    from api.verify import verify
+    mk = lambda t, y: [Word(w, (10 + i * 110, y, 100 + i * 110, y + 20), 0.95)
+                       for i, w in enumerate(t.split())]
+    words = (mk("CHATEAU LE COTEAU", 10) + mk("PELOPEE", 40)
+             + mk("MARGAUX 2022", 70) + mk("PRODUCT OF FRANCE", 100)
+             + mk("TABLE RED WINE", 130))
+    app = {"beverage_type": "wine", "brand_name": "Chateau Le Coteau",
+           "class_type": "table red wine", "fanciful_name": "Pelopee",
+           "origin": "france", "vintage": "2022", "appellation": "Margaux"}
+    result = verify(words, app)
+    by = {f["field"]: f["status"] for f in result["fields"]}
+    for name in ("brand_name", "class_type", "fanciful_name", "origin",
+                 "vintage", "appellation"):
+        assert by[name] in ("MATCH", "LIKELY_MATCH"), (name, by[name])
+    # absent from application → not in the result at all
+    assert "grape_varietals" not in by
+
+
 def test_class_slash_phrase_matches_either_alternative():
     """Registry class 'sparkling wine/champagne' is an alternation — a label
     printing CHAMPAGNE satisfies it (and the note says which side matched)."""

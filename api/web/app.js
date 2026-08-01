@@ -6,10 +6,15 @@
 
 const $ = (id) => document.getElementById(id);
 const CONCURRENCY = 3;
-const FIELD_ORDER = ["brand_name", "class_type", "alcohol_content", "net_contents",
+const FIELD_ORDER = ["brand_name", "class_type", "fanciful_name", "origin",
+                     "vintage", "appellation", "grape_varietals",
+                     "alcohol_content", "net_contents",
                      "internal_consistency", "government_warning", "image"];
 const FIELD_LABELS = {
   brand_name: "Brand name", class_type: "Class / type",
+  fanciful_name: "Fanciful name", origin: "Origin",
+  vintage: "Vintage", appellation: "Appellation",
+  grape_varietals: "Grape varietal(s)",
   alcohol_content: "Alcohol content", net_contents: "Net contents",
   internal_consistency: "Internal consistency",
   government_warning: "Government Warning", image: "Image",
@@ -57,7 +62,8 @@ async function addItem(panelFiles, app = {}, registry = null) {
   }
   items.push({ id, file: f, bitmap: panels[0].bitmap, panels, registry,
                app: { beverage_type: "unspecified", brand_name: "", class_type: "",
-                      alcohol_content: "", net_contents: "", ...app },
+                      fanciful_name: "", origin: "", vintage: "", appellation: "",
+                      grape_varietals: "", alcohol_content: "", net_contents: "", ...app },
                state: "waiting", result: null, override: null, stale: false });
 }
 
@@ -106,6 +112,8 @@ $("csv").addEventListener("change", async (e) => {
                   class_type: (cells[idx.class_type] || "").trim(),
                   alcohol_content: (cells[idx.alcohol_content] || "").trim(),
                   net_contents: (cells[idx.net_contents] || "").trim() };
+    for (const k of ["fanciful_name", "origin", "vintage", "appellation", "grape_varietals"])
+      if (idx[k] != null && (cells[idx[k]] || "").trim()) rec[k] = cells[idx[k]].trim();
     if (item) {
       Object.assign(item.app, rec); markStale(item); applied++;
       // optional back_filename: fold that uploaded image in as this label's back panel
@@ -344,6 +352,11 @@ function renderDetail() {
     </select>
     <label>Brand name</label><input type="text" data-k="brand_name" value="${esc(it.app.brand_name)}">
     <label>Class / type</label><input type="text" data-k="class_type" value="${esc(it.app.class_type)}">
+    <label>Fanciful name</label><input type="text" data-k="fanciful_name" value="${esc(it.app.fanciful_name || "")}" placeholder="optional — e.g. Pelopee">
+    <label>Origin</label><input type="text" data-k="origin" value="${esc(it.app.origin || "")}" placeholder="optional — e.g. France">
+    <label>Vintage</label><input type="text" data-k="vintage" value="${esc(it.app.vintage || "")}" placeholder="optional — e.g. 2022">
+    <label>Appellation</label><input type="text" data-k="appellation" value="${esc(it.app.appellation || "")}" placeholder="optional — e.g. Margaux">
+    <label>Grape varietal(s)</label><input type="text" data-k="grape_varietals" value="${esc(it.app.grape_varietals || "")}" placeholder="optional — any listed matches, e.g. chardonnay/pinot noir">
     <label>Alcohol content</label><input type="text" data-k="alcohol_content" value="${esc(it.app.alcohol_content)}" placeholder="e.g. 45% Alc./Vol.">
     <label>Net contents</label><input type="text" data-k="net_contents" value="${esc(it.app.net_contents)}" placeholder="e.g. 750 mL">
     <p class="note">The Government Warning is always checked — no entry needed.</p>`;
@@ -506,7 +519,8 @@ function zoomCrop(bitmap, bbox) {
 
 // ── verification runs (fan-out, per-item independence, cancel-waiting) ───────
 async function runOne(it) {
-  const anyField = ["brand_name", "class_type", "alcohol_content", "net_contents"]
+  const anyField = ["brand_name", "class_type", "fanciful_name", "origin", "vintage",
+                    "appellation", "grape_varietals", "alcohol_content", "net_contents"]
     .some((k) => it.app[k]);
   if (!anyField) { err("Enter at least one field to check — the Government Warning is always checked."); return; }
   err("");
@@ -567,7 +581,7 @@ $("export").addEventListener("click", () => {
   const head = ["filename", "beverage_type", "brand_name", "class_type",
                 "alcohol_content", "net_contents", "screening_result",
                 "original_result", "final_result", "overwritten",
-                ...FIELD_ORDER.slice(0, 6).map((f) => `field_${f}`)];
+                ...FIELD_ORDER.filter((f) => f !== "image").map((f) => `field_${f}`)];
   const rows = [head.map(csvCell).join(",")];
   for (const it of items) {
     if (!it.result && it.state !== "error") continue;
@@ -578,7 +592,7 @@ $("export").addEventListener("click", () => {
                it.app.alcohol_content, it.app.net_contents,
                it.result?.screening_result || "error", orig, final,
                String(Boolean(it.override)),
-               ...FIELD_ORDER.slice(0, 6).map((f) => byField[f] || "")]
+               ...FIELD_ORDER.filter((f) => f !== "image").map((f) => byField[f] || "")]
               .map(csvCell).join(","));
   }
   download("label-check-results.csv", "﻿" + rows.join("\r\n"));

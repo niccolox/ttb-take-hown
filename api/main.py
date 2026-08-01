@@ -124,6 +124,16 @@ def _corpus_items(name: str):
                         "net_contents": t.get("net_line") or ""}
             note = m.get("expect", "")
         files = m.get("files") or [{"file": m["file"], "panel": "front"}]
+        reg = m.get("registry") or {}
+        extras = {
+            "fanciful_name": reg.get("fanciful_name") or "",
+            "origin": reg.get("origin") or "",
+            "vintage": str(reg["wine_vintage_year"]) if reg.get("wine_vintage_year") else "",
+            "appellation": reg.get("wine_appellation") or "",
+            "grape_varietals": "/".join(reg["grape_varietals"])
+                               if reg.get("grape_varietals") else "",
+        }
+        app_data = {**{k: v for k, v in extras.items() if v}, **app_data}
         items.append({"id": m["id"], "file": m["file"], "note": note,
                       "application": app_data,
                       "registry": m.get("registry") or None,
