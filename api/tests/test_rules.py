@@ -221,6 +221,21 @@ def test_single_glyph_confusable_is_review():
     assert r.status == "NEEDS_REVIEW" and r.reason_code == "possible_ocr_misread"
 
 
+def test_all_caps_brand_matches_capitalized_application():
+    """Label 'PASCAL DOQUET' vs application 'Pascal Doquet' is a green MATCH —
+    case is presentation, not naming. Punctuation differences stay amber."""
+    from api.verify import _text_field
+    loc = _mk_locator([("PASCAL", 10, 10, 0.95), ("DOQUET", 100, 10, 0.95)])
+    r = _text_field("brand_name", "Pascal Doquet", loc)
+    assert r.status == "MATCH"
+    loc2 = _mk_locator([("STONE\u2019S", 10, 10, 0.95), ("THROW", 100, 10, 0.95)])
+    r2 = _text_field("brand_name", "Stone's Throw", loc2)   # curly vs straight quote
+    assert r2.status == "LIKELY_MATCH"
+    # a genuinely dropped apostrophe stays in review (possible OCR misread)
+    loc3 = _mk_locator([("STONES", 10, 10, 0.95), ("THROW", 100, 10, 0.95)])
+    assert _text_field("brand_name", "Stone's Throw", loc3).status == "NEEDS_REVIEW"
+
+
 def test_similar_but_different_brand_never_passes():
     # T1 safety property: 'OLD TOM DISTILLING CO' must never MATCH/LIKELY-MATCH
     # 'OLD TOM DISTILLERY'. Below the locator threshold it surfaces as

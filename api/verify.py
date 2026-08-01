@@ -17,7 +17,7 @@ from .locator import Locator, Word
 from .rules.abv import (AbvVerdict, BevType, abv_required, compare_abv,
                         parse_abv, proof_consistency, PCT_RE, PROOF_RE)
 from .rules.net_contents import NET_RE, compare_net
-from .rules.normalize import loose
+from .rules.normalize import loose, whitespace_only
 from .rules.warning import Outcome, SubCheck, validate_warning
 
 CONF_FLOOR = 0.60          # word-confidence gate (tuned at M0)
@@ -69,13 +69,20 @@ def _text_field(name: str, expected: str | None, locator: Locator) -> FieldResul
                            "Found a likely region but it reads poorly — confirm from the crop.",
                            _evidence(loc))
     if loose(loc.text) == loose(expected):
-        exact = loc.text.strip() == expected.strip()
-        if exact:
+        if whitespace_only(loc.text) == whitespace_only(expected):
             return FieldResult(name, "MATCH", loc.text, expected, None,
                                "Label matches the application exactly.", _evidence(loc))
+        # Letter case is not a naming deviation: labels conventionally print in
+        # capitals while applications use mixed case ("PASCAL DOQUET" = "Pascal
+        # Doquet"). Only punctuation/spelling differences stay amber.
+        if whitespace_only(loc.text).casefold() == whitespace_only(expected).casefold():
+            return FieldResult(name, "MATCH", loc.text, expected, None,
+                               "Label matches the application (letter case differs — "
+                               "labels are conventionally printed in capitals).",
+                               _evidence(loc))
         return FieldResult(name, "LIKELY_MATCH", loc.text, expected,
                            "case_punctuation_differs",
-                           "Capitalization or punctuation differs — compare both values.",
+                           "Punctuation differs — compare both values.",
                            _evidence(loc))
     if loc.score >= 85:
         # High fuzzy but not normalized-equal is MISMATCH, never LIKELY (T1 rule) —
