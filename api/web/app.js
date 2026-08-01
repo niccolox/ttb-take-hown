@@ -271,10 +271,11 @@ function visible(it) {
 function renderList() {
   const list = $("list");
   list.innerHTML = "";
-  const counts = { attention: 0, progress: 0, all: items.length };
+  const counts = { attention: 0, passed: 0, progress: 0, all: items.length };
   for (const it of items) {
     const s = itemState(it);
-    if (["done_red", "done_amber", "error"].includes(s)) counts.attention++;
+    if (!reviewComplete(it) && ["done_red", "done_amber", "error"].includes(s)) counts.attention++;
+    if (s === "done_green") counts.passed++;
     if (["waiting", "checking"].includes(s)) counts.progress++;
   }
   for (const it of items) {                      // insertion order — never reorder
@@ -311,7 +312,8 @@ function renderList() {
   for (const btn of $("filters").querySelectorAll("button")) {
     btn.setAttribute("aria-pressed", String(btn.dataset.f === filter));
     const c = counts[btn.dataset.f];
-    btn.textContent = `${{ attention: "Needs attention", progress: "In progress", all: "All" }[btn.dataset.f]} (${c})`;
+    btn.textContent = `${{ attention: "Needs attention", passed: "All clear / Passed",
+                           progress: "In progress", all: "All" }[btn.dataset.f]} (${c})`;
   }
   $("verifyAll").style.display = items.length ? "inline-block" : "none";
   $("verifyAll").textContent = items.length > 1 ? "Verify all" : "Verify label";
