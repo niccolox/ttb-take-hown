@@ -23,12 +23,37 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
+import logging.handlers
 import os
 import sys
 import time
 from pathlib import Path
 
 OUT_BASE = Path(__file__).parent / "colacloud"
+
+log = logging.getLogger("colacloud")
+
+
+def setup_logging() -> Path:
+    """Debug log → api/eval/colacloud/pipeline.log (rotating, survives in the
+    docker-dev bind mount) AND stdout (visible in `docker compose logs -f` /
+    the dev console). Idempotent."""
+    OUT_BASE.mkdir(parents=True, exist_ok=True)
+    logfile = OUT_BASE / "pipeline.log"
+    if not log.handlers:
+        log.setLevel(logging.DEBUG)
+        fmt = logging.Formatter("%(asctime)s %(levelname)-7s [colacloud] %(message)s")
+        fh = logging.handlers.RotatingFileHandler(logfile, maxBytes=1_000_000,
+                                                  backupCount=2)
+        fh.setFormatter(fmt)
+        fh.setLevel(logging.DEBUG)
+        sh = logging.StreamHandler(sys.stdout)
+        sh.setFormatter(fmt)
+        sh.setLevel(logging.INFO)
+        log.addHandler(fh)
+        log.addHandler(sh)
+    return logfile
 
 TYPES = {  # our name -> API product_type / our beverage_type enum
     "wine": ("wine", "wine"),
@@ -121,7 +146,9 @@ def _with_rate_limit(fn, *, progress, attempts: int = 4):
             if m := _re.search(r"retry after (\d+)", msg):
                 wait = int(m.group(1)) + 5
             if i == attempts - 1:
+                log.error("rate limit: giving up after %d attempts: %s", attempts, msg[:200])
                 raise
+            log.warning("rate limit hit — waiting %ss (attempt %d/%d)", wait, i + 1, attempts)
             progress(f"rate-limited — waiting {wait}s (attempt {i + 1}/{attempts})")
             time.sleep(wait)
 
@@ -138,11 +165,14 @@ def pull_type(tname: str, *, api_key: str, per_type: int = 4, query: str | None 
     import httpx
     from colacloud import ColaCloud
 
+    setup_logging()
     api_type, bev = TYPES[tname]
     out_dir = OUT_BASE / tname
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest = _load_manifest(out_dir)
     have = {m["id"] for m in manifest}
+    log.info("pull_type start: type=%s per_type=%s query=%r from_date=%r existing=%d",
+             tname, per_type, query, from_date, len(have))
 
     client = ColaCloud(api_key=api_key)
     try:
@@ -154,6 +184,9 @@ def pull_type(tname: str, *, api_key: str, per_type: int = 4, query: str | None 
             progress=progress)
         candidates = [s for s in resp.data
                       if (s.image_count or 0) > 0 and s.ttb_id not in have]
+        log.info("search: %d records returned, %d new candidates with images",
+                 len(resp.data), len(candidates))
+        log.debug("candidate ttb_ids: %s", [s.ttb_id for s in candidates[:20]])
         progress(f"{len(candidates)} new candidates with images; pulling up to {per_type}")
 
         taken = 0
@@ -177,11 +210,21 @@ def pull_type(tname: str, *, api_key: str, per_type: int = 4, query: str | None 
             manifest.append(entry)
             _save_manifest(out_dir, manifest)        # incremental — crash-safe
             taken += 1
+            q = client.quota_info()
+            log.info("fetched %s brand=%r abv=%s vol=%s panel=%s img=%dKB quota_left=%s",
+                     summary.ttb_id, d.get("brand_name"), d.get("abv"),
+                     net_contents_str(d.get("volume"), d.get("volume_unit")), pos,
+                     len(img.content) // 1024,
+                     getattr(q, "detail_views_remaining", "?") if q else "?")
             progress(f"{taken}/{per_type}: {d.get('brand_name','')[:40]}")
             time.sleep(sleep)
 
         _save_manifest(out_dir, manifest)
+        log.info("pull_type done: type=%s new=%d manifest_total=%d", tname, taken, len(manifest))
         return len(manifest)
+    except Exception:
+        log.exception("pull_type failed: type=%s", tname)
+        raise
     finally:
         client.close()
 
@@ -193,6 +236,7 @@ def recover_orphans(tname: str, *, api_key: str, sleep: float = 8.0,
     orphan."""
     from colacloud import ColaCloud
 
+    setup_logging()
     _, bev = TYPES[tname]
     out_dir = OUT_BASE / tname
     if not out_dir.exists():
@@ -201,6 +245,7 @@ def recover_orphans(tname: str, *, api_key: str, sleep: float = 8.0,
     have = {m["id"] for m in manifest}
     orphans = [p for p in sorted(out_dir.glob("*.jpg")) + sorted(out_dir.glob("*.png"))
                if p.stem not in have]
+    log.info("recover_orphans: type=%s manifest=%d orphans=%d", tname, len(have), len(orphans))
     if not orphans:
         return len(manifest)
 
@@ -214,9 +259,13 @@ def recover_orphans(tname: str, *, api_key: str, sleep: float = 8.0,
             entry["provenance"]["image_panel"] = "recovered"
             manifest.append(entry)
             _save_manifest(out_dir, manifest)
+            log.info("recovered %s brand=%r", p.stem, d.get("brand_name"))
             progress(f"recovered {p.stem}: {d.get('brand_name','')[:40]}")
             time.sleep(sleep)
         return len(manifest)
+    except Exception:
+        log.exception("recover_orphans failed: type=%s", tname)
+        raise
     finally:
         client.close()
 

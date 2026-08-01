@@ -203,9 +203,12 @@ _pull_serializer = _threading.Lock()   # one pull at a time — 3 concurrent pul
 
 
 def _run_pipeline(tname: str, per_type: int, query: str | None):
-    from .eval.colacloud_pipeline import pull_type, recover_orphans
+    from .eval.colacloud_pipeline import (pull_type, recover_orphans,
+                                          setup_logging, log as cclog)
+    setup_logging()
     st = PIPELINES[tname]
     st.update(message="queued (one pull runs at a time)…")
+    cclog.info("UI pipeline requested: type=%s per_type=%s query=%r", tname, per_type, query)
     with _pull_serializer:
         try:
             key = _os.environ["COLACLOUD_API_KEY"]
@@ -215,6 +218,7 @@ def _run_pipeline(tname: str, per_type: int, query: str | None):
                           progress=lambda m: st.update(message=m))
             st.update(status="done", count=n,
                       message=f"{n} approved labels in the set — load it below.")
+            cclog.info("UI pipeline done: type=%s total=%d", tname, n)
         except Exception as e:                    # surfaced, never silent
             msg = str(e)
             if "429" in msg or "Too many" in msg:

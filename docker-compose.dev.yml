@@ -3,6 +3,8 @@
 # Edits to api/ (including api/web/) apply immediately — uvicorn reloads Python,
 # and the static UI is re-read per request. Models stay baked in the image, so
 # rebuilds are only needed when requirements.txt changes.
+# COLA Cloud pipeline debug: streams in `docker compose -f docker-compose.dev.yml
+# logs -f` AND persists to api/eval/colacloud/pipeline.log on the host (bind mount).
 services:
   labelcheck-dev:
     build: .
