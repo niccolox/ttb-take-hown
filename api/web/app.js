@@ -186,6 +186,16 @@ function effStatus(it, f) {
   return ov ? OV_FIELD_STATUS[ov.value] || f.status : f.status;
 }
 
+let persistTimer = null;
+function schedulePersist() {
+  // one save shortly after the last verdict lands (a batch saves once, not per label)
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    persistSession().catch(() =>
+      err("Results kept in this tab — saving to the server failed."));
+  }, 1500);
+}
+
 function packOverride(it) {
   const hasFields = it.fieldOverrides && Object.keys(it.fieldOverrides).length;
   if (!it.override && !hasFields) return null;
@@ -711,8 +721,10 @@ async function runOne(it) {
     markSessionDirty();
   } catch (e) {
     it.state = "error"; it.errorMsg = e.message;
+    markSessionDirty();
   }
   renderList(); if (sel() === it) renderDetail();
+  schedulePersist();                     // status (all clear / review / mismatch) is saved
 }
 
 $("verifyAll").addEventListener("click", async () => {
@@ -735,6 +747,8 @@ $("verifyAll").addEventListener("click", async () => {
   await Promise.all(workers);
   running = false;
   renderList();
+  clearTimeout(persistTimer);
+  persistSession().catch(() => err("Results kept in this tab — saving to the server failed."));
 });
 
 $("cancel").addEventListener("click", () => { cancelRequested = true; });
