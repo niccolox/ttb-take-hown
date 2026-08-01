@@ -191,6 +191,17 @@ function itemState(it) {        // the reviewer's override IS the main status
   return autoState(it);
 }
 
+function itemTitle(it) {
+  // Applications are identified the way TTB identifies them: brand name plus
+  // fanciful name ('Chateau Le Coteau — "Pelopee"'); the filename is the
+  // fallback and lives in the tooltip.
+  const brand = (it.app.brand_name || "").trim();
+  const fanciful = (it.app.fanciful_name || "").trim();
+  if (brand && fanciful) return `${brand} — “${fanciful}”`;
+  if (fanciful) return `“${fanciful}”`;
+  return brand || it.file.name;
+}
+
 function visible(it) {
   const s = itemState(it);
   if (filter === "attention") return ["done_red", "done_amber", "error"].includes(s);
@@ -215,7 +226,8 @@ function renderList() {
     b.setAttribute("role", "option");
     b.setAttribute("aria-current", String(it.id === selectedId));
     const nPanels = (it.panels || []).length;
-    b.innerHTML = `<span class="fn">${esc(it.file.name)}</span>
+    b.title = it.file.name;                       // filename stays discoverable
+    b.innerHTML = `<span class="fn">${esc(itemTitle(it))}</span>
       ${nPanels > 1 ? '<span class="loz grey">front+back</span>' : ""}
       <span class="loz ${cls}">${txt}${it.stale ? " ⟳" : ""}</span>`;
     b.addEventListener("click", () => select(it.id));
@@ -266,6 +278,17 @@ function renderDetail() {
   const d = $("detail");
   if (!it) { d.innerHTML = '<p class="note">Select a label from the Applications list.</p>'; return; }
   d.innerHTML = "";
+  {
+    const head = document.createElement("div");
+    head.style.marginBottom = "8px";
+    const t = document.createElement("strong");
+    t.textContent = itemTitle(it);
+    const sub = document.createElement("div");
+    sub.className = "cite";
+    sub.textContent = it.file.name;
+    head.append(t, sub);
+    d.appendChild(head);
+  }
   for (const p of (it.panels || []).filter((p) => p.bitmap)) {
     const img = document.createElement("img");
     img.className = "thumb";
