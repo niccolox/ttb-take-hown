@@ -57,10 +57,12 @@ def save_session(items: list[dict], panel_blobs: list[tuple[int, str, str, str, 
             con.execute("DELETE FROM session_panels")
             con.execute("DELETE FROM session_meta")
             for i, it in enumerate(items):
+                ov = it.get("override")
                 con.execute(
                     "INSERT INTO session_items VALUES (?, ?, ?, ?, ?, ?)",
                     [i, it.get("file_name") or "", it.get("state") or "waiting",
-                     it.get("override"), json.dumps(it.get("application") or {}),
+                     json.dumps(ov) if ov is not None else None,
+                     json.dumps(it.get("application") or {}),
                      json.dumps(it["result"]) if it.get("result") else None])
             for idx, panel, fname, mime, data in panel_blobs:
                 con.execute("INSERT INTO session_panels VALUES (?, ?, ?, ?, ?)",
@@ -100,7 +102,8 @@ def load_session() -> dict | None:
             return {
                 "saved_at": meta.get("saved_at"),
                 "items": [{
-                    "idx": idx, "file_name": fname, "state": state, "override": override,
+                    "idx": idx, "file_name": fname, "state": state,
+                    "override": _load_override(override),
                     "application": json.loads(app) if app else {},
                     "result": json.loads(result) if result else None,
                     "panels": by_item.get(idx, []),
@@ -108,6 +111,17 @@ def load_session() -> dict | None:
             }
         finally:
             con.close()
+
+
+def _load_override(raw):
+    """Overrides are stored as JSON ({value, at, original}); legacy saves held a
+    bare string — accept both."""
+    if raw is None:
+        return None
+    try:
+        return json.loads(raw)
+    except (ValueError, TypeError):
+        return raw
 
 
 def get_panel(item_idx: int, panel: str) -> tuple[bytes, str] | None:

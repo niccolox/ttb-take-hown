@@ -499,7 +499,9 @@ def test_session_store_roundtrip(tmp_path, monkeypatch):
     monkeypatch.setattr(ss, "DB_PATH", tmp_path / "state.duckdb")
     assert ss.load_session() is None and ss.session_summary() is None
 
-    items = [{"file_name": "a_front.jpg", "state": "done", "override": "approve",
+    items = [{"file_name": "a_front.jpg", "state": "done",
+              "override": {"value": "PASS", "at": "2026-07-31 22:00",
+                           "original": "Mismatch found"},
               "application": {"brand_name": "OLD TOM"},
               "result": {"screening_result": "no_mismatch_found", "fields": []}},
              {"file_name": "b.jpg", "state": "waiting", "override": None,
@@ -511,7 +513,8 @@ def test_session_store_roundtrip(tmp_path, monkeypatch):
     assert info["item_count"] == 2
 
     s = ss.load_session()
-    assert s["items"][0]["override"] == "approve"
+    assert s["items"][0]["override"]["value"] == "PASS"
+    assert s["items"][0]["override"]["at"] == "2026-07-31 22:00"
     assert s["items"][0]["result"]["screening_result"] == "no_mismatch_found"
     assert [p["panel"] for p in s["items"][0]["panels"]] == ["front", "back"]
     assert s["items"][1]["result"] is None

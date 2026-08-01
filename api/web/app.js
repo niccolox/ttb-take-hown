@@ -172,12 +172,23 @@ async function loadSamples() {
 }
 
 // ── list pane (stable order, filters, progress) ──────────────────────────────
-function itemState(it) {
+const OV_STATE = { "PASS": "done_green", "NEEDS REVIEW": "done_amber", "FAIL": "done_red" };
+
+function ovValue(it) {          // override may be a legacy string or {value, at, original}
+  return typeof it.override === "string" ? it.override : it.override?.value || null;
+}
+
+function autoState(it) {
   if (it.state !== "done") return it.state;
   const st = it.result.fields.map((f) => f.status);
   if (st.includes("MISMATCH")) return "done_red";
   if (st.some((s) => ["NEEDS_REVIEW", "WITHIN_TOLERANCE", "LIKELY_MATCH"].includes(s))) return "done_amber";
   return "done_green";
+}
+
+function itemState(it) {        // the reviewer's override IS the main status
+  if (it.state === "done" && ovValue(it)) return OV_STATE[ovValue(it)] || autoState(it);
+  return autoState(it);
 }
 
 function visible(it) {
@@ -431,10 +442,23 @@ function renderResult(container, it) {
       : `⏱ Checked in ${s.toFixed(1)}s — OVER the 5-second target${ocr}`;
     container.appendChild(timing);
   }
-  const [cls, text] = bannerFor(r.fields);
+  let [cls, text] = bannerFor(r.fields);
+  const ov = ovValue(it);
+  if (ov) {
+    cls = { "PASS": "green", "NEEDS REVIEW": "amber", "FAIL": "red" }[ov] || cls;
+    text = { "PASS": "PASS — agent decision", "NEEDS REVIEW": "NEEDS REVIEW — agent decision",
+             "FAIL": "FAIL — agent decision" }[ov] || text;
+  }
   const banner = document.createElement("div");
   banner.className = "banner " + cls; banner.textContent = text;
   container.appendChild(banner);
+  if (ov && typeof it.override === "object") {
+    const audit = document.createElement("p");
+    audit.className = "ov-note";
+    audit.textContent = `${(it.override.original || screeningLabel(it)).toLowerCase()} ` +
+                        `overridden on ${it.override.at}`;
+    container.appendChild(audit);
+  }
 
   const sorted = [...r.fields].sort((a, b) =>
     FIELD_ORDER.indexOf(a.field) - FIELD_ORDER.indexOf(b.field));
@@ -482,25 +506,36 @@ function renderResult(container, it) {
   }
 
   // reviewer override — the agent decides; export carries original/final/overwritten
-  const ov = document.createElement("div");
-  ov.className = "override";
+  const ovBox = document.createElement("div");
+  ovBox.className = "override";
   const auto = screeningLabel(it);
-  ov.innerHTML = `<strong>Agent decision</strong>
-    <div class="note">Screening result: ${esc(auto)}. Override if your judgment differs.</div>
+  const cur = ovValue(it);
+  ovBox.innerHTML = `<strong>Agent decision</strong>
+    <div class="note">Screening result: ${esc(auto)}. Your decision becomes the status and is saved.</div>
     <div class="btns">
       ${["PASS", "NEEDS REVIEW", "FAIL"].map((v) =>
-        `<button type="button" data-ov="${v}" aria-pressed="${String(it.override === v)}">${v}</button>`).join("")}
-    </div>
-    ${it.override ? `<p class="ov-note">Overwritten: ${esc(auto)} → ${esc(it.override)}</p>` : ""}`;
-  ov.addEventListener("click", (e) => {
+        `<button type="button" data-ov="${v}" aria-pressed="${String(cur === v)}">${v}</button>`).join("")}
+    </div>`;
+  ovBox.addEventListener("click", (e) => {
     const v = e.target.closest("button")?.dataset.ov;
-    if (v) { it.override = it.override === v ? null : v; renderDetail(); renderList(); }
+    if (!v) return;
+    if (ovValue(it) === v) {
+      it.override = null;                            // click again to retract
+    } else {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ` +
+                    `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      it.override = { value: v, at: stamp, original: auto };
+    }
+    renderDetail(); renderList();
+    persistSession().catch(() => err("Decision kept in this tab — saving to the server failed."));
   });
-  container.appendChild(ov);
+  container.appendChild(ovBox);
 }
 
 function screeningLabel(it) {
-  const s = itemState(it);
+  const s = autoState(it);
   return { done_green: "All clear", done_amber: "Needs review", done_red: "Mismatch found",
            error: "Couldn't finish" }[s] || "Not checked";
 }
@@ -610,18 +645,19 @@ function csvCell(v) {
 $("export").addEventListener("click", () => {
   const head = ["filename", "beverage_type", "brand_name", "class_type",
                 "alcohol_content", "net_contents", "screening_result",
-                "original_result", "final_result", "overwritten",
+                "original_result", "final_result", "overwritten", "overridden_at",
                 ...FIELD_ORDER.filter((f) => f !== "image").map((f) => `field_${f}`)];
   const rows = [head.map(csvCell).join(",")];
   for (const it of items) {
     if (!it.result && it.state !== "error") continue;
     const orig = screeningLabel(it);
-    const final = it.override || orig;
+    const final = ovValue(it) || orig;
     const byField = Object.fromEntries((it.result?.fields || []).map((f) => [f.field, f.status]));
     rows.push([it.file.name, it.app.beverage_type, it.app.brand_name, it.app.class_type,
                it.app.alcohol_content, it.app.net_contents,
                it.result?.screening_result || "error", orig, final,
                String(Boolean(it.override)),
+               (typeof it.override === "object" && it.override?.at) || "",
                ...FIELD_ORDER.filter((f) => f !== "image").map((f) => byField[f] || "")]
               .map(csvCell).join(","));
   }
@@ -682,91 +718,6 @@ let pipePoll = null;
 async function refreshCorpora() {
   $("corpora").querySelectorAll("button").forEach((b) => b.remove());
   await loadCorpora();
-
-// ── session persistence (server-side DuckDB) ────────────────────────────────
-async function refreshSessionUI() {
-  try {
-    const s = await (await fetch("/api/session?summary=1")).json();
-    $("clearSession").style.display = s.saved ? "inline-block" : "none";
-    const show = s.saved && items.length === 0;
-    $("restore").style.display = show ? "block" : "none";
-    if (show) {
-      $("restoreBtn").innerHTML =
-        `<strong>Restore saved session</strong><span class="shows">` +
-        `${esc(String(s.item_count))} label(s), saved ${esc(s.saved_at || "")}</span>`;
-    }
-  } catch { /* server without session support */ }
-}
-
-$("saveSession").addEventListener("click", async () => {
-  err("");
-  const btn = $("saveSession");
-  btn.disabled = true; btn.textContent = "Saving…";
-  try {
-    const meta = [];
-    const fd = new FormData();
-    for (const it of items) {
-      const panels = (it.panels || []).map((p) => ({ panel: p.panel, file: p.file.name }));
-      meta.push({ file_name: it.file.name, state: it.state, override: it.override,
-                  application: it.app, result: it.result, panels });
-      for (const p of it.panels || []) fd.append("images", p.file);
-    }
-    fd.append("meta", JSON.stringify(meta));
-    const res = await fetch("/api/session", { method: "POST", body: fd });
-    const body = await res.json();
-    if (!res.ok) throw new Error(body.error || "Save failed — retry.");
-    $("progress").textContent = `Session saved (${items.length} labels) at ${body.saved_at}.`;
-  } catch (e) {
-    err(e.message);
-  } finally {
-    btn.disabled = false; btn.textContent = "Save session";
-    refreshSessionUI();
-  }
-});
-
-$("clearSession").addEventListener("click", async () => {
-  err("");
-  await fetch("/api/session", { method: "DELETE" });
-  $("progress").textContent = "Saved session cleared.";
-  refreshSessionUI();
-});
-
-$("restoreBtn").addEventListener("click", async () => {
-  err("");
-  const btn = $("restoreBtn");
-  btn.disabled = true;
-  try {
-    const s = await (await fetch("/api/session")).json();
-    if (!s.saved) { err("No saved session found."); return; }
-    for (const rec of s.items) {
-      const panelFiles = [];
-      for (const p of rec.panels.length ? rec.panels : [{ panel: "front", file: rec.file_name }]) {
-        const r = await fetch(`/api/session/panel/${rec.idx}/${encodeURIComponent(p.panel)}`);
-        if (!r.ok) continue;
-        const blob = await r.blob();
-        panelFiles.push({ file: new File([blob], p.file || rec.file_name,
-                                         { type: blob.type || "image/jpeg" }),
-                          panel: p.panel });
-      }
-      if (!panelFiles.length) continue;
-      await addItem(panelFiles, rec.application);
-      const it = items[items.length - 1];
-      it.result = rec.result;
-      it.state = rec.result ? "done" : (rec.state === "error" ? "waiting" : rec.state);
-      it.override = rec.override || null;
-    }
-    if (items.length && selectedId === null) select(items[0].id);
-    $("progress").textContent = `Restored ${s.items.length} label(s) from the saved session.`;
-    renderList(); renderDetail();
-  } catch {
-    err("Couldn't restore the saved session — retry.");
-  } finally {
-    btn.disabled = false;
-    refreshSessionUI();
-  }
-});
-
-refreshSessionUI();
 }
 
 async function renderPipelines() {
@@ -823,29 +774,37 @@ async function refreshSessionUI() {
   } catch { /* server without session support */ }
 }
 
+async function persistSession(showProgress = false) {
+  if (!items.length) return;
+  const meta = [];
+  const fd = new FormData();
+  for (const it of items) {
+    const panels = (it.panels || []).map((p) => ({ panel: p.panel, file: p.file.name }));
+    meta.push({ file_name: it.file.name, state: it.state, override: it.override,
+                application: it.app, result: it.result, panels });
+    for (const p of it.panels || []) fd.append("images", p.file);
+  }
+  fd.append("meta", JSON.stringify(meta));
+  const res = await fetch("/api/session", { method: "POST", body: fd });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || "Save failed — retry.");
+  if (showProgress) {
+    $("progress").textContent = `Session saved (${items.length} labels) at ${body.saved_at}.`;
+  }
+  refreshSessionUI();
+  return body;
+}
+
 $("saveSession").addEventListener("click", async () => {
   err("");
   const btn = $("saveSession");
   btn.disabled = true; btn.textContent = "Saving…";
   try {
-    const meta = [];
-    const fd = new FormData();
-    for (const it of items) {
-      const panels = (it.panels || []).map((p) => ({ panel: p.panel, file: p.file.name }));
-      meta.push({ file_name: it.file.name, state: it.state, override: it.override,
-                  application: it.app, result: it.result, panels });
-      for (const p of it.panels || []) fd.append("images", p.file);
-    }
-    fd.append("meta", JSON.stringify(meta));
-    const res = await fetch("/api/session", { method: "POST", body: fd });
-    const body = await res.json();
-    if (!res.ok) throw new Error(body.error || "Save failed — retry.");
-    $("progress").textContent = `Session saved (${items.length} labels) at ${body.saved_at}.`;
+    await persistSession(true);
   } catch (e) {
     err(e.message);
   } finally {
     btn.disabled = false; btn.textContent = "Save session";
-    refreshSessionUI();
   }
 });
 
