@@ -490,3 +490,37 @@ def test_warning_diff_boxes_empty_on_exact_text():
     loc = Locator(words)
     assert loc.find_warning().found
     assert _warning_diff_boxes(loc) == []
+
+
+# ── DuckDB session store ─────────────────────────────────────────────────────
+
+def test_session_store_roundtrip(tmp_path, monkeypatch):
+    from api import session_store as ss
+    monkeypatch.setattr(ss, "DB_PATH", tmp_path / "state.duckdb")
+    assert ss.load_session() is None and ss.session_summary() is None
+
+    items = [{"file_name": "a_front.jpg", "state": "done", "override": "approve",
+              "application": {"brand_name": "OLD TOM"},
+              "result": {"screening_result": "no_mismatch_found", "fields": []}},
+             {"file_name": "b.jpg", "state": "waiting", "override": None,
+              "application": {"brand_name": "B"}, "result": None}]
+    blobs = [(0, "front", "a_front.jpg", "image/jpeg", b"\xff\xd8front"),
+             (0, "back", "a_back.jpg", "image/jpeg", b"\xff\xd8back"),
+             (1, "front", "b.jpg", "image/png", b"\x89PNGb")]
+    info = ss.save_session(items, blobs)
+    assert info["item_count"] == 2
+
+    s = ss.load_session()
+    assert s["items"][0]["override"] == "approve"
+    assert s["items"][0]["result"]["screening_result"] == "no_mismatch_found"
+    assert [p["panel"] for p in s["items"][0]["panels"]] == ["front", "back"]
+    assert s["items"][1]["result"] is None
+    data, mime = ss.get_panel(0, "back")
+    assert data == b"\xff\xd8back" and mime == "image/jpeg"
+    assert ss.get_panel(9, "front") is None
+
+    # save replaces (single-slot semantics), clear empties
+    ss.save_session(items[:1], blobs[:2])
+    assert ss.session_summary()["item_count"] == 1
+    ss.clear_session()
+    assert ss.load_session() is None

@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 .env
 api/eval/colacloud/
+api/data/

@@ -245,6 +245,71 @@ def _run_pipeline(tname: str, per_type: int, query: str | None):
             st.update(status="error", message=f"Pull didn't finish: {msg[:150]} — retry.")
 
 
+# ── session persistence (DuckDB) ─────────────────────────────────────────────
+
+from . import session_store
+
+
+@app.get("/api/session")
+def session_get(summary: bool = False):
+    data = session_store.session_summary() if summary else session_store.load_session()
+    if data is None:
+        return JSONResponse({"saved": False})
+    return {"saved": True, **data}
+
+
+@app.post("/api/session")
+async def session_save(meta: str = Form("{}"),
+                       images: list[UploadFile] = File(None)):
+    """Snapshot the batch. `meta` = JSON [{file_name, state, override,
+    application, result, panels: [{panel, file}]}]; `images` = the panel files
+    in the exact order the panels appear across items."""
+    try:
+        items = json.loads(meta)
+        assert isinstance(items, list)
+    except Exception:
+        return JSONResponse({"error": "Bad session metadata.", "code": "bad_meta"},
+                            status_code=400)
+    if len(items) > 200:
+        return JSONResponse({"error": "Session too large (max 200 labels).",
+                             "code": "too_large"}, status_code=413)
+    uploads = list(images or [])
+    expected = [(i, p) for i, it in enumerate(items) for p in it.get("panels") or []]
+    if len(uploads) != len(expected):
+        return JSONResponse({"error": "Panel image count doesn't match metadata.",
+                             "code": "panel_mismatch"}, status_code=400)
+    blobs = []
+    total = 0
+    for (idx, p), up in zip(expected, uploads):
+        raw = await up.read()
+        total += len(raw)
+        if len(raw) > MAX_BYTES or total > 64 * 1024 * 1024:
+            return JSONResponse({"error": "Session images too large.",
+                                 "code": "too_large"}, status_code=413)
+        blobs.append((idx, p.get("panel") or "front", p.get("file") or "",
+                      up.content_type or "image/jpeg", raw))
+    info = session_store.save_session(items, blobs)
+    return {"saved": True, **info}
+
+
+@app.get("/api/session/panel/{item_idx}/{panel}")
+def session_panel(item_idx: int, panel: str):
+    if panel not in ("front", "back", "main", "unknown"):
+        return JSONResponse({"error": "Unknown panel."}, status_code=404)
+    got = session_store.get_panel(item_idx, panel)
+    if not got:
+        return JSONResponse({"error": "No such panel."}, status_code=404)
+    data, mime = got
+    from fastapi.responses import Response
+    return Response(content=data, media_type=mime)
+
+
+@app.delete("/api/session")
+def session_clear():
+    session_store.clear_session()
+    return {"saved": False}
+
+
 @app.get("/api/pipelines")
 def pipelines():
     _load_dotenv()                                 # pick up a freshly created .env

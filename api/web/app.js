@@ -219,6 +219,7 @@ function renderList() {
         : `${items.length} label(s) ready — ${done} checked`;
   }
   $("filters").style.display = items.length > 1 ? "flex" : "none";
+  $("saveSession").style.display = items.length ? "inline-block" : "none";
   for (const btn of $("filters").querySelectorAll("button")) {
     btn.setAttribute("aria-pressed", String(btn.dataset.f === filter));
     const c = counts[btn.dataset.f];
@@ -681,6 +682,91 @@ let pipePoll = null;
 async function refreshCorpora() {
   $("corpora").querySelectorAll("button").forEach((b) => b.remove());
   await loadCorpora();
+
+// ── session persistence (server-side DuckDB) ────────────────────────────────
+async function refreshSessionUI() {
+  try {
+    const s = await (await fetch("/api/session?summary=1")).json();
+    $("clearSession").style.display = s.saved ? "inline-block" : "none";
+    const show = s.saved && items.length === 0;
+    $("restore").style.display = show ? "block" : "none";
+    if (show) {
+      $("restoreBtn").innerHTML =
+        `<strong>Restore saved session</strong><span class="shows">` +
+        `${esc(String(s.item_count))} label(s), saved ${esc(s.saved_at || "")}</span>`;
+    }
+  } catch { /* server without session support */ }
+}
+
+$("saveSession").addEventListener("click", async () => {
+  err("");
+  const btn = $("saveSession");
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    const meta = [];
+    const fd = new FormData();
+    for (const it of items) {
+      const panels = (it.panels || []).map((p) => ({ panel: p.panel, file: p.file.name }));
+      meta.push({ file_name: it.file.name, state: it.state, override: it.override,
+                  application: it.app, result: it.result, panels });
+      for (const p of it.panels || []) fd.append("images", p.file);
+    }
+    fd.append("meta", JSON.stringify(meta));
+    const res = await fetch("/api/session", { method: "POST", body: fd });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || "Save failed — retry.");
+    $("progress").textContent = `Session saved (${items.length} labels) at ${body.saved_at}.`;
+  } catch (e) {
+    err(e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = "Save session";
+    refreshSessionUI();
+  }
+});
+
+$("clearSession").addEventListener("click", async () => {
+  err("");
+  await fetch("/api/session", { method: "DELETE" });
+  $("progress").textContent = "Saved session cleared.";
+  refreshSessionUI();
+});
+
+$("restoreBtn").addEventListener("click", async () => {
+  err("");
+  const btn = $("restoreBtn");
+  btn.disabled = true;
+  try {
+    const s = await (await fetch("/api/session")).json();
+    if (!s.saved) { err("No saved session found."); return; }
+    for (const rec of s.items) {
+      const panelFiles = [];
+      for (const p of rec.panels.length ? rec.panels : [{ panel: "front", file: rec.file_name }]) {
+        const r = await fetch(`/api/session/panel/${rec.idx}/${encodeURIComponent(p.panel)}`);
+        if (!r.ok) continue;
+        const blob = await r.blob();
+        panelFiles.push({ file: new File([blob], p.file || rec.file_name,
+                                         { type: blob.type || "image/jpeg" }),
+                          panel: p.panel });
+      }
+      if (!panelFiles.length) continue;
+      await addItem(panelFiles, rec.application);
+      const it = items[items.length - 1];
+      it.result = rec.result;
+      it.state = rec.result ? "done" : (rec.state === "error" ? "waiting" : rec.state);
+      it.override = rec.override || null;
+    }
+    if (items.length && selectedId === null) select(items[0].id);
+    $("progress").textContent = `Restored ${s.items.length} label(s) from the saved session.`;
+    renderList(); renderDetail();
+  } catch {
+    err("Couldn't restore the saved session — retry.");
+  } finally {
+    btn.disabled = false;
+    refreshSessionUI();
+  }
+});
+
+refreshSessionUI();
 }
 
 async function renderPipelines() {
@@ -721,4 +807,89 @@ function startPipelinePolling() {
 
 loadSamples();
 loadCorpora();
+
+// ── session persistence (server-side DuckDB) ────────────────────────────────
+async function refreshSessionUI() {
+  try {
+    const s = await (await fetch("/api/session?summary=1")).json();
+    $("clearSession").style.display = s.saved ? "inline-block" : "none";
+    const show = s.saved && items.length === 0;
+    $("restore").style.display = show ? "block" : "none";
+    if (show) {
+      $("restoreBtn").innerHTML =
+        `<strong>Restore saved session</strong><span class="shows">` +
+        `${esc(String(s.item_count))} label(s), saved ${esc(s.saved_at || "")}</span>`;
+    }
+  } catch { /* server without session support */ }
+}
+
+$("saveSession").addEventListener("click", async () => {
+  err("");
+  const btn = $("saveSession");
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    const meta = [];
+    const fd = new FormData();
+    for (const it of items) {
+      const panels = (it.panels || []).map((p) => ({ panel: p.panel, file: p.file.name }));
+      meta.push({ file_name: it.file.name, state: it.state, override: it.override,
+                  application: it.app, result: it.result, panels });
+      for (const p of it.panels || []) fd.append("images", p.file);
+    }
+    fd.append("meta", JSON.stringify(meta));
+    const res = await fetch("/api/session", { method: "POST", body: fd });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || "Save failed — retry.");
+    $("progress").textContent = `Session saved (${items.length} labels) at ${body.saved_at}.`;
+  } catch (e) {
+    err(e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = "Save session";
+    refreshSessionUI();
+  }
+});
+
+$("clearSession").addEventListener("click", async () => {
+  err("");
+  await fetch("/api/session", { method: "DELETE" });
+  $("progress").textContent = "Saved session cleared.";
+  refreshSessionUI();
+});
+
+$("restoreBtn").addEventListener("click", async () => {
+  err("");
+  const btn = $("restoreBtn");
+  btn.disabled = true;
+  try {
+    const s = await (await fetch("/api/session")).json();
+    if (!s.saved) { err("No saved session found."); return; }
+    for (const rec of s.items) {
+      const panelFiles = [];
+      for (const p of rec.panels.length ? rec.panels : [{ panel: "front", file: rec.file_name }]) {
+        const r = await fetch(`/api/session/panel/${rec.idx}/${encodeURIComponent(p.panel)}`);
+        if (!r.ok) continue;
+        const blob = await r.blob();
+        panelFiles.push({ file: new File([blob], p.file || rec.file_name,
+                                         { type: blob.type || "image/jpeg" }),
+                          panel: p.panel });
+      }
+      if (!panelFiles.length) continue;
+      await addItem(panelFiles, rec.application);
+      const it = items[items.length - 1];
+      it.result = rec.result;
+      it.state = rec.result ? "done" : (rec.state === "error" ? "waiting" : rec.state);
+      it.override = rec.override || null;
+    }
+    if (items.length && selectedId === null) select(items[0].id);
+    $("progress").textContent = `Restored ${s.items.length} label(s) from the saved session.`;
+    renderList(); renderDetail();
+  } catch {
+    err("Couldn't restore the saved session — retry.");
+  } finally {
+    btn.disabled = false;
+    refreshSessionUI();
+  }
+});
+
+refreshSessionUI();
 renderPipelines();

@@ -123,8 +123,13 @@ img.thumb{max-width:100%;border:1px solid var(--line);border-radius:6px;margin-b
       <p class="note" id="pipelines-note">Pull real approved COLAs per commodity; the
         registry record is the ground truth.</p>
     </div>
+    <div class="samples" id="restore" style="display:none">
+      <h2 style="margin-top:16px;font-size:17px">Saved session</h2>
+      <button type="button" id="restoreBtn"></button>
+    </div>
     <div class="inline-error" id="err" role="alert"></div>
-    <p class="storage-note">Results are stored only in this browser tab.</p>
+    <p class="storage-note" id="storageNote">Results live in this tab — "Save session"
+      persists them (with images) to the server's DuckDB store.</p>
   </section>
 
   <section class="panel" aria-labelledby="apps-h">
@@ -140,6 +145,8 @@ img.thumb{max-width:100%;border:1px solid var(--line);border-radius:6px;margin-b
       <button class="primary" id="verifyAll" style="display:none;margin-top:0;width:auto;padding:0 16px">Verify all</button>
       <button class="secondary" id="cancel" style="display:none">Cancel waiting checks</button>
       <button class="secondary" id="export" style="display:none">Export results (CSV)</button>
+      <button class="secondary" id="saveSession" style="display:none">Save session</button>
+      <button class="secondary" id="clearSession" style="display:none">Clear saved session</button>
     </div>
   </section>
 
