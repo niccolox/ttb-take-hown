@@ -306,14 +306,23 @@ function renderList() {
       ? "color:var(--green);font-weight:700"
       : "";
   }
-  $("filters").style.display = items.length > 1 ? "flex" : "none";
+  $("filters").style.display = items.length ? "flex" : "none";
   $("saveSession").style.display = items.length ? "inline-block" : "none";
   updateSaveButton();
+  const FILTER_META = {
+    attention: ["Needs attention", "var(--red)", "var(--red-bg)"],
+    passed: ["All clear / Passed", "var(--green)", "var(--green-bg)"],
+    progress: ["In progress", "var(--grey)", "var(--grey-bg)"],
+    all: ["All", "var(--accent)", "#e8f1f8"],
+  };
   for (const btn of $("filters").querySelectorAll("button")) {
     btn.setAttribute("aria-pressed", String(btn.dataset.f === filter));
-    const c = counts[btn.dataset.f];
-    btn.textContent = `${{ attention: "Needs attention", passed: "All clear / Passed",
-                           progress: "In progress", all: "All" }[btn.dataset.f]} (${c})`;
+    const c = counts[btn.dataset.f] ?? 0;
+    const [label, dot, tint] = FILTER_META[btn.dataset.f] || [btn.dataset.f, "var(--grey)", "transparent"];
+    const pct = items.length ? Math.round((c / items.length) * 100) : 0;
+    btn.innerHTML = `<span class="dot" style="background:${dot}"></span>
+      <span class="flabel">${label}</span><span class="cnt">${c}</span>`;
+    btn.style.background = `linear-gradient(to right, ${tint} ${pct}%, #fff ${pct}%)`;
   }
   $("verifyAll").style.display = items.length ? "inline-block" : "none";
   $("verifyAll").textContent = items.length > 1 ? "Verify all" : "Verify label";
