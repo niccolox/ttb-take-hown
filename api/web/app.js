@@ -250,12 +250,11 @@ function updateSaveButton() {
 }
 
 function itemTitle(it) {
-  // Applications are identified the way TTB identifies them: brand name plus
-  // fanciful name ('Chateau Le Coteau — "Pelopee"'); the filename is the
-  // fallback and lives in the tooltip.
+  // Fanciful name leads, brand follows ('“Pelopee” — Chateau Le Coteau');
+  // the filename is the fallback and lives in the tooltip.
   const brand = (it.app.brand_name || "").trim();
   const fanciful = (it.app.fanciful_name || "").trim();
-  if (brand && fanciful) return `${brand} — “${fanciful}”`;
+  if (brand && fanciful) return `“${fanciful}” — ${brand}`;
   if (fanciful) return `“${fanciful}”`;
   return brand || it.file.name;
 }
