@@ -3,3 +3,4 @@ comparisons/
 __pycache__/
 *.pyc
 .env
+api/eval/colacloud/

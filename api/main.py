@@ -198,17 +198,28 @@ PIPELINES: dict[str, dict] = {
 _pipeline_lock = _threading.Lock()
 
 
+_pull_serializer = _threading.Lock()   # one pull at a time — 3 concurrent pulls
+                                       # blew the 10/min burst limit in testing
+
+
 def _run_pipeline(tname: str, per_type: int, query: str | None):
-    from .eval.colacloud_pipeline import pull_type
+    from .eval.colacloud_pipeline import pull_type, recover_orphans
     st = PIPELINES[tname]
-    try:
-        n = pull_type(tname, api_key=_os.environ["COLACLOUD_API_KEY"],
-                      per_type=per_type, query=query,
-                      progress=lambda m: st.update(message=m))
-        st.update(status="done", count=n,
-                  message=f"{n} approved labels pulled — set registered below.")
-    except Exception as e:                        # surfaced, never silent
-        st.update(status="error", message=f"Pull didn't finish: {str(e)[:160]} — retry.")
+    st.update(message="queued (one pull runs at a time)…")
+    with _pull_serializer:
+        try:
+            key = _os.environ["COLACLOUD_API_KEY"]
+            recover_orphans(tname, api_key=key,
+                            progress=lambda m: st.update(message=m))
+            n = pull_type(tname, api_key=key, per_type=per_type, query=query,
+                          progress=lambda m: st.update(message=m))
+            st.update(status="done", count=n,
+                      message=f"{n} approved labels in the set — load it below.")
+        except Exception as e:                    # surfaced, never silent
+            msg = str(e)
+            if "429" in msg or "Too many" in msg:
+                msg = "registry rate limit hit — what was fetched is saved; wait a minute and retry"
+            st.update(status="error", message=f"Pull didn't finish: {msg[:150]} — retry.")
 
 
 @app.get("/api/pipelines")

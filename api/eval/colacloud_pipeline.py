@@ -92,32 +92,76 @@ def pick_image(detail: dict) -> tuple[str | None, str]:
     return None, ""
 
 
+def _load_manifest(out_dir: Path) -> list[dict]:
+    p = out_dir / "manifest.json"
+    if p.exists():
+        try:
+            return json.loads(p.read_text())
+        except json.JSONDecodeError:
+            return []
+    return []
+
+
+def _save_manifest(out_dir: Path, manifest: list[dict]) -> None:
+    (out_dir / "manifest.json").write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False, default=str))  # SDK dates
+
+
+def _with_rate_limit(fn, *, progress, attempts: int = 4):
+    """Run an API call; on 429, honor Retry-After and retry (burst is 10/min)."""
+    for i in range(attempts):
+        try:
+            return fn()
+        except Exception as e:
+            msg = str(e)
+            if "429" not in msg and "Too many requests" not in msg:
+                raise
+            wait = 65
+            import re as _re
+            if m := _re.search(r"retry after (\d+)", msg):
+                wait = int(m.group(1)) + 5
+            if i == attempts - 1:
+                raise
+            progress(f"rate-limited — waiting {wait}s (attempt {i + 1}/{attempts})")
+            time.sleep(wait)
+
+
 def pull_type(tname: str, *, api_key: str, per_type: int = 4, query: str | None = None,
-              from_date: str | None = None, sleep: float = 6.5,
+              from_date: str | None = None, sleep: float = 7.0,
               progress=lambda msg: None) -> int:
-    """Pull one commodity batch. Returns number of entries written.
-    Callable from the API server (background thread) or the CLI."""
+    """Pull one commodity batch. Returns TOTAL entries in the manifest.
+
+    Crash-safe: the manifest is written incrementally after every successful
+    entry, and retries merge (dedupe by TTB ID) — a rate-limited or interrupted
+    pull keeps everything it already fetched, and the UI sees a valid set.
+    """
     import httpx
     from colacloud import ColaCloud
 
     api_type, bev = TYPES[tname]
     out_dir = OUT_BASE / tname
     out_dir.mkdir(parents=True, exist_ok=True)
+    manifest = _load_manifest(out_dir)
+    have = {m["id"] for m in manifest}
 
     client = ColaCloud(api_key=api_key)
     try:
         progress(f"searching {api_type} records…")
-        resp = client.colas.list(product_type=api_type, q=query,
-                                 approval_date_from=from_date,
-                                 per_page=min(50, per_type * 5))
-        candidates = [s for s in resp.data if (s.image_count or 0) > 0]
-        progress(f"{len(candidates)} candidates with images; pulling {per_type}")
+        resp = _with_rate_limit(
+            lambda: client.colas.list(product_type=api_type, q=query,
+                                      approval_date_from=from_date,
+                                      per_page=min(50, per_type * 5)),
+            progress=progress)
+        candidates = [s for s in resp.data
+                      if (s.image_count or 0) > 0 and s.ttb_id not in have]
+        progress(f"{len(candidates)} new candidates with images; pulling up to {per_type}")
 
-        manifest, taken = [], 0
+        taken = 0
         for summary in candidates:
             if taken >= per_type:
                 break
-            detail = client.colas.get(summary.ttb_id)
+            detail = _with_rate_limit(lambda s=summary: client.colas.get(s.ttb_id),
+                                      progress=progress)
             d = detail.model_dump() if hasattr(detail, "model_dump") else dict(detail)
             url, pos = pick_image(d)
             if not url:
@@ -131,12 +175,47 @@ def pull_type(tname: str, *, api_key: str, per_type: int = 4, query: str | None 
             entry = build_entry(d, bev, fname)
             entry["provenance"]["image_panel"] = pos
             manifest.append(entry)
+            _save_manifest(out_dir, manifest)        # incremental — crash-safe
             taken += 1
             progress(f"{taken}/{per_type}: {d.get('brand_name','')[:40]}")
             time.sleep(sleep)
 
-        (out_dir / "manifest.json").write_text(
-            json.dumps(manifest, indent=2, ensure_ascii=False))
+        _save_manifest(out_dir, manifest)
+        return len(manifest)
+    finally:
+        client.close()
+
+
+def recover_orphans(tname: str, *, api_key: str, sleep: float = 8.0,
+                    progress=lambda msg: None) -> int:
+    """Build manifest entries for images already on disk but missing from the
+    manifest (e.g. a pull that died before writing). Costs one detail view per
+    orphan."""
+    from colacloud import ColaCloud
+
+    _, bev = TYPES[tname]
+    out_dir = OUT_BASE / tname
+    if not out_dir.exists():
+        return 0
+    manifest = _load_manifest(out_dir)
+    have = {m["id"] for m in manifest}
+    orphans = [p for p in sorted(out_dir.glob("*.jpg")) + sorted(out_dir.glob("*.png"))
+               if p.stem not in have]
+    if not orphans:
+        return len(manifest)
+
+    client = ColaCloud(api_key=api_key)
+    try:
+        for p in orphans:
+            detail = _with_rate_limit(lambda p=p: client.colas.get(p.stem),
+                                      progress=progress)
+            d = detail.model_dump() if hasattr(detail, "model_dump") else dict(detail)
+            entry = build_entry(d, bev, p.name)
+            entry["provenance"]["image_panel"] = "recovered"
+            manifest.append(entry)
+            _save_manifest(out_dir, manifest)
+            progress(f"recovered {p.stem}: {d.get('brand_name','')[:40]}")
+            time.sleep(sleep)
         return len(manifest)
     finally:
         client.close()
