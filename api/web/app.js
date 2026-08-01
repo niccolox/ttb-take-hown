@@ -63,7 +63,7 @@ async function addItem(panelFiles, app = {}, registry = null) {
                   bitmap: await createImageBitmap(p.file).catch(() => null) });
   }
   markSessionDirty();
-  items.push({ id, file: f, bitmap: panels[0].bitmap, panels, registry,
+  items.push({ id, file: f, bitmap: panels[0].bitmap, panels, registry, fieldOverrides: {},
                app: { beverage_type: "unspecified", brand_name: "", class_type: "",
                       fanciful_name: "", origin: "", vintage: "", appellation: "",
                       grape_varietals: "", alcohol_content: "", net_contents: "", ...app },
@@ -176,6 +176,38 @@ async function loadSamples() {
 
 // ── list pane (stable order, filters, progress) ──────────────────────────────
 const OV_STATE = { "PASS": "done_green", "NEEDS REVIEW": "done_amber", "FAIL": "done_red" };
+const OV_FIELD_STATUS = { "PASS": "MATCH", "NEEDS REVIEW": "NEEDS_REVIEW", "FAIL": "MISMATCH" };
+
+function fieldOv(it, name) { return (it.fieldOverrides || {})[name] || null; }
+
+/** field status with any per-field agent override applied */
+function effStatus(it, f) {
+  const ov = fieldOv(it, f.field);
+  return ov ? OV_FIELD_STATUS[ov.value] || f.status : f.status;
+}
+
+function packOverride(it) {
+  const hasFields = it.fieldOverrides && Object.keys(it.fieldOverrides).length;
+  if (!it.override && !hasFields) return null;
+  return { whole: it.override || null, fields: hasFields ? it.fieldOverrides : {} };
+}
+
+function unpackOverride(it, raw) {
+  if (raw && typeof raw === "object" && ("whole" in raw || "fields" in raw)) {
+    it.override = raw.whole || null;
+    it.fieldOverrides = raw.fields || {};
+  } else {                                        // legacy: whole-label only
+    it.override = raw || null;
+    it.fieldOverrides = {};
+  }
+}
+
+function ovStamp() {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ` +
+         `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
 
 function ovValue(it) {          // override may be a legacy string or {value, at, original}
   return typeof it.override === "string" ? it.override : it.override?.value || null;
@@ -183,7 +215,7 @@ function ovValue(it) {          // override may be a legacy string or {value, at
 
 function autoState(it) {
   if (it.state !== "done") return it.state;
-  const st = it.result.fields.map((f) => f.status);
+  const st = it.result.fields.map((f) => effStatus(it, f));
   if (st.includes("MISMATCH")) return "done_red";
   if (st.some((s) => ["NEEDS_REVIEW", "WITHIN_TOLERANCE", "LIKELY_MATCH"].includes(s))) return "done_amber";
   return "done_green";
@@ -459,8 +491,9 @@ function renderDetail() {
   if (it.result) renderResult(d, it);
 }
 
-function bannerFor(fields) {
-  const names = (s) => fields.filter((f) => f.status === s).map((f) => FIELD_LABELS[f.field] || f.field);
+function bannerFor(fields, it = null) {
+  const stat = (f) => (it ? effStatus(it, f) : f.status);
+  const names = (s) => fields.filter((f) => stat(f) === s).map((f) => FIELD_LABELS[f.field] || f.field);
   const mis = names("MISMATCH"), rev = names("NEEDS_REVIEW"),
         amber = [...names("WITHIN_TOLERANCE"), ...names("LIKELY_MATCH")];
   if (mis.length) return ["red", `${mis.length} field${mis.length > 1 ? "s don't" : " doesn't"} match the application — see ${mis.join(", ")} below${rev.length ? `; ${rev.length} more need${rev.length > 1 ? "" : "s"} your eyes` : ""}`];
@@ -482,7 +515,7 @@ function renderResult(container, it) {
       : `⏱ Checked in ${s.toFixed(1)}s — OVER the 5-second target${ocr}`;
     container.appendChild(timing);
   }
-  let [cls, text] = bannerFor(r.fields);
+  let [cls, text] = bannerFor(r.fields, it);
   const ov = ovValue(it);
   if (ov) {
     cls = { "PASS": "green", "NEEDS REVIEW": "amber", "FAIL": "red" }[ov] || cls;
@@ -500,15 +533,49 @@ function renderResult(container, it) {
     container.appendChild(audit);
   }
 
+  // rows live in a per-render host so the delegated field-override listener
+  // never stacks on the persistent #detail element (stale-closure hazard)
+  const rowsHost = document.createElement("div");
+  rowsHost.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-fov]");
+    if (!btn) return;
+    const name = btn.dataset.field, v = btn.dataset.fov;
+    it.fieldOverrides = it.fieldOverrides || {};
+    if (it.fieldOverrides[name]?.value === v) {
+      delete it.fieldOverrides[name];              // click again to retract
+    } else {
+      const f = it.result.fields.find((x) => x.field === name);
+      it.fieldOverrides[name] = { value: v, at: ovStamp(),
+                                  original: f ? f.status : "" };
+    }
+    markSessionDirty();
+    renderDetail(); renderList();
+    persistSession().catch(() => err("Decision kept in this tab — saving to the server failed."));
+  });
+
   const sorted = [...r.fields].sort((a, b) =>
     FIELD_ORDER.indexOf(a.field) - FIELD_ORDER.indexOf(b.field));
   for (const f of sorted) {
-    const [fam, chipText] = FAMILY[f.status] || ["grey", f.status];
+    const fov = fieldOv(it, f.field);
+    const shown = effStatus(it, f);
+    const [fam, chipText] = FAMILY[shown] || ["grey", shown];
+    const origChip = (FAMILY[f.status] || ["grey", f.status])[1];
     const row = document.createElement("div");
     row.className = "row";
     row.innerHTML = `
       <div class="fname">${esc(FIELD_LABELS[f.field] || f.field)}</div>
-      <div><span class="chip ${fam}">${chipText}</span></div>
+      <div>
+        <span class="chip ${fam}">${chipText}${fov ? " ·agent" : ""}</span>
+        ${fov ? `<div class="ov-note" style="font-size:12px">${esc(origChip.replace(/^[^A-Za-z]+/, "").toLowerCase())} overridden on ${esc(fov.at)}</div>` : ""}
+        <div class="fieldov btns" style="margin-top:4px">
+          ${["PASS", "NEEDS REVIEW", "FAIL"].map((v) =>
+            `<button type="button" data-fov="${v}" data-field="${esc(f.field)}"
+               title="${v} this field (agent decision)"
+               aria-pressed="${String(fov?.value === v)}"
+               style="min-height:26px;font-size:11px;padding:1px 6px">${
+                 { "PASS": "✓", "NEEDS REVIEW": "👁", "FAIL": "✗" }[v]}</button>`).join("")}
+        </div>
+      </div>
       <div>
         ${f.label_value ? `<div class="vals"><span class="lbl">Label says:</span> ${esc(f.label_value)}</div>` : ""}
         ${f.application_value ? `<div class="vals"><span class="lbl">Application says:</span> ${esc(f.application_value)}</div>` : ""}
@@ -517,7 +584,7 @@ function renderResult(container, it) {
         ${(f.sub_results || []).map((s) => `<div class="sub"><strong>${esc(s.check.replace(/_/g, " "))}:</strong> ${esc(s.outcome.toUpperCase())} — ${esc(s.detail)}</div>`).join("")}
       </div>
       <div class="cropcell"></div>`;
-    container.appendChild(row);
+    rowsHost.appendChild(row);
     const evBitmap = (it.panels || [])[f.evidence?.panel ?? 0]?.bitmap || it.bitmap;
     if (f.evidence?.bbox && evBitmap) {
       const c = document.createElement("canvas");
@@ -546,12 +613,15 @@ function renderResult(container, it) {
   }
 
   // reviewer override — the agent decides; export carries original/final/overwritten
+  container.appendChild(rowsHost);
+
   const ovBox = document.createElement("div");
   ovBox.className = "override";
   const auto = screeningLabel(it);
   const cur = ovValue(it);
-  ovBox.innerHTML = `<strong>Agent decision</strong>
-    <div class="note">Screening result: ${esc(auto)}. Your decision becomes the status and is saved.</div>
+  ovBox.innerHTML = `<strong>Agent decision — whole label (all fields)</strong>
+    <div class="note">Screening result: ${esc(auto)}. Your decision becomes the status and is
+      saved; per-field decisions live on each row above.</div>
     <div class="btns">
       ${["PASS", "NEEDS REVIEW", "FAIL"].map((v) =>
         `<button type="button" data-ov="${v}" aria-pressed="${String(cur === v)}">${v}</button>`).join("")}
@@ -562,11 +632,7 @@ function renderResult(container, it) {
     if (ovValue(it) === v) {
       it.override = null;                            // click again to retract
     } else {
-      const now = new Date();
-      const pad = (n) => String(n).padStart(2, "0");
-      const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ` +
-                    `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-      it.override = { value: v, at: stamp, original: auto };
+      it.override = { value: v, at: ovStamp(), original: auto };
     }
     markSessionDirty();
     renderDetail(); renderList();
@@ -630,7 +696,7 @@ async function runOne(it) {
     .some((k) => it.app[k]);
   if (!anyField) { err("Enter at least one field to check — the Government Warning is always checked."); return; }
   err("");
-  it.state = "checking"; it.stale = false; it.override = null;
+  it.state = "checking"; it.stale = false; it.override = null; it.fieldOverrides = {};
   renderList(); if (sel() === it) renderDetail();
   const t0 = performance.now();
   try {
@@ -694,11 +760,14 @@ $("export").addEventListener("click", () => {
     if (!it.result && it.state !== "error") continue;
     const orig = screeningLabel(it);
     const final = ovValue(it) || orig;
-    const byField = Object.fromEntries((it.result?.fields || []).map((f) => [f.field, f.status]));
+    const byField = Object.fromEntries((it.result?.fields || []).map((f) => {
+      const ov = fieldOv(it, f.field);
+      return [f.field, ov ? `${effStatus(it, f)}[agent ${ov.at}]` : f.status];
+    }));
     rows.push([it.file.name, it.app.beverage_type, it.app.brand_name, it.app.class_type,
                it.app.alcohol_content, it.app.net_contents,
                it.result?.screening_result || "error", orig, final,
-               String(Boolean(it.override)),
+               String(Boolean(it.override || Object.keys(it.fieldOverrides || {}).length)),
                (typeof it.override === "object" && it.override?.at) || "",
                ...FIELD_ORDER.filter((f) => f !== "image").map((f) => byField[f] || "")]
               .map(csvCell).join(","));
@@ -822,7 +891,7 @@ async function persistSession(showProgress = false) {
   const fd = new FormData();
   for (const it of items) {
     const panels = (it.panels || []).map((p) => ({ panel: p.panel, file: p.file.name }));
-    meta.push({ file_name: it.file.name, state: it.state, override: it.override,
+    meta.push({ file_name: it.file.name, state: it.state, override: packOverride(it),
                 application: it.app, result: it.result, panels });
     for (const p of it.panels || []) fd.append("images", p.file);
   }
@@ -882,7 +951,7 @@ $("restoreBtn").addEventListener("click", async () => {
       const it = items[items.length - 1];
       it.result = rec.result;
       it.state = rec.result ? "done" : (rec.state === "error" ? "waiting" : rec.state);
-      it.override = rec.override || null;
+      unpackOverride(it, rec.override);
     }
     if (items.length && selectedId === null) select(items[0].id);
     sessionDirty = false;
