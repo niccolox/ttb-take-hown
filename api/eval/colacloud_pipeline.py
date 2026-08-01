@@ -62,17 +62,20 @@ TYPES = {  # our name -> API product_type / our beverage_type enum
     "spirits": ("distilled spirits", "distilled_spirits"),
     "imported_wine": ("wine", "wine"),
     "champagne": ("wine", "wine"),
+    "kentucky_whisky": ("distilled spirits", "distilled_spirits"),
 }
 
 # extra search filters per pipeline (passed to colas.list)
 TYPE_FILTERS = {
     "imported_wine": {"domestic_or_imported": "imported"},
     "champagne": {"domestic_or_imported": "imported"},
+    "kentucky_whisky": {"origin": "kentucky"},   # registry origin (state), not full-text
 }
 
 # default full-text query per pipeline (used when the caller passes none)
 TYPE_DEFAULT_QUERY = {
     "champagne": "champagne",
+    "kentucky_whisky": "whisky",   # origin filter alone also surfaces KY vodka/specialties
 }
 
 UNIT_LABEL = {"milliliters": "mL", "liters": "L", "fluid ounces": "FL OZ",
@@ -299,6 +302,10 @@ def pull_type(tname: str, *, api_key: str, per_type: int = 4, query: str | None 
             if tname == "champagne":
                 entry["note"] += (" CHAMPAGNE: protected appellation — class/type and "
                                   "origin must agree (French sparkling only).")
+            if tname == "kentucky_whisky":
+                entry["note"] += (" KENTUCKY WHISKY: spirits ABV band ±0.3pp and "
+                                  "proof/ABV consistency apply (27 CFR 5.65(c)); "
+                                  "state-of-origin claims must match the registry origin.")
             manifest.append(entry)
             _save_manifest(out_dir, manifest)        # incremental — crash-safe
             taken += 1
@@ -539,7 +546,7 @@ def backfill_registry(tname: str, *, api_key: str, sleep: float = 8.0,
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--types", default="wine,beer,spirits",
-                    help="comma list from: wine,beer,spirits,imported_wine,champagne")
+                    help="comma list from: wine,beer,spirits,imported_wine,champagne,kentucky_whisky")
     ap.add_argument("--per-type", type=int, default=4)
     ap.add_argument("--query", default=None, help="optional full-text filter (e.g. 'napa')")
     ap.add_argument("--from-date", default=None,

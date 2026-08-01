@@ -862,7 +862,8 @@ async function loadCorpora() {
 const PIPE_LABELS = { wine: "Wine pipeline", beer: "Beer pipeline",
                       spirits: "Spirits pipeline",
                       imported_wine: "Imported wine pipeline",
-                      champagne: "Champagne pipeline (imported)" };
+                      champagne: "Champagne pipeline (imported)",
+                      kentucky_whisky: "Kentucky whisky pipeline" };
 let pipePoll = null;
 
 async function refreshCorpora() {
