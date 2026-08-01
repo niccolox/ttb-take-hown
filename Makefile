@@ -11,3 +11,5 @@ smoke:
 	@bash scripts/smoke.sh
 eval-napa:
 	$(VENV)/python api/eval/eval_napa.py
+eval-pull-colacloud:
+	$(VENV)/python api/eval/colacloud_pipeline.py --per-type 4

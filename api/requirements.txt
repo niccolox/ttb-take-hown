@@ -4,3 +4,4 @@ opencv-python-headless
 rapidfuzz
 pillow
 pytest
+colacloud==0.4.4

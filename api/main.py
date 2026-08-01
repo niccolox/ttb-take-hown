@@ -95,6 +95,12 @@ def sample_image(sid: str):
 
 CORPORA = {"golden": Path(__file__).parent / "eval" / "golden",
            "napa": Path(__file__).parent / "eval" / "napa"}
+# COLA Cloud pulls (api/eval/colacloud_pipeline.py) auto-register per type
+_CC = Path(__file__).parent / "eval" / "colacloud"
+if _CC.exists():
+    for _d in sorted(_CC.iterdir()):
+        if (_d / "manifest.json").exists():
+            CORPORA[f"colacloud_{_d.name}"] = _d
 
 
 def _corpus_items(name: str):
@@ -102,10 +108,10 @@ def _corpus_items(name: str):
     manifest = json.loads((base / "manifest.json").read_text())
     items = []
     for m in manifest:
-        if name == "napa":
+        if "application" in m:                     # napa / colacloud style
             app_data = m["application"]
-            note = m.get("expect", "")
-        else:
+            note = m.get("expect") or m.get("note", "")
+        else:                                      # golden truth mapping
             t = m.get("truth", {})
             app_data = {"beverage_type": t.get("beverage_type", "unspecified"),
                         "brand_name": t.get("brand", ""),
@@ -121,12 +127,22 @@ def _corpus_items(name: str):
 
 @app.get("/api/corpora")
 def corpora():
-    return [
+    base = [
         {"id": "golden", "label": "Golden set — 15 synthetic labels",
          "shows": "Clean controls plus every adversarial trap (title-case, all-bold, skew, glare…)."},
         {"id": "napa", "label": "Napa set — 8 real wine labels",
          "shows": "Real photographs (CC, Wikimedia): script fonts, occlusion, low-res, two-bottle frames."},
     ]
+    for cid, path in CORPORA.items():
+        if not cid.startswith("colacloud_"):
+            continue
+        n = len(json.loads((path / "manifest.json").read_text()))
+        t = cid.split("_", 1)[1]
+        base.append({"id": cid,
+                     "label": f"COLA Cloud — {t} ({n} approved registry labels)",
+                     "shows": "Real approved COLAs pulled from the public registry; "
+                              "the registry record is the application ground truth."})
+    return base
 
 
 @app.get("/api/corpus/{name}")

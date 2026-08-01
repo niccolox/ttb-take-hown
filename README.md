@@ -111,7 +111,12 @@ golden set, a second corpus of **real Napa/California wine label photographs**
 (Wikimedia Commons, CC-licensed, provenance per image in
 [`api/eval/napa/manifest.json`](api/eval/napa/manifest.json)) exercises script
 fonts, occlusion, low-res, two-bottle frames, and — on a real Stag's Leap
-"Red Table Wine" label — the live §4.36(a) NOT-REQUIRED path (`make eval-napa`). The CI-style gates are
+"Red Table Wine" label — the live §4.36(a) NOT-REQUIRED path (`make eval-napa`).
+A third source is on tap: `make eval-pull-colacloud` (with a
+`COLACLOUD_API_KEY` from [app.colacloud.us](https://app.colacloud.us)) pulls
+**approved COLAs from the public registry** per commodity — wine, beer,
+spirits — using the registry record itself as application ground truth; pulled
+sets auto-register as one-click eval sets in the UI. The CI-style gates are
 executable: `make smoke` fails if the clean sample isn't all-green within 5s.
 
 Batch today serializes on one warmed OCR instance (~2.2s/label → 300 labels

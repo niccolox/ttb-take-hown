@@ -196,3 +196,25 @@ def test_similar_but_different_brand_never_passes():
     r = _text_field("brand_name", "OLD TOM DISTILLERY", loc)
     assert r.status in ("MISMATCH", "NEEDS_REVIEW")
     assert r.status not in ("MATCH", "LIKELY_MATCH")
+
+
+# ── COLA Cloud pipeline (pure manifest builder) ──────────────────────────────
+
+def test_colacloud_entry_builder():
+    from api.eval.colacloud_pipeline import build_entry, net_contents_str, pick_image
+    detail = {"ttb_id": "23001001000123", "brand_name": "OLD TOM DISTILLERY",
+              "class_name": "STRAIGHT BOURBON WHISKY", "abv": 45.0,
+              "volume": 750, "volume_unit": "milliliters",
+              "approval_date": "2023-05-01", "permit_number": "KY-DSP-1",
+              "product_name": "Old Tom Small Batch", "origin_name": "american",
+              "images": [{"image_url": "https://x/f.jpg", "container_position": "front"},
+                         {"image_url": "https://x/b.jpg", "container_position": "back"}]}
+    e = build_entry(detail, "distilled_spirits", "23001001000123.jpg")
+    assert e["application"]["alcohol_content"] == "45.0%"
+    assert e["application"]["net_contents"] == "750 mL"
+    assert e["application"]["beverage_type"] == "distilled_spirits"
+    assert e["provenance"]["ttb_id"] == "23001001000123"
+    url, pos = pick_image(detail)
+    assert url.endswith("f.jpg") and pos == "front"
+    assert net_contents_str(0.75, "liters") == "0.75 L"
+    assert net_contents_str(None, None) == ""
