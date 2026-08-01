@@ -501,7 +501,8 @@ async function loadCorpora() {
 // ── registry pipelines (wine / beer / spirits pulls) ─────────────────────────
 const PIPE_LABELS = { wine: "Wine pipeline", beer: "Beer pipeline",
                       spirits: "Spirits pipeline",
-                      imported_wine: "Imported wine pipeline" };
+                      imported_wine: "Imported wine pipeline",
+                      champagne: "Champagne pipeline (imported)" };
 let pipePoll = null;
 
 async function refreshCorpora() {
@@ -517,7 +518,7 @@ async function renderPipelines() {
     ? "Pull real approved COLAs per commodity; the registry record is the ground truth."
     : "Set COLACLOUD_API_KEY on the server (free key at app.colacloud.us) to enable pulls.";
   let anyRunning = false;
-  for (const t of ["wine", "beer", "spirits", "imported_wine"]) {
+  for (const t of ["wine", "beer", "spirits", "imported_wine", "champagne"]) {
     const st = data.pipelines[t];
     if (st.status === "running") anyRunning = true;
     const b = document.createElement("button");

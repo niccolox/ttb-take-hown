@@ -60,11 +60,18 @@ TYPES = {  # our name -> API product_type / our beverage_type enum
     "beer": ("malt beverage", "malt_beverage"),
     "spirits": ("distilled spirits", "distilled_spirits"),
     "imported_wine": ("wine", "wine"),
+    "champagne": ("wine", "wine"),
 }
 
 # extra search filters per pipeline (passed to colas.list)
 TYPE_FILTERS = {
     "imported_wine": {"domestic_or_imported": "imported"},
+    "champagne": {"domestic_or_imported": "imported"},
+}
+
+# default full-text query per pipeline (used when the caller passes none)
+TYPE_DEFAULT_QUERY = {
+    "champagne": "champagne",
 }
 
 UNIT_LABEL = {"milliliters": "mL", "liters": "L", "fluid ounces": "FL OZ",
@@ -177,6 +184,7 @@ def pull_type(tname: str, *, api_key: str, per_type: int = 4, query: str | None 
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest = _load_manifest(out_dir)
     have = {m["id"] for m in manifest}
+    query = query or TYPE_DEFAULT_QUERY.get(tname)
     log.info("pull_type start: type=%s per_type=%s query=%r from_date=%r existing=%d",
              tname, per_type, query, from_date, len(have))
 
@@ -214,9 +222,12 @@ def pull_type(tname: str, *, api_key: str, per_type: int = 4, query: str | None 
             (out_dir / fname).write_bytes(img.content)
             entry = build_entry(d, bev, fname)
             entry["provenance"]["image_panel"] = pos
-            if tname == "imported_wine":
+            if tname in ("imported_wine", "champagne"):
                 entry["note"] += (" IMPORTED: country of origin is mandatory on the label "
                                   f"(origin: {d.get('origin_name', '?')}).")
+            if tname == "champagne":
+                entry["note"] += (" CHAMPAGNE: protected appellation — class/type and "
+                                  "origin must agree (French sparkling only).")
             manifest.append(entry)
             _save_manifest(out_dir, manifest)        # incremental — crash-safe
             taken += 1
@@ -285,7 +296,7 @@ def recover_orphans(tname: str, *, api_key: str, sleep: float = 8.0,
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--types", default="wine,beer,spirits",
-                    help="comma list from: wine,beer,spirits,imported_wine")
+                    help="comma list from: wine,beer,spirits,imported_wine,champagne")
     ap.add_argument("--per-type", type=int, default=4)
     ap.add_argument("--query", default=None, help="optional full-text filter (e.g. 'napa')")
     ap.add_argument("--from-date", default=None,

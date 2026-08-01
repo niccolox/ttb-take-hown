@@ -195,7 +195,7 @@ _load_dotenv()
 
 PIPELINES: dict[str, dict] = {
     t: {"status": "idle", "message": "", "count": None}
-    for t in ("wine", "beer", "spirits", "imported_wine")}
+    for t in ("wine", "beer", "spirits", "imported_wine", "champagne")}
 _pipeline_lock = _threading.Lock()
 
 
@@ -237,8 +237,9 @@ def pipelines():
 @app.post("/api/pipelines/{tname}/run")
 def run_pipeline(tname: str, per_type: int = 4, query: str | None = None):
     if tname not in PIPELINES:
-        return JSONResponse({"error": "unknown pipeline (wine|beer|spirits|imported_wine)"},
-                            status_code=404)
+        return JSONResponse(
+            {"error": "unknown pipeline (wine|beer|spirits|imported_wine|champagne)"},
+            status_code=404)
     _load_dotenv()
     if not _os.environ.get("COLACLOUD_API_KEY"):
         return JSONResponse(
