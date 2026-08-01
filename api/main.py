@@ -171,6 +171,28 @@ def corpus_image(name: str, fname: str):
 import os as _os
 import threading as _threading
 
+_DOTENV = Path(__file__).parents[1] / ".env"
+
+
+def _load_dotenv() -> None:
+    """Load repo-root .env into os.environ (never overriding what's already
+    set). Called at import AND re-checked on pipeline requests, so creating
+    .env works for the native server (make serve) without a restart — docker
+    compose users get the same file via env_file."""
+    if not _DOTENV.exists():
+        return
+    for line in _DOTENV.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, _, v = line.partition("=")
+        k, v = k.strip(), v.strip().strip('"').strip("'")
+        if k and v and not _os.environ.get(k):
+            _os.environ[k] = v
+
+
+_load_dotenv()
+
 PIPELINES: dict[str, dict] = {
     t: {"status": "idle", "message": "", "count": None} for t in ("wine", "beer", "spirits")}
 _pipeline_lock = _threading.Lock()
@@ -191,6 +213,7 @@ def _run_pipeline(tname: str, per_type: int, query: str | None):
 
 @app.get("/api/pipelines")
 def pipelines():
+    _load_dotenv()                                 # pick up a freshly created .env
     key_set = bool(_os.environ.get("COLACLOUD_API_KEY"))
     return {"api_key_configured": key_set, "pipelines": PIPELINES}
 
@@ -199,10 +222,12 @@ def pipelines():
 def run_pipeline(tname: str, per_type: int = 4, query: str | None = None):
     if tname not in PIPELINES:
         return JSONResponse({"error": "unknown pipeline (wine|beer|spirits)"}, status_code=404)
+    _load_dotenv()
     if not _os.environ.get("COLACLOUD_API_KEY"):
         return JSONResponse(
-            {"error": "COLACLOUD_API_KEY isn't set on the server. Get a free key at "
-                      "app.colacloud.us, export it, and restart.",
+            {"error": "COLACLOUD_API_KEY isn't set. Put it in a .env file at the repo "
+                      "root (cp .env.example .env) — no restart needed — or export it. "
+                      "Free key: app.colacloud.us.",
              "code": "no_api_key"}, status_code=400)
     with _pipeline_lock:
         if PIPELINES[tname]["status"] == "running":
