@@ -285,11 +285,9 @@ function renderList() {
     b.className = "list-item"; b.type = "button";
     b.setAttribute("role", "option");
     b.setAttribute("aria-current", String(it.id === selectedId));
-    const nPanels = (it.panels || []).length;
     b.title = it.file.name;                       // filename stays discoverable
     const decided = reviewComplete(it);
     b.innerHTML = `<span class="fn">${esc(itemTitle(it))}</span>
-      ${nPanels > 1 ? '<span class="loz grey">front+back</span>' : ""}
       <span class="loz ${cls}">${decided ? "✓ " : ""}${txt}${it.stale ? " ⟳" : ""}</span>`;
     const mini = document.createElement("img");
     mini.className = "mini"; mini.alt = "";           // decorative; the title names the label
