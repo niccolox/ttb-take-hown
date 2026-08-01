@@ -17,8 +17,10 @@ docker compose up          # then open http://localhost:8123
 ```
 
 Developing? `docker compose -f docker-compose.dev.yml up` bind-mounts `api/`
-into the same baked-model image with `--reload` — code and UI edits apply live,
-and `COLACLOUD_API_KEY` passes through for the in-UI registry pipelines.
+into the same baked-model image with `--reload` — code and UI edits apply live.
+For the in-UI registry pipelines, `cp .env.example .env` and add your free
+[COLA Cloud](https://app.colacloud.us) key — both compose files read `.env`
+automatically (it's gitignored).
 
 First boot downloads OCR models (~30MB) and warms them; `/healthz` reports
 `ready` when the app will answer in ~2s. **Requires ~4GB of memory for Docker**
