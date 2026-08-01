@@ -47,7 +47,11 @@ const err = (m) => { const e = $("err"); e.textContent = m || ""; e.style.displa
 
 // ── intake ───────────────────────────────────────────────────────────────────
 async function addFiles(files, app = {}) {
-  for (const f of files) await addItem([{ file: f, panel: "front" }], app);
+  let skipped = 0;
+  for (const f of files) {
+    if (!(await addItem([{ file: f, panel: "front" }], app))) skipped++;
+  }
+  if (skipped) err(`${skipped} image(s) already imported — skipped (same name and size).`);
   if (items.length && selectedId === null) select(items[0].id);
   renderList();
 }
@@ -56,6 +60,11 @@ async function addFiles(files, app = {}) {
  *  COLA Cloud corpora supply front+back — the warning lives on the back. */
 async function addItem(panelFiles, app = {}, registry = null) {
   const f = panelFiles[0].file;
+  // same application twice = same primary file (name + size) — skip re-imports
+  // (clicking an eval set again, re-choosing a file, restoring over a batch)
+  const dup = items.find((x) =>
+    x.file.name.toLowerCase() === f.name.toLowerCase() && x.file.size === f.size);
+  if (dup) return null;
   const id = `${f.name}-${items.length}-${Date.now() % 1e6}`;
   const panels = [];
   for (const p of panelFiles) {
@@ -63,11 +72,13 @@ async function addItem(panelFiles, app = {}, registry = null) {
                   bitmap: await createImageBitmap(p.file).catch(() => null) });
   }
   markSessionDirty();
-  items.push({ id, file: f, bitmap: panels[0].bitmap, panels, registry, fieldOverrides: {},
+  const item = { id, file: f, bitmap: panels[0].bitmap, panels, registry, fieldOverrides: {},
                app: { beverage_type: "unspecified", brand_name: "", class_type: "",
                       fanciful_name: "", origin: "", vintage: "", appellation: "",
                       grape_varietals: "", alcohol_content: "", net_contents: "", ...app },
-               state: "waiting", result: null, override: null, stale: false });
+               state: "waiting", result: null, override: null, stale: false };
+  items.push(item);
+  return item;
 }
 
 $("files").addEventListener("change", (e) => { err(""); addFiles([...e.target.files]); e.target.value = ""; });
@@ -77,8 +88,9 @@ $("pair").addEventListener("change", async (e) => {
   const fs = [...e.target.files]; e.target.value = "";
   if (!fs.length) return;
   if (fs.length > 2) { err("Front + back takes exactly 2 images — front first."); return; }
-  await addItem(fs.map((f, i) => ({ file: f, panel: i === 0 ? "front" : "back" })));
-  if (selectedId === null) select(items[items.length - 1].id);
+  const added = await addItem(fs.map((f, i) => ({ file: f, panel: i === 0 ? "front" : "back" })));
+  if (!added) { err("This label is already imported (same front image)."); return; }
+  if (selectedId === null) select(added.id);
   renderList();
 });
 
@@ -847,6 +859,7 @@ async function loadCorpora() {
       b.disabled = true;
       try {
         const items0 = await (await fetch(`/api/corpus/${c.id}`)).json();
+        let skipped = 0;
         $("progress").textContent = `Loading ${items0.length} labels…`;
         for (const it of items0) {
           const sources = it.images?.length ? it.images
@@ -858,10 +871,11 @@ async function loadCorpora() {
             panelFiles.push({ file: new File([blob], name, { type: "image/jpeg" }),
                              panel: s.panel });
           }
-          await addItem(panelFiles, it.application, it.registry || null);
+          if (!(await addItem(panelFiles, it.application, it.registry || null))) skipped++;
         }
         if (items.length && selectedId === null) select(items[0].id);
-        $("progress").textContent = `${c.label} loaded — press "Verify all".`;
+        $("progress").textContent = `${c.label} loaded` +
+          (skipped ? ` — ${skipped} already imported, skipped` : "") + ` — press "Verify all".`;
       } catch {
         err("Couldn't load that eval set — retry.");
       } finally {
@@ -1002,8 +1016,8 @@ async function restoreSession({ quiet = false } = {}) {
                           panel: p.panel });
       }
       if (!panelFiles.length) continue;
-      await addItem(panelFiles, rec.application);
-      const it = items[items.length - 1];
+      const it = await addItem(panelFiles, rec.application);
+      if (!it) continue;                       // already in the tab — don't double-import
       it.result = rec.result;
       it.state = rec.result ? "done" : (rec.state === "error" ? "waiting" : rec.state);
       if (rec.elapsed_ms != null) it.elapsedMs = rec.elapsed_ms;   // timing chip survives
