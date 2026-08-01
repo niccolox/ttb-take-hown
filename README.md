@@ -16,6 +16,10 @@ audited in the export).
 docker compose up          # then open http://localhost:8123
 ```
 
+Developing? `docker compose -f docker-compose.dev.yml up` bind-mounts `api/`
+into the same baked-model image with `--reload` — code and UI edits apply live,
+and `COLACLOUD_API_KEY` passes through for the in-UI registry pipelines.
+
 First boot downloads OCR models (~30MB) and warms them; `/healthz` reports
 `ready` when the app will answer in ~2s. **Requires ~4GB of memory for Docker**
 (exit code 137 during warmup = raise Docker's memory limit).

@@ -1,0 +1,18 @@
+# Dev variant: live-reload server with source bind-mounted into the baked image.
+#   docker compose -f docker-compose.dev.yml up
+# Edits to api/ (including api/web/) apply immediately — uvicorn reloads Python,
+# and the static UI is re-read per request. Models stay baked in the image, so
+# rebuilds are only needed when requirements.txt changes.
+services:
+  labelcheck-dev:
+    build: .
+    ports:
+      - "8123:8123"
+    mem_limit: 4g
+    environment:
+      - PORT=8123
+      - COLACLOUD_API_KEY=${COLACLOUD_API_KEY:-}   # pass through for registry pipelines
+    volumes:
+      - ./api:/app/api          # live source (code, web UI, eval corpora incl. pulls)
+      - ./scripts:/app/scripts
+    command: sh -c "python -m uvicorn api.main:app --host 0.0.0.0 --port $${PORT} --reload --reload-dir /app/api"

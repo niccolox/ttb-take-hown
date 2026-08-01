@@ -93,18 +93,22 @@ def sample_image(sid: str):
     return FileResponse(GOLDEN / SAMPLES[sid]["file"], media_type="image/jpeg")
 
 
-CORPORA = {"golden": Path(__file__).parent / "eval" / "golden",
-           "napa": Path(__file__).parent / "eval" / "napa"}
-# COLA Cloud pulls (api/eval/colacloud_pipeline.py) auto-register per type
-_CC = Path(__file__).parent / "eval" / "colacloud"
-if _CC.exists():
-    for _d in sorted(_CC.iterdir()):
-        if (_d / "manifest.json").exists():
-            CORPORA[f"colacloud_{_d.name}"] = _d
+_EVAL = Path(__file__).parent / "eval"
+
+
+def get_corpora() -> dict[str, Path]:
+    """Resolved at request time so freshly pulled COLA Cloud sets register live."""
+    out = {"golden": _EVAL / "golden", "napa": _EVAL / "napa"}
+    cc = _EVAL / "colacloud"
+    if cc.exists():
+        for d in sorted(cc.iterdir()):
+            if (d / "manifest.json").exists():
+                out[f"colacloud_{d.name}"] = d
+    return out
 
 
 def _corpus_items(name: str):
-    base = CORPORA[name]
+    base = get_corpora()[name]
     manifest = json.loads((base / "manifest.json").read_text())
     items = []
     for m in manifest:
@@ -133,7 +137,7 @@ def corpora():
         {"id": "napa", "label": "Napa set — 8 real wine labels",
          "shows": "Real photographs (CC, Wikimedia): script fonts, occlusion, low-res, two-bottle frames."},
     ]
-    for cid, path in CORPORA.items():
+    for cid, path in get_corpora().items():
         if not cid.startswith("colacloud_"):
             continue
         n = len(json.loads((path / "manifest.json").read_text()))
@@ -147,19 +151,66 @@ def corpora():
 
 @app.get("/api/corpus/{name}")
 def corpus(name: str):
-    if name not in CORPORA:
+    if name not in get_corpora():
         return JSONResponse({"error": "unknown corpus"}, status_code=404)
     return _corpus_items(name)
 
 
 @app.get("/api/corpus/{name}/image/{fname}")
 def corpus_image(name: str, fname: str):
-    if name not in CORPORA:
+    reg = get_corpora()
+    if name not in reg:
         return JSONResponse({"error": "unknown corpus"}, status_code=404)
-    allowed = {m["file"] for m in json.loads((CORPORA[name] / "manifest.json").read_text())}
+    allowed = {m["file"] for m in json.loads((reg[name] / "manifest.json").read_text())}
     if fname not in allowed:                       # manifest-listed files only (no paths)
         return JSONResponse({"error": "unknown image"}, status_code=404)
-    return FileResponse(CORPORA[name] / fname, media_type="image/jpeg")
+    return FileResponse(reg[name] / fname, media_type="image/jpeg")
+
+
+# ── registry pipelines (COLA Cloud pulls, one per commodity) ─────────────────
+import os as _os
+import threading as _threading
+
+PIPELINES: dict[str, dict] = {
+    t: {"status": "idle", "message": "", "count": None} for t in ("wine", "beer", "spirits")}
+_pipeline_lock = _threading.Lock()
+
+
+def _run_pipeline(tname: str, per_type: int, query: str | None):
+    from .eval.colacloud_pipeline import pull_type
+    st = PIPELINES[tname]
+    try:
+        n = pull_type(tname, api_key=_os.environ["COLACLOUD_API_KEY"],
+                      per_type=per_type, query=query,
+                      progress=lambda m: st.update(message=m))
+        st.update(status="done", count=n,
+                  message=f"{n} approved labels pulled — set registered below.")
+    except Exception as e:                        # surfaced, never silent
+        st.update(status="error", message=f"Pull didn't finish: {str(e)[:160]} — retry.")
+
+
+@app.get("/api/pipelines")
+def pipelines():
+    key_set = bool(_os.environ.get("COLACLOUD_API_KEY"))
+    return {"api_key_configured": key_set, "pipelines": PIPELINES}
+
+
+@app.post("/api/pipelines/{tname}/run")
+def run_pipeline(tname: str, per_type: int = 4, query: str | None = None):
+    if tname not in PIPELINES:
+        return JSONResponse({"error": "unknown pipeline (wine|beer|spirits)"}, status_code=404)
+    if not _os.environ.get("COLACLOUD_API_KEY"):
+        return JSONResponse(
+            {"error": "COLACLOUD_API_KEY isn't set on the server. Get a free key at "
+                      "app.colacloud.us, export it, and restart.",
+             "code": "no_api_key"}, status_code=400)
+    with _pipeline_lock:
+        if PIPELINES[tname]["status"] == "running":
+            return JSONResponse({"error": "This pull is already running."}, status_code=409)
+        PIPELINES[tname].update(status="running", message="starting…", count=None)
+    _threading.Thread(target=_run_pipeline, args=(tname, min(per_type, 10), query),
+                      daemon=True).start()
+    return {"started": tname}
 
 
 @app.post("/api/verify")

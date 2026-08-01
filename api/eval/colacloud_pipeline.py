@@ -92,6 +92,56 @@ def pick_image(detail: dict) -> tuple[str | None, str]:
     return None, ""
 
 
+def pull_type(tname: str, *, api_key: str, per_type: int = 4, query: str | None = None,
+              from_date: str | None = None, sleep: float = 6.5,
+              progress=lambda msg: None) -> int:
+    """Pull one commodity batch. Returns number of entries written.
+    Callable from the API server (background thread) or the CLI."""
+    import httpx
+    from colacloud import ColaCloud
+
+    api_type, bev = TYPES[tname]
+    out_dir = OUT_BASE / tname
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    client = ColaCloud(api_key=api_key)
+    try:
+        progress(f"searching {api_type} records…")
+        resp = client.colas.list(product_type=api_type, q=query,
+                                 approval_date_from=from_date,
+                                 per_page=min(50, per_type * 5))
+        candidates = [s for s in resp.data if (s.image_count or 0) > 0]
+        progress(f"{len(candidates)} candidates with images; pulling {per_type}")
+
+        manifest, taken = [], 0
+        for summary in candidates:
+            if taken >= per_type:
+                break
+            detail = client.colas.get(summary.ttb_id)
+            d = detail.model_dump() if hasattr(detail, "model_dump") else dict(detail)
+            url, pos = pick_image(d)
+            if not url:
+                time.sleep(sleep)
+                continue
+            ext = ".jpg" if ".png" not in url.lower() else ".png"
+            fname = f"{summary.ttb_id}{ext}"
+            img = httpx.get(url, timeout=60, follow_redirects=True)
+            img.raise_for_status()
+            (out_dir / fname).write_bytes(img.content)
+            entry = build_entry(d, bev, fname)
+            entry["provenance"]["image_panel"] = pos
+            manifest.append(entry)
+            taken += 1
+            progress(f"{taken}/{per_type}: {d.get('brand_name','')[:40]}")
+            time.sleep(sleep)
+
+        (out_dir / "manifest.json").write_text(
+            json.dumps(manifest, indent=2, ensure_ascii=False))
+        return len(manifest)
+    finally:
+        client.close()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--types", default="wine,beer,spirits",
@@ -111,66 +161,19 @@ def main() -> int:
               "then:  export COLACLOUD_API_KEY=...  and re-run.", file=sys.stderr)
         return 1
 
-    import httpx
-    from colacloud import ColaCloud
-
     wanted = [t.strip() for t in args.types.split(",") if t.strip()]
     unknown = set(wanted) - set(TYPES)
     if unknown:
         print(f"Unknown types: {sorted(unknown)} (choose from {list(TYPES)})", file=sys.stderr)
         return 1
 
-    client = ColaCloud(api_key=key)
     totals = {}
-    try:
-        for tname in wanted:
-            api_type, bev = TYPES[tname]
-            out_dir = OUT_BASE / tname
-            out_dir.mkdir(parents=True, exist_ok=True)
-            print(f"\n=== {tname} (product_type={api_type!r}) ===")
-
-            resp = client.colas.list(
-                product_type=api_type, q=args.query,
-                approval_date_from=args.from_date,
-                per_page=min(50, args.per_type * 5),
-            )
-            candidates = [s for s in resp.data if (s.image_count or 0) > 0]
-            print(f"search: {len(resp.data)} records, {len(candidates)} with images")
-
-            manifest, taken = [], 0
-            for summary in candidates:
-                if taken >= args.per_type:
-                    break
-                detail = client.colas.get(summary.ttb_id)
-                d = detail.model_dump() if hasattr(detail, "model_dump") else dict(detail)
-                url, pos = pick_image(d)
-                if not url:
-                    print(f"  skip {summary.ttb_id}: no usable image url")
-                    time.sleep(args.sleep)
-                    continue
-                ext = ".jpg" if ".png" not in url.lower() else ".png"
-                fname = f"{summary.ttb_id}{ext}"
-                img = httpx.get(url, timeout=60, follow_redirects=True)
-                img.raise_for_status()
-                (out_dir / fname).write_bytes(img.content)
-                entry = build_entry(d, bev, fname)
-                entry["provenance"]["image_panel"] = pos
-                manifest.append(entry)
-                taken += 1
-                q = client.quota_info()
-                remaining = getattr(q, "detail_views_remaining", None) if q else None
-                print(f"  + {summary.ttb_id}  {d.get('brand_name','')!r:35.35} "
-                      f"abv={d.get('abv')} vol={net_contents_str(d.get('volume'), d.get('volume_unit'))} "
-                      f"panel={pos}  [{len(img.content)//1024}KB]"
-                      + (f"  quota_left={remaining}" if remaining is not None else ""))
-                time.sleep(args.sleep)
-
-            (out_dir / "manifest.json").write_text(
-                json.dumps(manifest, indent=2, ensure_ascii=False))
-            totals[tname] = len(manifest)
-            print(f"wrote {len(manifest)} entries → {out_dir}/manifest.json")
-    finally:
-        client.close()
+    for tname in wanted:
+        print(f"\n=== {tname} ===")
+        totals[tname] = pull_type(tname, api_key=key, per_type=args.per_type,
+                                  query=args.query, from_date=args.from_date,
+                                  sleep=args.sleep, progress=lambda m: print(" ", m))
+        print(f"wrote {totals[tname]} entries")
 
     print(f"\nDone: {totals}. The UI auto-registers these as eval sets "
           f"(restart the server / refresh the page).")

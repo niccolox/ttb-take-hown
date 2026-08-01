@@ -498,5 +498,51 @@ async function loadCorpora() {
   }
 }
 
+// ── registry pipelines (wine / beer / spirits pulls) ─────────────────────────
+const PIPE_LABELS = { wine: "Wine pipeline", beer: "Beer pipeline", spirits: "Spirits pipeline" };
+let pipePoll = null;
+
+async function refreshCorpora() {
+  $("corpora").querySelectorAll("button").forEach((b) => b.remove());
+  await loadCorpora();
+}
+
+async function renderPipelines() {
+  const data = await (await fetch("/api/pipelines")).json();
+  const host = $("pipelines");
+  host.querySelectorAll("button").forEach((b) => b.remove());
+  $("pipelines-note").textContent = data.api_key_configured
+    ? "Pull real approved COLAs per commodity; the registry record is the ground truth."
+    : "Set COLACLOUD_API_KEY on the server (free key at app.colacloud.us) to enable pulls.";
+  let anyRunning = false;
+  for (const t of ["wine", "beer", "spirits"]) {
+    const st = data.pipelines[t];
+    if (st.status === "running") anyRunning = true;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.disabled = !data.api_key_configured || st.status === "running";
+    const badge = { idle: "", running: " — pulling…", done: ` — done (${st.count})`,
+                    error: " — failed" }[st.status] || "";
+    b.innerHTML = `<strong>${PIPE_LABELS[t]}${esc(badge)}</strong>
+      <span class="shows">${esc(st.message || "Pull 4 approved labels from the registry.")}</span>`;
+    b.addEventListener("click", async () => {
+      const res = await fetch(`/api/pipelines/${t}/run?per_type=4`, { method: "POST" });
+      const body = await res.json();
+      if (!res.ok) { err(body.error || "Couldn't start the pull — retry."); return; }
+      err("");
+      startPipelinePolling();
+    });
+    host.appendChild(b);
+  }
+  if (anyRunning && !pipePoll) startPipelinePolling();
+  if (!anyRunning && pipePoll) { clearInterval(pipePoll); pipePoll = null; await refreshCorpora(); }
+}
+
+function startPipelinePolling() {
+  if (pipePoll) return;
+  pipePoll = setInterval(renderPipelines, 2500);
+}
+
 loadSamples();
 loadCorpora();
+renderPipelines();
