@@ -263,6 +263,7 @@ function itemTitle(it) {
 function visible(it) {
   const s = itemState(it);
   if (filter === "attention") return !reviewComplete(it) && ["done_red", "done_amber", "error"].includes(s);
+  if (filter === "passed") return s === "done_green";   // auto all-clear or agent PASS
   if (filter === "progress") return ["waiting", "checking"].includes(s);
   return true;
 }
