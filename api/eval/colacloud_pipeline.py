@@ -59,6 +59,12 @@ TYPES = {  # our name -> API product_type / our beverage_type enum
     "wine": ("wine", "wine"),
     "beer": ("malt beverage", "malt_beverage"),
     "spirits": ("distilled spirits", "distilled_spirits"),
+    "imported_wine": ("wine", "wine"),
+}
+
+# extra search filters per pipeline (passed to colas.list)
+TYPE_FILTERS = {
+    "imported_wine": {"domestic_or_imported": "imported"},
 }
 
 UNIT_LABEL = {"milliliters": "mL", "liters": "L", "fluid ounces": "FL OZ",
@@ -177,10 +183,11 @@ def pull_type(tname: str, *, api_key: str, per_type: int = 4, query: str | None 
     client = ColaCloud(api_key=api_key)
     try:
         progress(f"searching {api_type} records…")
+        extra = TYPE_FILTERS.get(tname, {})
         resp = _with_rate_limit(
             lambda: client.colas.list(product_type=api_type, q=query,
                                       approval_date_from=from_date,
-                                      per_page=min(50, per_type * 5)),
+                                      per_page=min(50, per_type * 5), **extra),
             progress=progress)
         candidates = [s for s in resp.data
                       if (s.image_count or 0) > 0 and s.ttb_id not in have]
@@ -207,10 +214,15 @@ def pull_type(tname: str, *, api_key: str, per_type: int = 4, query: str | None 
             (out_dir / fname).write_bytes(img.content)
             entry = build_entry(d, bev, fname)
             entry["provenance"]["image_panel"] = pos
+            if tname == "imported_wine":
+                entry["note"] += (" IMPORTED: country of origin is mandatory on the label "
+                                  f"(origin: {d.get('origin_name', '?')}).")
             manifest.append(entry)
             _save_manifest(out_dir, manifest)        # incremental — crash-safe
             taken += 1
-            q = client.quota_info()
+            q = getattr(client, "quota_info", None)
+            if callable(q):                          # SDK exposes this as property OR method
+                q = q()
             log.info("fetched %s brand=%r abv=%s vol=%s panel=%s img=%dKB quota_left=%s",
                      summary.ttb_id, d.get("brand_name"), d.get("abv"),
                      net_contents_str(d.get("volume"), d.get("volume_unit")), pos,
@@ -273,7 +285,7 @@ def recover_orphans(tname: str, *, api_key: str, sleep: float = 8.0,
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--types", default="wine,beer,spirits",
-                    help="comma list from: wine,beer,spirits")
+                    help="comma list from: wine,beer,spirits,imported_wine")
     ap.add_argument("--per-type", type=int, default=4)
     ap.add_argument("--query", default=None, help="optional full-text filter (e.g. 'napa')")
     ap.add_argument("--from-date", default=None,
