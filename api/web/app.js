@@ -892,7 +892,8 @@ const PIPE_LABELS = { wine: "Wine pipeline", beer: "Beer pipeline",
                       spirits: "Spirits pipeline",
                       imported_wine: "Imported wine pipeline",
                       champagne: "Champagne pipeline (imported)",
-                      kentucky_whisky: "Kentucky whisky pipeline" };
+                      kentucky_whisky: "Kentucky whisky pipeline",
+                      napa_zinfandel: "Napa Zinfandel pipeline" };
 let pipePoll = null;
 
 async function refreshCorpora() {

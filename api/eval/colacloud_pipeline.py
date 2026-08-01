@@ -63,6 +63,7 @@ TYPES = {  # our name -> API product_type / our beverage_type enum
     "imported_wine": ("wine", "wine"),
     "champagne": ("wine", "wine"),
     "kentucky_whisky": ("distilled spirits", "distilled_spirits"),
+    "napa_zinfandel": ("wine", "wine"),
 }
 
 # extra search filters per pipeline (passed to colas.list)
@@ -70,12 +71,21 @@ TYPE_FILTERS = {
     "imported_wine": {"domestic_or_imported": "imported"},
     "champagne": {"domestic_or_imported": "imported"},
     "kentucky_whisky": {"origin": "kentucky"},   # registry origin (state), not full-text
+    "napa_zinfandel": {"origin": "california"},
 }
 
 # default full-text query per pipeline (used when the caller passes none)
 TYPE_DEFAULT_QUERY = {
     "champagne": "champagne",
     "kentucky_whisky": "whisky",   # origin filter alone also surfaces KY vodka/specialties
+    "napa_zinfandel": "napa zinfandel",
+}
+
+# summary-level candidate predicate (quota-free: runs on search results before
+# any detail view is spent) — full-text q matches loosely, this pins the varietal
+TYPE_CANDIDATE_FILTER = {
+    "napa_zinfandel": lambda s: "zinfandel" in " ".join(
+        filter(None, (s.brand_name, s.product_name, s.class_name))).lower(),
 }
 
 UNIT_LABEL = {"milliliters": "mL", "liters": "L", "fluid ounces": "FL OZ",
@@ -260,8 +270,9 @@ def pull_type(tname: str, *, api_key: str, per_type: int = 4, query: str | None 
                                                     page=page, **extra),
                 progress=progress)
             returned += len(resp.data)
+            keep = TYPE_CANDIDATE_FILTER.get(tname, lambda s: True)
             page_fresh = [s for s in resp.data
-                          if (s.image_count or 0) > 0 and s.ttb_id not in have]
+                          if (s.image_count or 0) > 0 and s.ttb_id not in have and keep(s)]
             fresh.extend(page_fresh)
             multi.extend(s for s in page_fresh if (s.image_count or 0) >= 2)
             if len(multi) >= per_type or not resp.data:
@@ -302,6 +313,10 @@ def pull_type(tname: str, *, api_key: str, per_type: int = 4, query: str | None 
             if tname == "champagne":
                 entry["note"] += (" CHAMPAGNE: protected appellation — class/type and "
                                   "origin must agree (French sparkling only).")
+            if tname == "napa_zinfandel":
+                entry["note"] += (" NAPA ZINFANDEL: varietal designation requires >=75% "
+                                  "zinfandel (27 CFR 4.23); a Napa appellation claim must "
+                                  "meet 27 CFR 4.25 origin rules.")
             if tname == "kentucky_whisky":
                 entry["note"] += (" KENTUCKY WHISKY: spirits ABV band ±0.3pp and "
                                   "proof/ABV consistency apply (27 CFR 5.65(c)); "
@@ -546,7 +561,8 @@ def backfill_registry(tname: str, *, api_key: str, sleep: float = 8.0,
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--types", default="wine,beer,spirits",
-                    help="comma list from: wine,beer,spirits,imported_wine,champagne,kentucky_whisky")
+                    help="comma list from: wine,beer,spirits,imported_wine,champagne,"
+                         "kentucky_whisky,napa_zinfandel")
     ap.add_argument("--per-type", type=int, default=4)
     ap.add_argument("--query", default=None, help="optional full-text filter (e.g. 'napa')")
     ap.add_argument("--from-date", default=None,
