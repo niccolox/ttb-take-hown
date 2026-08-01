@@ -262,7 +262,7 @@ function itemTitle(it) {
 
 function visible(it) {
   const s = itemState(it);
-  if (filter === "attention") return ["done_red", "done_amber", "error"].includes(s);
+  if (filter === "attention") return !reviewComplete(it) && ["done_red", "done_amber", "error"].includes(s);
   if (filter === "progress") return ["waiting", "checking"].includes(s);
   return true;
 }
@@ -285,9 +285,10 @@ function renderList() {
     b.setAttribute("aria-current", String(it.id === selectedId));
     const nPanels = (it.panels || []).length;
     b.title = it.file.name;                       // filename stays discoverable
+    const decided = reviewComplete(it);
     b.innerHTML = `<span class="fn">${esc(itemTitle(it))}</span>
       ${nPanels > 1 ? '<span class="loz grey">front+back</span>' : ""}
-      <span class="loz ${cls}">${txt}${it.stale ? " ⟳" : ""}</span>`;
+      <span class="loz ${cls}">${decided ? "✓ " : ""}${txt}${it.stale ? " ⟳" : ""}</span>`;
     b.addEventListener("click", () => select(it.id));
     list.appendChild(b);
   }
@@ -298,6 +299,10 @@ function renderList() {
       : done === items.length && done > 0
         ? completionText()
         : `${items.length} label(s) ready — ${done} checked`;
+    const allDone = !running && items.length > 0 && items.every(reviewComplete);
+    $("progress").style.cssText = allDone
+      ? "color:var(--green);font-weight:700"
+      : "";
   }
   $("filters").style.display = items.length > 1 ? "flex" : "none";
   $("saveSession").style.display = items.length ? "inline-block" : "none";
@@ -313,13 +318,33 @@ function renderList() {
   $("export").style.display = done > 0 ? "inline-block" : "none";
 }
 
+/** An application's review is COMPLETE when it has a final disposition:
+ *  effectively green (auto all-clear, or ambers/reds resolved by agent
+ *  decisions), or an explicit whole-label PASS/FAIL. A red or amber with no
+ *  decision — or a "NEEDS REVIEW" override — is still open. */
+function reviewComplete(it) {
+  if (it.state !== "done") return false;
+  const ov = ovValue(it);
+  if (ov === "PASS" || ov === "FAIL") return true;
+  return itemState(it) === "done_green";
+}
+
 function completionText() {
+  const total = items.length;
+  const complete = items.filter(reviewComplete).length;
+  if (complete === total && total > 0) {
+    const passed = items.filter((it) => itemState(it) === "done_green").length;
+    const failed = total - passed;
+    return `✓ Review complete — ${total} application${total > 1 ? "s" : ""} decided ` +
+           `(${passed} passed${failed ? `, ${failed} failed` : ""})`;
+  }
   let g = 0, a = 0, r = 0;
   for (const it of items) {
     const s = itemState(it);
     if (s === "done_green") g++; else if (s === "done_amber") a++; else if (s === "done_red" || s === "error") r++;
   }
-  return `Done: ${g} matched, ${a} need review, ${r} mismatched/failed`;
+  return `Checked: ${g} matched, ${a} need review, ${r} mismatched/failed — ` +
+         `${complete} of ${total} reviews complete`;
 }
 
 $("filters").addEventListener("click", (e) => {
