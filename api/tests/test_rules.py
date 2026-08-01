@@ -500,6 +500,8 @@ def test_session_store_roundtrip(tmp_path, monkeypatch):
     assert ss.load_session() is None and ss.session_summary() is None
 
     items = [{"file_name": "a_front.jpg", "state": "done",
+              "verification_status": "done_red", "final_status": "done_green",
+              "review_complete": True, "elapsed_ms": 2450,
               "override": {"value": "PASS", "at": "2026-07-31 22:00",
                            "original": "Mismatch found"},
               "application": {"brand_name": "OLD TOM"},
@@ -515,6 +517,11 @@ def test_session_store_roundtrip(tmp_path, monkeypatch):
     s = ss.load_session()
     assert s["items"][0]["override"]["value"] == "PASS"
     assert s["items"][0]["override"]["at"] == "2026-07-31 22:00"
+    assert s["items"][0]["verification_status"] == "done_red"    # machine verdict kept
+    assert s["items"][0]["final_status"] == "done_green"         # after agent decision
+    assert s["items"][0]["review_complete"] is True
+    assert s["items"][0]["elapsed_ms"] == 2450
+    assert s["items"][1]["review_complete"] is False
     assert s["items"][0]["result"]["screening_result"] == "no_mismatch_found"
     assert [p["panel"] for p in s["items"][0]["panels"]] == ["front", "back"]
     assert s["items"][1]["result"] is None

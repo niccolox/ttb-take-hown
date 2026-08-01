@@ -931,7 +931,11 @@ async function persistSession(showProgress = false) {
   for (const it of items) {
     const panels = (it.panels || []).map((p) => ({ panel: p.panel, file: p.file.name }));
     meta.push({ file_name: it.file.name, state: it.state, override: packOverride(it),
-                application: it.app, result: it.result, panels });
+                application: it.app, result: it.result, panels,
+                verification_status: autoState(it),      // machine verdict
+                final_status: itemState(it),             // after agent decisions
+                review_complete: reviewComplete(it),
+                elapsed_ms: it.elapsedMs != null ? Math.round(it.elapsedMs) : null });
     for (const p of it.panels || []) fd.append("images", p.file);
   }
   fd.append("meta", JSON.stringify(meta));
@@ -990,6 +994,7 @@ $("restoreBtn").addEventListener("click", async () => {
       const it = items[items.length - 1];
       it.result = rec.result;
       it.state = rec.result ? "done" : (rec.state === "error" ? "waiting" : rec.state);
+      if (rec.elapsed_ms != null) it.elapsedMs = rec.elapsed_ms;   // timing chip survives
       unpackOverride(it, rec.override);
     }
     if (items.length && selectedId === null) select(items[0].id);
