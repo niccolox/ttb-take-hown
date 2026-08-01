@@ -102,6 +102,11 @@ img.thumb{max-width:100%;border:1px solid var(--line);border-radius:6px;margin-b
     <label for="files" class="filebtn" id="filebtn">Choose label image(s)</label>
     <input type="file" id="files" accept="image/png,image/jpeg" multiple
            style="position:absolute;left:-9999px">
+    <label for="pair" class="filebtn" style="margin-top:8px">Front + back of one label</label>
+    <input type="file" id="pair" accept="image/png,image/jpeg" multiple
+           style="position:absolute;left:-9999px">
+    <p class="note" style="margin:4px 0 0">Pick 2 images (front first) — scanned together
+      as one label; the Government Warning is usually on the back.</p>
     <label for="csv" class="filebtn" style="margin-top:8px">Import CSV manifest (batch)</label>
     <input type="file" id="csv" accept=".csv,text/csv" style="position:absolute;left:-9999px">
     <button class="secondary" id="tpl" type="button" style="width:100%;margin-top:8px">Download CSV template</button>

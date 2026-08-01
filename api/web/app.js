@@ -63,9 +63,19 @@ async function addItem(panelFiles, app = {}) {
 
 $("files").addEventListener("change", (e) => { err(""); addFiles([...e.target.files]); e.target.value = ""; });
 
+$("pair").addEventListener("change", async (e) => {
+  err("");
+  const fs = [...e.target.files]; e.target.value = "";
+  if (!fs.length) return;
+  if (fs.length > 2) { err("Front + back takes exactly 2 images — front first."); return; }
+  await addItem(fs.map((f, i) => ({ file: f, panel: i === 0 ? "front" : "back" })));
+  if (selectedId === null) select(items[items.length - 1].id);
+  renderList();
+});
+
 $("tpl").addEventListener("click", () => {
-  const csv = "filename,beverage_type,brand_name,class_type,alcohol_content,net_contents\r\n" +
-              "mylabel.jpg,distilled_spirits,OLD TOM DISTILLERY,Kentucky Straight Bourbon Whiskey,45% Alc./Vol.,750 mL\r\n";
+  const csv = "filename,beverage_type,brand_name,class_type,alcohol_content,net_contents,back_filename\r\n" +
+              "mylabel.jpg,distilled_spirits,OLD TOM DISTILLERY,Kentucky Straight Bourbon Whiskey,45% Alc./Vol.,750 mL,mylabel_back.jpg\r\n";
   download("label-check-template.csv", csv);
 });
 
@@ -83,7 +93,7 @@ $("csv").addEventListener("change", async (e) => {
   }
   const idx = Object.fromEntries(header.map((h, i) => [h, i]));
   const bevOk = ["wine", "distilled_spirits", "malt_beverage", "unspecified", ""];
-  let applied = 0, unmatched = [], badBev = 0;
+  let applied = 0, unmatched = [], badBev = 0, paired = 0;
   for (const line of lines.slice(1)) {
     const cells = splitCsv(line);
     const fname = (cells[idx.filename] || "").trim();
@@ -96,10 +106,27 @@ $("csv").addEventListener("change", async (e) => {
                   class_type: (cells[idx.class_type] || "").trim(),
                   alcohol_content: (cells[idx.alcohol_content] || "").trim(),
                   net_contents: (cells[idx.net_contents] || "").trim() };
-    if (item) { Object.assign(item.app, rec); markStale(item); applied++; }
+    if (item) {
+      Object.assign(item.app, rec); markStale(item); applied++;
+      // optional back_filename: fold that uploaded image in as this label's back panel
+      const bname = idx.back_filename != null ? (cells[idx.back_filename] || "").trim() : "";
+      if (bname) {
+        const bi = items.findIndex((x) => x !== item &&
+          x.file.name.toLowerCase() === bname.toLowerCase());
+        if (bi >= 0) {
+          const back = items[bi];
+          item.panels = (item.panels || []).filter((p) => p.panel !== "back");
+          item.panels.push({ file: back.file, panel: "back", bitmap: back.bitmap });
+          items.splice(bi, 1);                          // absorbed into the front item
+          if (selectedId === back.id) selectedId = item.id;
+          paired++;
+        } else unmatched.push(bname + " (back)");
+      }
+    }
     else unmatched.push(fname);
   }
   const msgs = [`Manifest applied to ${applied} label(s).`];
+  if (paired) msgs.push(`${paired} front+back pair(s) merged.`);
   if (unmatched.length) msgs.push(`${unmatched.length} row(s) had no matching uploaded image: ${unmatched.slice(0, 3).join(", ")}${unmatched.length > 3 ? "…" : ""}`);
   if (badBev) msgs.push(`${badBev} row(s) had an unknown beverage_type — treated as "Not specified".`);
   err(msgs.length > 1 ? msgs.join(" ") : "");
@@ -168,7 +195,9 @@ function renderList() {
     b.className = "list-item"; b.type = "button";
     b.setAttribute("role", "option");
     b.setAttribute("aria-current", String(it.id === selectedId));
+    const nPanels = (it.panels || []).length;
     b.innerHTML = `<span class="fn">${esc(it.file.name)}</span>
+      ${nPanels > 1 ? '<span class="loz grey">front+back</span>' : ""}
       <span class="loz ${cls}">${txt}${it.stale ? " ⟳" : ""}</span>`;
     b.addEventListener("click", () => select(it.id));
     list.appendChild(b);
@@ -230,6 +259,42 @@ function renderDetail() {
       cap.textContent = `${p.panel} panel`;
       d.appendChild(cap);
     }
+  }
+  // attach/replace/remove a back panel — the scan then covers both sides
+  {
+    const hasBack = (it.panels || []).some((p) => p.panel === "back");
+    const bar = document.createElement("div");
+    bar.style.cssText = "display:flex;gap:8px;margin-bottom:10px";
+    const add = document.createElement("button");
+    add.type = "button"; add.className = "secondary";
+    add.textContent = hasBack ? "Replace back panel image" : "Add back panel image";
+    add.addEventListener("click", () => {
+      const inp = document.createElement("input");
+      inp.type = "file"; inp.accept = "image/png,image/jpeg";
+      inp.addEventListener("change", async () => {
+        const f = inp.files[0];
+        if (!f) return;
+        const bitmap = await createImageBitmap(f).catch(() => null);
+        it.panels = (it.panels || []).filter((p) => p.panel !== "back");
+        it.panels.push({ file: f, panel: "back", bitmap });
+        markStale(it);
+        renderList(); renderDetail();
+      });
+      inp.click();
+    });
+    bar.appendChild(add);
+    if (hasBack) {
+      const rm = document.createElement("button");
+      rm.type = "button"; rm.className = "secondary";
+      rm.textContent = "Remove back panel";
+      rm.addEventListener("click", () => {
+        it.panels = (it.panels || []).filter((p) => p.panel !== "back");
+        markStale(it);
+        renderList(); renderDetail();
+      });
+      bar.appendChild(rm);
+    }
+    d.appendChild(bar);
   }
   const form = document.createElement("div");
   form.innerHTML = `
