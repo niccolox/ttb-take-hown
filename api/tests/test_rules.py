@@ -423,3 +423,70 @@ def test_recover_orphans_panel_suffix_grouping(tmp_path, monkeypatch):
     e = [m for m in out if m["id"] == "222"][0]
     assert e["file"] == "222_front.jpg"
     assert [f["panel"] for f in e["files"]] == ["front", "back"]
+
+
+# ── warning visual diff (word-level discrepancy boxes) ───────────────────────
+
+def test_warning_diff_boxes_mark_deviating_words():
+    """The visual diff boxes the exact label words that deviate from §16.21 —
+    pinned to the real comma/period OCR case ('GENERAL.' for 'General,')."""
+    from api.locator import Locator, Word
+    from api.verify import _warning_diff_boxes
+    from api.rules.warning import STATUTORY_WARNING
+
+    bad = STATUTORY_WARNING.replace("General,", "GENERAL.").upper()
+    words, x, y = [], 10, 10
+    for tok in bad.split():
+        if x > 900:
+            x, y = 10, y + 28
+        words.append(Word(tok, (x, y, x + len(tok) * 9, y + 20), 0.95))
+        x += len(tok) * 9 + 8
+    loc = Locator(words)
+    assert loc.find_warning().found
+    boxes = _warning_diff_boxes(loc)
+    assert boxes, "a deviation must produce diff boxes"
+    flagged = [b for b in boxes if b["kind"] == "differs"]
+    assert len(flagged) == 1                     # only the deviating word is boxed
+    gw = next(w for w in loc.warning_words() if w.text == "GENERAL.")
+    assert flagged[0]["box"] == [round(v, 1) for v in gw.box]
+
+    # an omission marks its neighbors with 'missing_here'
+    missing = STATUTORY_WARNING.upper().replace("BIRTH DEFECTS. ", "")
+    words2 = [Word(tok, (10 + i * 60, 10 + (i // 12) * 28, 60 + i * 60, 30 + (i // 12) * 28), 0.95)
+              for i, tok in enumerate(missing.split())]
+    loc2 = Locator(words2)
+    assert loc2.find_warning().found
+    kinds = {b["kind"] for b in _warning_diff_boxes(loc2)}
+    assert "missing_here" in kinds
+
+
+def test_warning_diff_boxes_ignore_trailing_neighbor_text():
+    """Absorbed trailing label copy (tolerated by containment) is not boxed —
+    only genuine deviations inside the statement are."""
+    from api.locator import Locator, Word
+    from api.verify import _warning_diff_boxes
+    from api.rules.warning import STATUTORY_WARNING
+    txt = STATUTORY_WARNING.replace("General,", "GENERAL.").upper() + " IMPORTED BY SOMEONE"
+    words = [Word(tok, (10 + (i % 12) * 70, 10 + (i // 12) * 28,
+                        70 + (i % 12) * 70, 30 + (i // 12) * 28), 0.95)
+             for i, tok in enumerate(txt.split())]
+    loc = Locator(words)
+    assert loc.find_warning().found
+    boxes = _warning_diff_boxes(loc)
+    flagged_words = {tuple(b["box"]) for b in boxes}
+    by_box = {tuple(round(v, 1) for v in w.box): w.text for w in loc.warning_words()}
+    texts = {by_box[b] for b in flagged_words}
+    assert "GENERAL." in texts
+    assert not {"IMPORTED", "BY", "SOMEONE"} & texts
+
+
+def test_warning_diff_boxes_empty_on_exact_text():
+    from api.locator import Locator, Word
+    from api.verify import _warning_diff_boxes
+    from api.rules.warning import STATUTORY_WARNING
+    words = [Word(tok, (10 + (i % 12) * 70, 10 + (i // 12) * 28,
+                        70 + (i % 12) * 70, 30 + (i // 12) * 28), 0.95)
+             for i, tok in enumerate(STATUTORY_WARNING.split())]
+    loc = Locator(words)
+    assert loc.find_warning().found
+    assert _warning_diff_boxes(loc) == []

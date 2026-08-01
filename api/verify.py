@@ -20,7 +20,7 @@ from .rules.abv import (AbvVerdict, BevType, abv_required, compare_abv,
                         parse_abv, proof_consistency, PCT_RE, PROOF_RE)
 from .rules.net_contents import NET_RE, compare_net
 from .rules.normalize import loose, whitespace_only
-from .rules.warning import Outcome, SubCheck, validate_warning
+from .rules.warning import STATUTORY_WARNING, Outcome, SubCheck, validate_warning
 
 CONF_FLOOR = 0.60          # word-confidence gate (tuned at M0)
 TEXT_MASS_FLOOR = 4        # fewer located words → "doesn't look like a label"
@@ -220,6 +220,7 @@ def verify(words: list[Word], application: dict, image_gray=None) -> dict:
         if regions:
             from .rules.contrast import weight_contrast
             wc_outcome, _wc_detail = weight_contrast(image_gray, *regions)
+    diff_boxes = _warning_diff_boxes(locator) if warn_loc.found else []
     wr = validate_warning(warn_loc.text if warn_loc.found else None,
                           region_quality_ok=(warn_loc.min_conf >= CONF_FLOOR) if warn_loc.found else True,
                           weight_contrast=wc_outcome)
@@ -239,10 +240,54 @@ def verify(words: list[Word], application: dict, image_gray=None) -> dict:
                               "27 CFR §16.21 statutory text (always checked)",
                               w_code,
                               wr.details.get(SubCheck.TEXT, ""),
-                              _evidence(warn_loc) if warn_loc.found else None,
+                              _warn_evidence(warn_loc, diff_boxes, text_o),
                               wr.citation, sub))
 
     return _envelope(None, fields, t0)
+
+
+def _warning_diff_boxes(locator: Locator) -> list[dict]:
+    """Word boxes for the visual diff: where the located warning text deviates
+    from the statutory text. 'differs' boxes sit on the deviating label words;
+    'missing_here' marks the neighbors of an omission. Case-insensitive token
+    compare (case is checked separately by prefix_caps)."""
+    import difflib
+    words = locator.warning_words()
+    if not words:
+        return []
+    f = [w.text.casefold() for w in words]
+    e = [t.casefold() for t in STATUTORY_WARNING.split()]
+    boxes: list[dict] = []
+    seen: set[tuple] = set()
+
+    def add(word, kind):
+        b = tuple(round(v, 1) for v in word.box)
+        if b not in seen:
+            seen.add(b)
+            boxes.append({"box": list(b), "kind": kind})
+
+    for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, e, f).get_opcodes():
+        if op == "equal":
+            continue
+        if op == "insert" and i1 == len(e):
+            continue                     # trailing neighbor text (e.g. "IMPORTED BY:")
+                                         # — tolerated by the containment rule, not a diff
+        if j2 > j1:                      # label words that differ / are extra
+            for w in words[j1:j2]:
+                add(w, "differs")
+        else:                            # statutory words missing at this point
+            for idx in (j1 - 1, j1):
+                if 0 <= idx < len(words):
+                    add(words[idx], "missing_here")
+    return boxes
+
+
+def _warn_evidence(warn_loc, diff_boxes: list[dict], text_outcome) -> dict | None:
+    ev = _evidence(warn_loc) if warn_loc.found else None
+    # attach only when the wording check didn't pass — a clean pass needs no diff
+    if ev is not None and diff_boxes and text_outcome != Outcome.PASS:
+        ev["diff_boxes"] = diff_boxes
+    return ev
 
 
 _MERGE_RANK = {"MATCH": 5, "LIKELY_MATCH": 4, "WITHIN_TOLERANCE": 4,

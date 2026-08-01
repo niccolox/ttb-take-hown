@@ -185,6 +185,11 @@ class Locator:
                             score=100.0,
                             min_conf=min(l.min_conf for l in block))
 
+    def warning_words(self) -> list[Word]:
+        """After find_warning(): the block's words in reading order — used to
+        map wording-diff tokens back to image boxes for the visual diff."""
+        return [w for line in getattr(self, "_warning_block", []) for w in line.words]
+
     def warning_prefix_body(self):
         """After find_warning(): (prefix_box, body_box) for the weight-contrast
         heuristic — prefix = the anchor's first two words ('GOVERNMENT WARNING:'),

@@ -458,9 +458,16 @@ function renderResult(container, it) {
       const c = document.createElement("canvas");
       c.className = "crop"; c.tabIndex = 0; c.setAttribute("role", "button");
       c.title = "Click to enlarge — region outlined on the full label";
-      if (drawCrop(c, evBitmap, f.evidence.bbox)) {
+      const diffBoxes = f.evidence.diff_boxes || null;
+      if (drawCrop(c, evBitmap, f.evidence.bbox, 12, diffBoxes)) {
         row.querySelector(".cropcell").appendChild(c);
-        const open = () => zoomCrop(evBitmap, f.evidence.bbox);
+        if (diffBoxes && diffBoxes.length) {
+          const legend = document.createElement("div");
+          legend.className = "cite";
+          legend.textContent = "boxed: differs from required text; dashed: required words missing here";
+          row.querySelector(".cropcell").appendChild(legend);
+        }
+        const open = () => zoomCrop(evBitmap, f.evidence.bbox, diffBoxes);
         c.addEventListener("click", open);
         c.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") open(); });
       }
@@ -492,19 +499,34 @@ function screeningLabel(it) {
 }
 
 // ── crops ────────────────────────────────────────────────────────────────────
-function drawCrop(canvas, bitmap, bbox, pad = 12) {
+const DIFF_COLORS = { differs: "#b3261e", missing_here: "#8a6d00" };
+
+function strokeDiffBoxes(ctx, diffBoxes, mapX, mapY) {
+  for (const d of diffBoxes || []) {
+    const [bx1, by1, bx2, by2] = d.box;
+    ctx.strokeStyle = DIFF_COLORS[d.kind] || "#b3261e";
+    ctx.setLineDash(d.kind === "missing_here" ? [4, 3] : []);
+    ctx.lineWidth = 2;
+    ctx.strokeRect(mapX(bx1), mapY(by1), mapX(bx2) - mapX(bx1), mapY(by2) - mapY(by1));
+  }
+  ctx.setLineDash([]);
+}
+
+function drawCrop(canvas, bitmap, bbox, pad = 12, diffBoxes = null) {
   const [x1, y1, x2, y2] = bbox;
   const sx = Math.max(0, x1 - pad), sy = Math.max(0, y1 - pad);
   const sw = Math.min(bitmap.width - sx, x2 - x1 + 2 * pad);
   const sh = Math.min(bitmap.height - sy, y2 - y1 + 2 * pad);
   if (sw <= 0 || sh <= 0) return false;
-  const scale = 56 / sh;
-  canvas.width = Math.max(1, sw * scale); canvas.height = 56;
-  canvas.getContext("2d").drawImage(bitmap, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+  const scale = (diffBoxes && diffBoxes.length ? 96 : 56) / sh;   // taller when boxing a diff
+  canvas.width = Math.max(1, sw * scale); canvas.height = Math.round(sh * scale);
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+  strokeDiffBoxes(ctx, diffBoxes, (x) => (x - sx) * scale, (y) => (y - sy) * scale);
   return true;
 }
 
-function zoomCrop(bitmap, bbox) {
+function zoomCrop(bitmap, bbox, diffBoxes = null) {
   const c = $("zoomc");
   const maxW = Math.min(window.innerWidth * 0.85, bitmap.width);
   const scale = maxW / bitmap.width;
@@ -514,6 +536,7 @@ function zoomCrop(bitmap, bbox) {
   ctx.strokeStyle = "#b3261e"; ctx.lineWidth = 3;
   ctx.strokeRect(bbox[0] * scale, bbox[1] * scale,
                  (bbox[2] - bbox[0]) * scale, (bbox[3] - bbox[1]) * scale);
+  strokeDiffBoxes(ctx, diffBoxes, (x) => x * scale, (y) => y * scale);
   $("zoom").showModal();
 }
 
