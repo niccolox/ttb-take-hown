@@ -470,4 +470,33 @@ function download(name, content) {
   URL.revokeObjectURL(a.href);
 }
 
+async function loadCorpora() {
+  const list = await (await fetch("/api/corpora")).json();
+  for (const c of list) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.innerHTML = `<strong>${esc(c.label)}</strong><span class="shows">${esc(c.shows)}</span>`;
+    b.addEventListener("click", async () => {
+      err("");
+      b.disabled = true;
+      try {
+        const items0 = await (await fetch(`/api/corpus/${c.id}`)).json();
+        $("progress").textContent = `Loading ${items0.length} labels…`;
+        for (const it of items0) {
+          const blob = await (await fetch(it.image)).blob();
+          await addFiles([new File([blob], it.file, { type: "image/jpeg" })], it.application);
+        }
+        $("progress").textContent = `${c.label} loaded — press "Verify all".`;
+      } catch {
+        err("Couldn't load that eval set — retry.");
+      } finally {
+        b.disabled = false;
+        renderList();
+      }
+    });
+    $("corpora").appendChild(b);
+  }
+}
+
 loadSamples();
+loadCorpora();

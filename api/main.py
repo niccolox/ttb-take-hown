@@ -93,6 +93,59 @@ def sample_image(sid: str):
     return FileResponse(GOLDEN / SAMPLES[sid]["file"], media_type="image/jpeg")
 
 
+CORPORA = {"golden": Path(__file__).parent / "eval" / "golden",
+           "napa": Path(__file__).parent / "eval" / "napa"}
+
+
+def _corpus_items(name: str):
+    base = CORPORA[name]
+    manifest = json.loads((base / "manifest.json").read_text())
+    items = []
+    for m in manifest:
+        if name == "napa":
+            app_data = m["application"]
+            note = m.get("expect", "")
+        else:
+            t = m.get("truth", {})
+            app_data = {"beverage_type": t.get("beverage_type", "unspecified"),
+                        "brand_name": t.get("brand", ""),
+                        "class_type": t.get("class_type", ""),
+                        "alcohol_content": t.get("abv_line") or "",
+                        "net_contents": t.get("net_line") or ""}
+            note = m.get("expect", "")
+        items.append({"id": m["id"], "file": m["file"], "note": note,
+                      "application": app_data,
+                      "image": f"/api/corpus/{name}/image/{m['file']}"})
+    return items
+
+
+@app.get("/api/corpora")
+def corpora():
+    return [
+        {"id": "golden", "label": "Golden set — 15 synthetic labels",
+         "shows": "Clean controls plus every adversarial trap (title-case, all-bold, skew, glare…)."},
+        {"id": "napa", "label": "Napa set — 8 real wine labels",
+         "shows": "Real photographs (CC, Wikimedia): script fonts, occlusion, low-res, two-bottle frames."},
+    ]
+
+
+@app.get("/api/corpus/{name}")
+def corpus(name: str):
+    if name not in CORPORA:
+        return JSONResponse({"error": "unknown corpus"}, status_code=404)
+    return _corpus_items(name)
+
+
+@app.get("/api/corpus/{name}/image/{fname}")
+def corpus_image(name: str, fname: str):
+    if name not in CORPORA:
+        return JSONResponse({"error": "unknown corpus"}, status_code=404)
+    allowed = {m["file"] for m in json.loads((CORPORA[name] / "manifest.json").read_text())}
+    if fname not in allowed:                       # manifest-listed files only (no paths)
+        return JSONResponse({"error": "unknown image"}, status_code=404)
+    return FileResponse(CORPORA[name] / fname, media_type="image/jpeg")
+
+
 @app.post("/api/verify")
 async def api_verify(image: UploadFile = File(...), application: str = Form("{}")):
     if not extractor.ready():
