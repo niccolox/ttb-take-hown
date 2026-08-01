@@ -243,17 +243,33 @@ def pull_type(tname: str, *, api_key: str, per_type: int = 4, query: str | None 
     try:
         progress(f"searching {api_type} records…")
         extra = TYPE_FILTERS.get(tname, {})
-        resp = _with_rate_limit(
-            lambda: client.colas.list(product_type=api_type, q=query,
-                                      approval_date_from=from_date,
-                                      per_page=min(50, per_type * 5), **extra),
-            progress=progress)
-        candidates = [s for s in resp.data
-                      if (s.image_count or 0) > 0 and s.ttb_id not in have]
-        log.info("search: %d records returned, %d new candidates with images",
-                 len(resp.data), len(candidates))
+        # Prefer records with 2+ images (front AND back panels — image_count is
+        # free in search results, so this costs no detail views). If a page has
+        # no multi-panel candidates (common for beer: cans are one wraparound
+        # artwork), search a few pages deeper before settling for single-image
+        # fill — list calls don't spend detail-view quota.
+        fresh, multi, returned = [], [], 0
+        for page in range(1, 5):
+            resp = _with_rate_limit(
+                lambda page=page: client.colas.list(product_type=api_type, q=query,
+                                                    approval_date_from=from_date,
+                                                    per_page=min(50, max(20, per_type * 5)),
+                                                    page=page, **extra),
+                progress=progress)
+            returned += len(resp.data)
+            page_fresh = [s for s in resp.data
+                          if (s.image_count or 0) > 0 and s.ttb_id not in have]
+            fresh.extend(page_fresh)
+            multi.extend(s for s in page_fresh if (s.image_count or 0) >= 2)
+            if len(multi) >= per_type or not resp.data:
+                break
+            progress(f"page {page}: {len(multi)} front+back so far — searching deeper…")
+        candidates = multi + [s for s in fresh if (s.image_count or 0) == 1]
+        log.info("search: %d records returned, %d new with images (%d front+back)",
+                 returned, len(fresh), len(multi))
         log.debug("candidate ttb_ids: %s", [s.ttb_id for s in candidates[:20]])
-        progress(f"{len(candidates)} new candidates with images; pulling up to {per_type}")
+        progress(f"{len(fresh)} new candidates ({len(multi)} with front+back); "
+                 f"pulling up to {per_type}")
 
         taken = 0
         for summary in candidates:
@@ -289,10 +305,11 @@ def pull_type(tname: str, *, api_key: str, per_type: int = 4, query: str | None 
             q = getattr(client, "quota_info", None)
             if callable(q):                          # SDK exposes this as property OR method
                 q = q()
-            log.info("fetched %s brand=%r abv=%s vol=%s panel=%s img=%dKB quota_left=%s",
+            log.info("fetched %s brand=%r abv=%s vol=%s panels=%s img=%dKB quota_left=%s",
                      summary.ttb_id, d.get("brand_name"), d.get("abv"),
-                     net_contents_str(d.get("volume"), d.get("volume_unit")), pos,
-                     len(img.content) // 1024,
+                     net_contents_str(d.get("volume"), d.get("volume_unit")),
+                     ",".join(f["panel"] for f in files),
+                     sum((out_dir / f["file"]).stat().st_size for f in files) // 1024,
                      getattr(q, "detail_views_remaining", "?") if q else "?")
             progress(f"{taken}/{per_type}: {d.get('brand_name','')[:40]}")
             time.sleep(sleep)
