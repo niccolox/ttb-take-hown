@@ -130,6 +130,26 @@ def pick_image(detail: dict) -> tuple[str | None, str]:
     return None, ""
 
 
+def pick_panels(detail: dict) -> list[tuple[str, str]]:
+    """Front AND back panels [(url, panel)] — the warning usually lives on the
+    back label, so multi-panel is the honest input. Falls back to pick_image."""
+    panels: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for want in (("front", "brand", "brand (front)", "main"), ("back", "back (rear)")):
+        for img in detail.get("images") or []:
+            pos = (img.get("container_position") or "").lower()
+            url = img.get("image_url")
+            if url and url not in seen and pos in want:
+                panels.append((url, "front" if want[0] == "front" else "back"))
+                seen.add(url)
+                break
+    if not panels:
+        url, pos = pick_image(detail)
+        if url:
+            panels.append((url, pos or "front"))
+    return panels
+
+
 def _load_manifest(out_dir: Path) -> list[dict]:
     p = out_dir / "manifest.json"
     if p.exists():
@@ -211,17 +231,21 @@ def pull_type(tname: str, *, api_key: str, per_type: int = 4, query: str | None 
             detail = _with_rate_limit(lambda s=summary: client.colas.get(s.ttb_id),
                                       progress=progress)
             d = detail.model_dump() if hasattr(detail, "model_dump") else dict(detail)
-            url, pos = pick_image(d)
-            if not url:
+            panels = pick_panels(d)
+            if not panels:
                 time.sleep(sleep)
                 continue
-            ext = ".jpg" if ".png" not in url.lower() else ".png"
-            fname = f"{summary.ttb_id}{ext}"
-            img = httpx.get(url, timeout=60, follow_redirects=True)
-            img.raise_for_status()
-            (out_dir / fname).write_bytes(img.content)
-            entry = build_entry(d, bev, fname)
-            entry["provenance"]["image_panel"] = pos
+            files = []
+            for url, pos in panels:
+                ext = ".jpg" if ".png" not in url.lower() else ".png"
+                fname = f"{summary.ttb_id}_{pos}{ext}"
+                img = httpx.get(url, timeout=60, follow_redirects=True)
+                img.raise_for_status()
+                (out_dir / fname).write_bytes(img.content)
+                files.append({"file": fname, "panel": pos})
+            entry = build_entry(d, bev, files[0]["file"])
+            entry["files"] = files                       # all panels (front first)
+            entry["provenance"]["image_panel"] = ",".join(p for _, p in panels)
             if tname in ("imported_wine", "champagne"):
                 entry["note"] += (" IMPORTED: country of origin is mandatory on the label "
                                   f"(origin: {d.get('origin_name', '?')}).")
@@ -293,6 +317,57 @@ def recover_orphans(tname: str, *, api_key: str, sleep: float = 8.0,
         client.close()
 
 
+def backfill_panels(tname: str, *, api_key: str, sleep: float = 8.0,
+                    progress=lambda msg: None) -> int:
+    """Add missing back panels to entries pulled before multi-panel support.
+    Costs one detail view per entry that lacks a `files` list. Idempotent."""
+    import httpx
+    from colacloud import ColaCloud
+
+    setup_logging()
+    out_dir = OUT_BASE / tname
+    if not out_dir.exists():
+        return 0
+    manifest = _load_manifest(out_dir)
+    todo = [m for m in manifest if not m.get("files")]
+    log.info("backfill_panels: type=%s entries=%d todo=%d", tname, len(manifest), len(todo))
+    if not todo:
+        return 0
+
+    client = ColaCloud(api_key=api_key)
+    done = 0
+    try:
+        for m in todo:
+            detail = _with_rate_limit(lambda m=m: client.colas.get(m["id"]),
+                                      progress=progress)
+            d = detail.model_dump() if hasattr(detail, "model_dump") else dict(detail)
+            panels = pick_panels(d)
+            files = []
+            for url, pos in panels:
+                ext = ".jpg" if ".png" not in url.lower() else ".png"
+                fname = f"{m['id']}_{pos}{ext}"
+                if not (out_dir / fname).exists():
+                    img = httpx.get(url, timeout=60, follow_redirects=True)
+                    img.raise_for_status()
+                    (out_dir / fname).write_bytes(img.content)
+                files.append({"file": fname, "panel": pos})
+            if files:
+                m["file"] = files[0]["file"]
+                m["files"] = files
+                m["provenance"]["image_panel"] = ",".join(p for _, p in panels)
+            _save_manifest(out_dir, manifest)
+            done += 1
+            log.info("backfilled %s panels=%s", m["id"], [f["file"] for f in files])
+            progress(f"backfilled {m['id']}: {len(files)} panel(s)")
+            time.sleep(sleep)
+        return done
+    except Exception:
+        log.exception("backfill_panels failed: type=%s", tname)
+        raise
+    finally:
+        client.close()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--types", default="wine,beer,spirits",
@@ -303,6 +378,8 @@ def main() -> int:
                     help="approval_date_from YYYY-MM-DD (default: API's last-365-days window)")
     ap.add_argument("--sleep", type=float, default=6.5,
                     help="seconds between detail calls (free-tier burst is 10/min)")
+    ap.add_argument("--backfill-panels", action="store_true",
+                    help="add missing back panels to already-pulled corpora, then exit")
     args = ap.parse_args()
 
     key = os.environ.get("COLACLOUD_API_KEY")
@@ -317,6 +394,13 @@ def main() -> int:
     if unknown:
         print(f"Unknown types: {sorted(unknown)} (choose from {list(TYPES)})", file=sys.stderr)
         return 1
+
+    if args.backfill_panels:
+        for tname in wanted:
+            n = backfill_panels(tname, api_key=key, sleep=args.sleep,
+                                progress=lambda m: print(" ", m))
+            print(f"{tname}: backfilled {n} entries")
+        return 0
 
     totals = {}
     for tname in wanted:

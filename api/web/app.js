@@ -40,15 +40,25 @@ const err = (m) => { const e = $("err"); e.textContent = m || ""; e.style.displa
 
 // ── intake ───────────────────────────────────────────────────────────────────
 async function addFiles(files, app = {}) {
-  for (const f of files) {
-    const id = `${f.name}-${items.length}-${Date.now() % 1e6}`;
-    items.push({ id, file: f, bitmap: await createImageBitmap(f).catch(() => null),
-                 app: { beverage_type: "unspecified", brand_name: "", class_type: "",
-                        alcohol_content: "", net_contents: "", ...app },
-                 state: "waiting", result: null, override: null, stale: false });
-  }
+  for (const f of files) await addItem([{ file: f, panel: "front" }], app);
   if (items.length && selectedId === null) select(items[0].id);
   renderList();
+}
+
+/** One application = one item; panelFiles = [{file, panel}] front first.
+ *  COLA Cloud corpora supply front+back — the warning lives on the back. */
+async function addItem(panelFiles, app = {}) {
+  const f = panelFiles[0].file;
+  const id = `${f.name}-${items.length}-${Date.now() % 1e6}`;
+  const panels = [];
+  for (const p of panelFiles) {
+    panels.push({ file: p.file, panel: p.panel || "front",
+                  bitmap: await createImageBitmap(p.file).catch(() => null) });
+  }
+  items.push({ id, file: f, bitmap: panels[0].bitmap, panels,
+               app: { beverage_type: "unspecified", brand_name: "", class_type: "",
+                      alcohol_content: "", net_contents: "", ...app },
+               state: "waiting", result: null, override: null, stale: false });
 }
 
 $("files").addEventListener("change", (e) => { err(""); addFiles([...e.target.files]); e.target.value = ""; });
@@ -207,11 +217,19 @@ function renderDetail() {
   const d = $("detail");
   if (!it) { d.innerHTML = '<p class="note">Select a label from the Applications list.</p>'; return; }
   d.innerHTML = "";
-  if (it.bitmap) {
+  for (const p of (it.panels || []).filter((p) => p.bitmap)) {
     const img = document.createElement("img");
-    img.className = "thumb"; img.alt = `Label image ${it.file.name}`;
-    it.file.arrayBuffer().then(() => { img.src = URL.createObjectURL(it.file); });
+    img.className = "thumb";
+    img.alt = `${p.panel} label panel ${p.file.name}`;
+    if ((it.panels || []).length > 1) img.title = `${p.panel} panel`;
+    p.file.arrayBuffer().then(() => { img.src = URL.createObjectURL(p.file); });
     d.appendChild(img);
+    if ((it.panels || []).length > 1) {
+      const cap = document.createElement("div");
+      cap.className = "cite"; cap.style.marginTop = "-8px"; cap.style.marginBottom = "8px";
+      cap.textContent = `${p.panel} panel`;
+      d.appendChild(cap);
+    }
   }
   const form = document.createElement("div");
   form.innerHTML = `
@@ -320,13 +338,14 @@ function renderResult(container, it) {
       </div>
       <div class="cropcell"></div>`;
     container.appendChild(row);
-    if (f.evidence?.bbox && it.bitmap) {
+    const evBitmap = (it.panels || [])[f.evidence?.panel ?? 0]?.bitmap || it.bitmap;
+    if (f.evidence?.bbox && evBitmap) {
       const c = document.createElement("canvas");
       c.className = "crop"; c.tabIndex = 0; c.setAttribute("role", "button");
       c.title = "Click to enlarge — region outlined on the full label";
-      if (drawCrop(c, it.bitmap, f.evidence.bbox)) {
+      if (drawCrop(c, evBitmap, f.evidence.bbox)) {
         row.querySelector(".cropcell").appendChild(c);
-        const open = () => zoomCrop(it.bitmap, f.evidence.bbox);
+        const open = () => zoomCrop(evBitmap, f.evidence.bbox);
         c.addEventListener("click", open);
         c.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") open(); });
       }
@@ -394,7 +413,7 @@ async function runOne(it) {
   const t0 = performance.now();
   try {
     const fd = new FormData();
-    fd.append("image", it.file);
+    for (const p of (it.panels || [{ file: it.file }])) fd.append("images", p.file);
     fd.append("application", JSON.stringify(it.app));
     const res = await fetch("/api/verify", { method: "POST", body: fd });
     const body = await res.json();
@@ -483,9 +502,18 @@ async function loadCorpora() {
         const items0 = await (await fetch(`/api/corpus/${c.id}`)).json();
         $("progress").textContent = `Loading ${items0.length} labels…`;
         for (const it of items0) {
-          const blob = await (await fetch(it.image)).blob();
-          await addFiles([new File([blob], it.file, { type: "image/jpeg" })], it.application);
+          const sources = it.images?.length ? it.images
+            : [{ panel: "front", url: it.image }];
+          const panelFiles = [];
+          for (const s of sources) {
+            const blob = await (await fetch(s.url)).blob();
+            const name = s.url.split("/").pop();
+            panelFiles.push({ file: new File([blob], name, { type: "image/jpeg" }),
+                             panel: s.panel });
+          }
+          await addItem(panelFiles, it.application);
         }
+        if (items.length && selectedId === null) select(items[0].id);
         $("progress").textContent = `${c.label} loaded — press "Verify all".`;
       } catch {
         err("Couldn't load that eval set — retry.");

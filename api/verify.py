@@ -206,6 +206,60 @@ def verify(words: list[Word], application: dict, image_gray=None) -> dict:
     return _envelope(None, fields, t0)
 
 
+_MERGE_RANK = {"MATCH": 5, "LIKELY_MATCH": 4, "WITHIN_TOLERANCE": 4,
+               "NOT_REQUIRED": 3, "MISMATCH": 2, "NEEDS_REVIEW": 1, "NOT_CHECKED": 0}
+
+
+def verify_multi(panels: list[tuple[list[Word], "object"]], application: dict) -> dict:
+    """Multi-panel verification: run the single-image pipeline per panel and
+    merge per field, preferring definitive positives — a field legally lives on
+    ANY panel (the warning is usually on the back, §16.21), so a MATCH on one
+    panel beats not-found on another; a genuine found-but-wrong (MISMATCH)
+    outranks unreadable/absent. Evidence carries the panel index."""
+    t0 = time.perf_counter()
+    if not panels:
+        return _envelope("incomplete", [], t0)
+    per_panel = []
+    for idx, (words, gray) in enumerate(panels):
+        r = verify(words, application, image_gray=gray)
+        for f in r["fields"]:
+            if f.get("evidence"):
+                f["evidence"]["panel"] = idx
+        per_panel.append(r)
+    if len(per_panel) == 1:
+        return per_panel[0]
+
+    merged: dict[str, dict] = {}
+    order: list[str] = []
+    for r in per_panel:
+        for f in r["fields"]:
+            name = f["field"]
+            if name not in merged:
+                merged[name] = f
+                order.append(name)
+            elif _MERGE_RANK.get(f["status"], 0) > _MERGE_RANK.get(merged[name]["status"], 0):
+                merged[name] = f
+    fields = [merged[n] for n in order]
+    out = _envelope_dicts(fields, t0)
+    return out
+
+
+def _envelope_dicts(fields: list[dict], t0: float) -> dict:
+    statuses = [f["status"] for f in fields]
+    if "MISMATCH" in statuses:
+        screening = "mismatch_found"
+    elif "NEEDS_REVIEW" in statuses:
+        screening = "screening_incomplete"
+    else:
+        screening = "no_mismatch_found"
+    attention = "action_required" if any(
+        s in ("MISMATCH", "NEEDS_REVIEW", "WITHIN_TOLERANCE", "LIKELY_MATCH") for s in statuses) else "none"
+    return {"schema_version": "1", "request_id": str(uuid.uuid4()),
+            "screening_result": screening, "attention_state": attention,
+            "timing_ms": {"total": round((time.perf_counter() - t0) * 1000)},
+            "fields": fields}
+
+
 def _envelope(force_screening: str | None, fields: list[FieldResult], t0: float) -> dict:
     statuses = [f.status for f in fields]
     if force_screening:

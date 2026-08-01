@@ -66,6 +66,18 @@ curl -F "image=@api/eval/golden/spirits_clean.jpg" \
      http://localhost:8123/api/verify
 ```
 
+Multi-panel bottles (the Government Warning usually lives on the **back** label): send
+repeated `images` fields — one per panel, up to 4 — and the verdict merges per field,
+with each field's evidence recording which panel it came from:
+
+```bash
+curl -F "images=@front.jpg" -F "images=@back.jpg" \
+     -F 'application={"beverage_type":"wine","brand_name":"..."}' \
+     http://localhost:8123/api/verify
+```
+
+The COLA Cloud pipelines pull both panels per registry record automatically.
+
 ## Architecture, in six lines
 
 ```

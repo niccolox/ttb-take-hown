@@ -3,7 +3,7 @@
 Deferred scope from the 2026-07-31 plan review (/autoplan). Format: what / why / effort (human → CC) / priority.
 
 - [ ] **Full 27 CFR rules engine with citations** — Parse Parts 4, 5, 16 into machine-checkable rules; return pass/review/fail with per-rule citations (the commercial COLAClear benchmark is 34 checks/label). Why: turns "does the label match the form" into "is the label legal" — the 10x trajectory. The rules engine is a pure function over extracted fields, so new rules are additive. Effort: XL → L. Priority: P3. Depends on: prototype core shipping.
-- [ ] **Multi-image (front/back) label sets** — Accept 1-n images per application and merge extractions; on real bottles the government warning lives on the back label. Why: single-image flow yields "warning missing" on realistic front-label photos. Effort: M → S. Priority: P2. Depends on: extraction schema (extend, don't rewrite).
+- [x] **Multi-image (front/back) label sets** — DONE (COLA Cloud front+back). `/api/verify` accepts up to 4 `images` panels; `verify_multi` runs the pipeline per panel and merges per field (a MATCH on any panel beats not-found on another; found-but-wrong outranks unreadable). Evidence carries `panel` index; UI crops draw from the right bitmap. COLA Cloud pipelines pull front AND back (`{ttb_id}_front.jpg`/`_back.jpg`, manifest `files` list) and `--backfill-panels` upgraded existing corpora.
 - [ ] **Retry-with-escalation extraction** — On `readable: partial`, retry with higher effort / image crops before settling on NEEDS REVIEW. Why: fewer human fallbacks; deferred because it adds latency variance against the 5s budget. Effort: M → S. Priority: P3.
 - [x] **Visual field highlighting on the label image** — MOVED INTO SCOPE (M2) by the local-OCR pivot: PaddleOCR bounding boxes make evidence crops reliable, so every verdict shows the image region it was read from.
 - [ ] **Optional VLM assist for hard photos** — When OCR confidence is low, an *on-prem* vision model (behind the `Extractor` interface) could attempt the read before falling back to NEEDS REVIEW. Why: recovers Jenny's worst-photo cases without violating the no-cloud-API decision. Effort: L → M. Priority: P3. Depends on: M0 fidelity data showing where OCR actually fails.
@@ -17,7 +17,7 @@ Deferred scope from the 2026-07-31 plan review (/autoplan). Format: what / why /
 - [ ] **Benchmark artifacts** — Publish benchmark JSON results alongside README numbers (their `benchmarks/results/` pattern). Effort: S → S. Priority: P3.
 
 ## From competitor comparison (treasurymike/aicola, 2026-07-31)
-- [ ] **`foundOn: front|back|both` schema field** — Adopt when multi-image lands; clean way to report which panel carried each field. Effort: S → S. Priority: P3. Depends on: multi-image TODO.
+- [x] **`foundOn` equivalent** — DONE as `evidence.panel` (index into submitted panels); the UI captions panels front/back.
 - [ ] **Commodity placement rules** — e.g., wine requires brand/class/ABV on the brand (front) label; fold into the beverage-type checklist TODO. Effort: S → S. Priority: P3.
 - [ ] **Foundry-in-Azure cloud-assist variant** — Document Microsoft Foundry (Anthropic models served inside Azure) as a firewall-compliant cloud option behind the `Extractor` interface, alongside the on-prem VLM. Effort: S → S. Priority: P3.
 - [ ] **Batch UX: inherit previous label's settings** — New batch rows copy commodity/import flags from the prior row. Effort: S → S. Priority: P3.

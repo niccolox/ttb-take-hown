@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps
 
 from .extractor import PaddleExtractor
-from .verify import verify
+from .verify import verify, verify_multi
 
 MAX_BYTES = 8 * 1024 * 1024
 MAX_PIXELS = 40_000_000
@@ -123,9 +123,13 @@ def _corpus_items(name: str):
                         "alcohol_content": t.get("abv_line") or "",
                         "net_contents": t.get("net_line") or ""}
             note = m.get("expect", "")
+        files = m.get("files") or [{"file": m["file"], "panel": "front"}]
         items.append({"id": m["id"], "file": m["file"], "note": note,
                       "application": app_data,
-                      "image": f"/api/corpus/{name}/image/{m['file']}"})
+                      "image": f"/api/corpus/{name}/image/{m['file']}",
+                      "images": [{"panel": f_["panel"],
+                                  "url": f"/api/corpus/{name}/image/{f_['file']}"}
+                                 for f_ in files]})
     return items
 
 
@@ -161,7 +165,10 @@ def corpus_image(name: str, fname: str):
     reg = get_corpora()
     if name not in reg:
         return JSONResponse({"error": "unknown corpus"}, status_code=404)
-    allowed = {m["file"] for m in json.loads((reg[name] / "manifest.json").read_text())}
+    manifest = json.loads((reg[name] / "manifest.json").read_text())
+    allowed = {m["file"] for m in manifest}
+    for m in manifest:
+        allowed.update(f_["file"] for f_ in m.get("files") or [])
     if fname not in allowed:                       # manifest-listed files only (no paths)
         return JSONResponse({"error": "unknown image"}, status_code=404)
     return FileResponse(reg[name] / fname, media_type="image/jpeg")
@@ -257,7 +264,10 @@ def run_pipeline(tname: str, per_type: int = 4, query: str | None = None):
 
 
 @app.post("/api/verify")
-async def api_verify(image: UploadFile = File(...), application: str = Form("{}")):
+async def api_verify(image: UploadFile = File(None),
+                     images: list[UploadFile] = File(None),
+                     application: str = Form("{}")):
+    """Single `image` (back-compat) or multiple `images` (front/back panels)."""
     if not extractor.ready():
         return JSONResponse({"error": "Still loading OCR models — try again in a few "
                                        "seconds.", "code": "warming_up"}, status_code=503)
@@ -267,39 +277,49 @@ async def api_verify(image: UploadFile = File(...), application: str = Form("{}"
         return JSONResponse({"error": "Application data wasn't valid JSON.",
                              "code": "bad_application_json"}, status_code=400)
 
-    raw = await image.read()
-    if len(raw) > MAX_BYTES:
-        return JSONResponse({"error": "Image too large — max 8MB.",
-                             "code": "too_large"}, status_code=413)
-    try:
-        img = Image.open(io.BytesIO(raw))
-        img.verify()
-        img = Image.open(io.BytesIO(raw))            # reopen after verify
-        if img.format not in ("JPEG", "PNG", "WEBP"):
-            return JSONResponse({"error": "PNG or JPG only. iPhone photos: export as JPG.",
-                                 "code": "bad_format"}, status_code=400)
-        if img.width * img.height > MAX_PIXELS:
-            return JSONResponse({"error": "Image dimensions too large (max 40MP).",
-                                 "code": "too_many_pixels"}, status_code=413)
-        img = ImageOps.exif_transpose(img).convert("RGB")   # EXIF orientation (E1)
-        if max(img.size) > 2000:
-            r = 2000 / max(img.size)
-            img = img.resize((int(img.width * r), int(img.height * r)), Image.LANCZOS)
-    except Exception:
-        return JSONResponse({"error": "Couldn't read this image — the file may be "
-                                       "corrupt.", "code": "decode_failed"}, status_code=422)
+    uploads = [u for u in ([image] if image else []) + (images or []) if u]
+    if not uploads:
+        return JSONResponse({"error": "No image uploaded.", "code": "no_image"},
+                            status_code=400)
+    if len(uploads) > 4:
+        return JSONResponse({"error": "At most 4 label panels per check.",
+                             "code": "too_many_panels"}, status_code=400)
 
-    t0 = time.perf_counter()
-    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=True) as tmp:
-        img.save(tmp.name, "JPEG", quality=92)
-        try:
-            words = pool.submit(extractor.extract, tmp.name).result(timeout=15)
-        except Exception:
-            return JSONResponse({"error": "This check didn't finish — retry.",
-                                 "code": "system_error"}, status_code=500)
     import numpy as np
-    gray = np.array(img.convert("L"))
-    result = verify(words, app_data, image_gray=gray)
+    panels = []
+    t0 = time.perf_counter()
+    for up in uploads:
+        raw = await up.read()
+        if len(raw) > MAX_BYTES:
+            return JSONResponse({"error": "Image too large — max 8MB.",
+                                 "code": "too_large"}, status_code=413)
+        try:
+            img = Image.open(io.BytesIO(raw))
+            img.verify()
+            img = Image.open(io.BytesIO(raw))        # reopen after verify
+            if img.format not in ("JPEG", "PNG", "WEBP"):
+                return JSONResponse({"error": "PNG or JPG only. iPhone photos: export as JPG.",
+                                     "code": "bad_format"}, status_code=400)
+            if img.width * img.height > MAX_PIXELS:
+                return JSONResponse({"error": "Image dimensions too large (max 40MP).",
+                                     "code": "too_many_pixels"}, status_code=413)
+            img = ImageOps.exif_transpose(img).convert("RGB")   # EXIF orientation (E1)
+            if max(img.size) > 2000:
+                r = 2000 / max(img.size)
+                img = img.resize((int(img.width * r), int(img.height * r)), Image.LANCZOS)
+        except Exception:
+            return JSONResponse({"error": "Couldn't read this image — the file may be "
+                                           "corrupt.", "code": "decode_failed"}, status_code=422)
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=True) as tmp:
+            img.save(tmp.name, "JPEG", quality=92)
+            try:
+                words = pool.submit(extractor.extract, tmp.name).result(timeout=15)
+            except Exception:
+                return JSONResponse({"error": "This check didn't finish — retry.",
+                                     "code": "system_error"}, status_code=500)
+        panels.append((words, np.array(img.convert("L"))))
+
+    result = verify_multi(panels, app_data)
     result["timing_ms"]["ocr"] = round((time.perf_counter() - t0) * 1000)
     return result
 

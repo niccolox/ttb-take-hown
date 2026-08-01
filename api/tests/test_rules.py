@@ -218,3 +218,74 @@ def test_colacloud_entry_builder():
     assert url.endswith("f.jpg") and pos == "front"
     assert net_contents_str(0.75, "liters") == "0.75 L"
     assert net_contents_str(None, None) == ""
+
+
+def test_colacloud_pick_panels_front_and_back():
+    from api.eval.colacloud_pipeline import pick_panels
+    detail = {"images": [{"image_url": "https://x/b.jpg", "container_position": "back"},
+                         {"image_url": "https://x/f.jpg", "container_position": "front"}]}
+    panels = pick_panels(detail)
+    assert panels == [("https://x/f.jpg", "front"), ("https://x/b.jpg", "back")]
+    # front-only COLA: one panel, no invented back
+    assert pick_panels({"images": [{"image_url": "https://x/f.jpg",
+                                    "container_position": "front"}]}) == [("https://x/f.jpg", "front")]
+    # no positions at all → falls back to pick_image
+    assert pick_panels({"main_image_url": "https://x/m.jpg"}) == [("https://x/m.jpg", "main")]
+
+
+# ── multi-panel verification (front + back label) ────────────────────────────
+
+def test_verify_multi_merges_warning_from_back_panel():
+    """§16.21 warning lives on the BACK label: found there → field passes, and
+    evidence records which panel it came from."""
+    from api.locator import Word
+    from api.verify import verify_multi
+
+    def words_of(texts, y0=10):
+        out, y = [], y0
+        for t in texts:
+            x = 10
+            for w in t.split():
+                out.append(Word(w, (x, y, x + len(w) * 12, y + 20), 0.96))
+                x += len(w) * 12 + 8
+            y += 28
+        return out
+
+    front = words_of(["OLD TOM DISTILLERY", "KENTUCKY STRAIGHT BOURBON WHISKEY",
+                      "45% ALC/VOL", "750 ML"])
+    from api.rules.warning import STATUTORY_WARNING
+    wtxt = STATUTORY_WARNING.split()
+    back = words_of([" ".join(wtxt[i:i + 8]) for i in range(0, len(wtxt), 8)])
+
+    app = {"beverage_type": "distilled_spirits", "brand_name": "OLD TOM DISTILLERY",
+           "class_type": "Kentucky Straight Bourbon Whiskey",
+           "alcohol_content": "45% Alc./Vol.", "net_contents": "750 mL"}
+
+    single = verify_multi([(front, None)], app)
+    warn_single = next(f for f in single["fields"] if f["field"] == "government_warning")
+    assert warn_single["status"] in ("NEEDS_REVIEW", "MISMATCH")   # absent on front
+
+    merged = verify_multi([(front, None), (back, None)], app)
+    by = {f["field"]: f for f in merged["fields"]}
+    assert by["government_warning"]["status"] in ("MATCH", "LIKELY_MATCH", "NEEDS_REVIEW")
+    # brand found on front stays authoritative; its evidence names panel 0
+    assert by["brand_name"]["status"] in ("MATCH", "LIKELY_MATCH")
+    if by["brand_name"].get("evidence"):
+        assert by["brand_name"]["evidence"]["panel"] == 0
+    # warning evidence, when present, points at the back panel
+    if by["government_warning"].get("evidence"):
+        assert by["government_warning"]["evidence"]["panel"] == 1
+
+
+def test_verify_multi_match_beats_not_found():
+    from api.locator import Word
+    from api.verify import verify_multi
+    mk = lambda t, y: [Word(w, (10 + i * 90, y, 90 + i * 90, y + 20), 0.95)
+                       for i, w in enumerate(t.split())]
+    front = mk("SILVER OAK", 10) + mk("CABERNET SAUVIGNON", 40)
+    back = mk("PRODUCED AND BOTTLED BY", 10)
+    app = {"beverage_type": "wine", "brand_name": "SILVER OAK",
+           "class_type": "Cabernet Sauvignon"}
+    merged = verify_multi([(front, None), (back, None)], app)
+    by = {f["field"]: f for f in merged["fields"]}
+    assert by["brand_name"]["status"] == "MATCH"      # back's not-found never demotes
