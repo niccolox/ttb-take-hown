@@ -5,6 +5,8 @@
 # rebuilds are only needed when requirements.txt changes.
 # COLA Cloud pipeline debug: streams in `docker compose -f docker-compose.dev.yml
 # logs -f` AND persists to api/eval/colacloud/pipeline.log on the host (bind mount).
+# Session store: ./api/data (DuckDB) rides the ./api bind mount — shared with
+# native runs and the prod compose volume, so saved sessions survive any mode.
 services:
   labelcheck-dev:
     build: .

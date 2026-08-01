@@ -9,3 +9,8 @@ services:
     env_file:                  # host .env → container env (registry pipelines key)
       - path: .env
         required: false        # compose runs fine when .env doesn't exist yet
+    volumes:
+      # session store (DuckDB: saved review batches incl. label images) survives
+      # container rebuilds; same host path the dev compose and native runs use,
+      # so a session saved in one mode restores in any other. Gitignored.
+      - ./api/data:/app/api/data
