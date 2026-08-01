@@ -9,6 +9,8 @@ WITHIN_TOLERANCE | MISMATCH | NEEDS_REVIEW | NOT_CHECKED | NOT_REQUIRED.
 
 from __future__ import annotations
 
+import dataclasses
+
 import time
 import uuid
 from dataclasses import asdict, dataclass
@@ -44,7 +46,29 @@ def _evidence(loc) -> dict | None:
     return None
 
 
+_ALT_RANK = {"MATCH": 6, "LIKELY_MATCH": 5, "WITHIN_TOLERANCE": 4, "MISMATCH": 2,
+             "NEEDS_REVIEW": 1, "NOT_CHECKED": 0}
+
+
 def _text_field(name: str, expected: str | None, locator: Locator) -> FieldResult:
+    """Registry class phrases use slash alternation ("sparkling wine/champagne"
+    is class code 81 — either name satisfies it); no label prints the slash
+    phrase verbatim. Try each alternative and keep the best result, reporting
+    the full registry phrase as the application value."""
+    if expected and "/" in expected:
+        alts = [a.strip() for a in expected.split("/") if len(a.strip()) >= 3]
+        if len(alts) >= 2:
+            results = [_text_field_one(name, a, locator) for a in alts]
+            best = max(results, key=lambda r: _ALT_RANK.get(r.status, 0))
+            note = best.note
+            if best.status in ("MATCH", "LIKELY_MATCH"):
+                note = (f'Label matches "{best.application_value}" — one of the '
+                        f'alternatives in the registry class phrase "{expected}".')
+            return dataclasses.replace(best, application_value=expected, note=note)
+    return _text_field_one(name, expected, locator)
+
+
+def _text_field_one(name: str, expected: str | None, locator: Locator) -> FieldResult:
     if not expected:
         return FieldResult(name, "NOT_CHECKED", None, None, None,
                            "No application value entered.")

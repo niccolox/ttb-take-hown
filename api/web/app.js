@@ -47,7 +47,7 @@ async function addFiles(files, app = {}) {
 
 /** One application = one item; panelFiles = [{file, panel}] front first.
  *  COLA Cloud corpora supply front+back — the warning lives on the back. */
-async function addItem(panelFiles, app = {}) {
+async function addItem(panelFiles, app = {}, registry = null) {
   const f = panelFiles[0].file;
   const id = `${f.name}-${items.length}-${Date.now() % 1e6}`;
   const panels = [];
@@ -55,7 +55,7 @@ async function addItem(panelFiles, app = {}) {
     panels.push({ file: p.file, panel: p.panel || "front",
                   bitmap: await createImageBitmap(p.file).catch(() => null) });
   }
-  items.push({ id, file: f, bitmap: panels[0].bitmap, panels,
+  items.push({ id, file: f, bitmap: panels[0].bitmap, panels, registry,
                app: { beverage_type: "unspecified", brand_name: "", class_type: "",
                       alcohol_content: "", net_contents: "", ...app },
                state: "waiting", result: null, override: null, stale: false });
@@ -295,6 +295,43 @@ function renderDetail() {
       bar.appendChild(rm);
     }
     d.appendChild(bar);
+  }
+  if (it.registry && Object.keys(it.registry).length) {
+    const REG_LABELS = { status: "Status", type_of_application: "Type of application",
+      class_type_code: "Class/Type", origin: "Origin",
+      brand_name: "Brand name", fanciful_name: "Fanciful name",
+      domestic_or_imported: "Domestic/imported", grape_varietals: "Grape varietal(s)",
+      wine_vintage_year: "Vintage", wine_appellation: "Appellation",
+      total_bottle_capacity: "Total bottle capacity",
+      is_distinctive_container: "Distinctive container",
+      application_date: "Application date", approval_date: "Approval date",
+      expiration_date: "Expiration date", permit_number: "Permit #" };
+    const reg = document.createElement("details");
+    reg.className = "sub"; reg.style.marginBottom = "10px";
+    const summary = document.createElement("summary");
+    summary.style.cursor = "pointer"; summary.style.fontWeight = "700";
+    const tid = (it.file?.name || "").match(/^(\d{14})/)?.[1];
+    summary.textContent = tid ? `COLA Detail — TTB ID ${tid} (registry record)`
+                              : "COLA Detail (registry record)";
+    reg.appendChild(summary);
+    const dl = document.createElement("div");
+    for (const [k, label] of Object.entries(REG_LABELS)) {
+      let v = it.registry[k];
+      if (v === undefined || v === null || v === "") continue;
+      if (Array.isArray(v)) v = v.join(", ");
+      if (typeof v === "boolean") v = v ? "yes" : "no";
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;gap:8px;font-size:13px;padding:1px 0";
+      const kEl = document.createElement("span");
+      kEl.style.cssText = "color:var(--grey);min-width:150px";
+      kEl.textContent = label;
+      const vEl = document.createElement("span");
+      vEl.textContent = String(v);
+      row.append(kEl, vEl);
+      dl.appendChild(row);
+    }
+    reg.appendChild(dl);
+    d.appendChild(reg);
   }
   const form = document.createElement("div");
   form.innerHTML = `
@@ -576,7 +613,7 @@ async function loadCorpora() {
             panelFiles.push({ file: new File([blob], name, { type: "image/jpeg" }),
                              panel: s.panel });
           }
-          await addItem(panelFiles, it.application);
+          await addItem(panelFiles, it.application, it.registry || null);
         }
         if (items.length && selectedId === null) select(items[0].id);
         $("progress").textContent = `${c.label} loaded — press "Verify all".`;

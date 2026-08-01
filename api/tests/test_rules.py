@@ -236,6 +236,22 @@ def test_all_caps_brand_matches_capitalized_application():
     assert _text_field("brand_name", "Stone's Throw", loc3).status == "NEEDS_REVIEW"
 
 
+def test_class_slash_phrase_matches_either_alternative():
+    """Registry class 'sparkling wine/champagne' is an alternation — a label
+    printing CHAMPAGNE satisfies it (and the note says which side matched)."""
+    from api.verify import _text_field
+    loc = _mk_locator([("CHAMPAGNE", 10, 10, 0.95), ("BRUT", 130, 10, 0.95)])
+    r = _text_field("class_type", "sparkling wine/champagne", loc)
+    assert r.status == "MATCH"
+    assert r.application_value == "sparkling wine/champagne"
+    assert "champagne" in r.note
+    loc2 = _mk_locator([("SPARKLING", 10, 10, 0.95), ("WINE", 120, 10, 0.95)])
+    assert _text_field("class_type", "sparkling wine/champagne", loc2).status == "MATCH"
+    loc3 = _mk_locator([("MERLOT", 10, 10, 0.95)])
+    r3 = _text_field("class_type", "sparkling wine/champagne", loc3)
+    assert r3.status == "NEEDS_REVIEW"      # neither alternative found → honest review
+
+
 def test_similar_but_different_brand_never_passes():
     # T1 safety property: 'OLD TOM DISTILLING CO' must never MATCH/LIKELY-MATCH
     # 'OLD TOM DISTILLERY'. Below the locator threshold it surfaces as
@@ -266,6 +282,12 @@ def test_colacloud_entry_builder():
     assert e["provenance"]["ttb_id"] == "23001001000123"
     url, pos = pick_image(detail)
     assert url.endswith("f.jpg") and pos == "front"
+    reg = e["registry"]
+    assert "serial_number" not in reg   # applicant serial is NOT derivable from the TTB ID
+    assert reg["class_type_code"] == "STRAIGHT BOURBON WHISKY"
+    assert reg["fanciful_name"] == "Old Tom Small Batch"
+    assert reg["permit_number"] == "KY-DSP-1"
+    assert "grape_varietals" not in reg              # empty fields omitted
     assert net_contents_str(0.75, "liters") == "0.75 L"
     assert net_contents_str(None, None) == ""
 

@@ -88,6 +88,35 @@ def net_contents_str(volume, volume_unit) -> str:
     return f"{v} {unit}"
 
 
+def registry_block(detail: dict) -> dict:
+    """The COLA Detail record, mirroring the TTB printable view (status, class/
+    type, origin, fanciful name, dates, varietals...). The applicant-assigned
+    serial #, vendor code, and formula shown on TTB's printable view are not
+    exposed by the COLA Cloud API — never derived (the serial is NOT part of
+    the TTB ID). None/empty fields are omitted."""
+    fields = {
+        "status": detail.get("application_status"),
+        "type_of_application": detail.get("application_type"),
+        "class_type_code": detail.get("class_name"),
+        "class_id": detail.get("class_id"),
+        "origin": detail.get("origin_name"),
+        "origin_id": detail.get("origin_id"),
+        "brand_name": detail.get("brand_name"),
+        "fanciful_name": detail.get("product_name"),
+        "domestic_or_imported": detail.get("domestic_or_imported"),
+        "grape_varietals": detail.get("grape_varietals"),
+        "wine_vintage_year": detail.get("wine_vintage_year"),
+        "wine_appellation": detail.get("wine_appellation"),
+        "total_bottle_capacity": detail.get("for_distinctive_capacity"),
+        "is_distinctive_container": detail.get("is_distinctive_container"),
+        "application_date": detail.get("application_date"),
+        "approval_date": detail.get("approval_date"),
+        "expiration_date": detail.get("expiration_date"),
+        "permit_number": detail.get("permit_number"),
+    }
+    return {k: v for k, v in fields.items() if v not in (None, "", [], "N/A")}
+
+
 def build_entry(detail: dict, bev_type: str, image_file: str) -> dict:
     """Pure manifest-entry builder (unit-tested without network)."""
     abv = detail.get("abv")
@@ -106,6 +135,7 @@ def build_entry(detail: dict, bev_type: str, image_file: str) -> dict:
                  f"registry record is ground truth — verdicts should be matches or honest "
                  f"reviews, never false mismatches. Product: "
                  f"{(detail.get('product_name') or detail.get('brand_name') or '')[:60]}"),
+        "registry": registry_block(detail),
         "provenance": {
             "ttb_id": detail["ttb_id"],
             "approval_date": detail.get("approval_date"),
@@ -397,6 +427,98 @@ def backfill_panels(tname: str, *, api_key: str, sleep: float = 8.0,
         client.close()
 
 
+def pull_by_id(tname: str, ttb_ids: list[str], *, api_key: str, sleep: float = 7.0,
+               progress=lambda msg: None) -> int:
+    """Pull specific COLAs by TTB ID into a type's corpus (front+back panels,
+    registry block). One detail view per ID; skips IDs already in the manifest."""
+    import httpx
+    from colacloud import ColaCloud
+
+    setup_logging()
+    _, bev = TYPES[tname]
+    out_dir = OUT_BASE / tname
+    out_dir.mkdir(parents=True, exist_ok=True)
+    manifest = _load_manifest(out_dir)
+    have = {m["id"] for m in manifest}
+    todo = [t for t in ttb_ids if t not in have]
+    log.info("pull_by_id: type=%s ids=%d todo=%d", tname, len(ttb_ids), len(todo))
+
+    client = ColaCloud(api_key=api_key)
+    added = 0
+    try:
+        for ttb_id in todo:
+            detail = _with_rate_limit(lambda t=ttb_id: client.colas.get(t),
+                                      progress=progress)
+            d = detail.model_dump() if hasattr(detail, "model_dump") else dict(detail)
+            panels = pick_panels(d)
+            if not panels:
+                log.warning("pull_by_id: %s has no images — skipped", ttb_id)
+                progress(f"skipped {ttb_id}: no images")
+                time.sleep(sleep)
+                continue
+            files = []
+            for url, pos in panels:
+                ext = ".jpg" if ".png" not in url.lower() else ".png"
+                fname = f"{ttb_id}_{pos}{ext}"
+                img = httpx.get(url, timeout=60, follow_redirects=True)
+                img.raise_for_status()
+                (out_dir / fname).write_bytes(img.content)
+                files.append({"file": fname, "panel": pos})
+            entry = build_entry(d, bev, files[0]["file"])
+            entry["files"] = files
+            entry["provenance"]["image_panel"] = ",".join(p for _, p in panels)
+            manifest.append(entry)
+            _save_manifest(out_dir, manifest)
+            added += 1
+            log.info("pull_by_id fetched %s brand=%r panels=%d", ttb_id,
+                     d.get("brand_name"), len(files))
+            progress(f"fetched {ttb_id}: {(d.get('brand_name') or '')[:40]}")
+            time.sleep(sleep)
+        return added
+    except Exception:
+        log.exception("pull_by_id failed: type=%s", tname)
+        raise
+    finally:
+        client.close()
+
+
+def backfill_registry(tname: str, *, api_key: str, sleep: float = 8.0,
+                      progress=lambda msg: None) -> int:
+    """Add the COLA Detail registry block to entries pulled before it existed.
+    Costs one detail view per entry lacking `registry`. Idempotent."""
+    from colacloud import ColaCloud
+
+    setup_logging()
+    out_dir = OUT_BASE / tname
+    if not out_dir.exists():
+        return 0
+    manifest = _load_manifest(out_dir)
+    todo = [m for m in manifest if not m.get("registry")]
+    log.info("backfill_registry: type=%s entries=%d todo=%d", tname, len(manifest), len(todo))
+    if not todo:
+        return 0
+
+    client = ColaCloud(api_key=api_key)
+    done = 0
+    try:
+        for m in todo:
+            detail = _with_rate_limit(lambda m=m: client.colas.get(m["id"]),
+                                      progress=progress)
+            d = detail.model_dump() if hasattr(detail, "model_dump") else dict(detail)
+            m["registry"] = registry_block(d)
+            _save_manifest(out_dir, manifest)
+            done += 1
+            log.info("registry backfilled %s fields=%d", m["id"], len(m["registry"]))
+            progress(f"registry {m['id']}: {len(m['registry'])} fields")
+            time.sleep(sleep)
+        return done
+    except Exception:
+        log.exception("backfill_registry failed: type=%s", tname)
+        raise
+    finally:
+        client.close()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--types", default="wine,beer,spirits",
@@ -409,6 +531,10 @@ def main() -> int:
                     help="seconds between detail calls (free-tier burst is 10/min)")
     ap.add_argument("--backfill-panels", action="store_true",
                     help="add missing back panels to already-pulled corpora, then exit")
+    ap.add_argument("--ttb-id", action="append", default=[],
+                    help="pull specific TTB ID(s) into the (single) --types corpus, then exit")
+    ap.add_argument("--backfill-registry", action="store_true",
+                    help="add the COLA Detail registry block to already-pulled corpora, then exit")
     args = ap.parse_args()
 
     key = os.environ.get("COLACLOUD_API_KEY")
@@ -423,6 +549,22 @@ def main() -> int:
     if unknown:
         print(f"Unknown types: {sorted(unknown)} (choose from {list(TYPES)})", file=sys.stderr)
         return 1
+
+    if args.ttb_id:
+        if len(wanted) != 1:
+            print("--ttb-id needs exactly one --types value", file=sys.stderr)
+            return 1
+        n = pull_by_id(wanted[0], args.ttb_id, api_key=key, sleep=args.sleep,
+                       progress=lambda m: print(" ", m))
+        print(f"{wanted[0]}: pulled {n} COLA(s) by id")
+        return 0
+
+    if args.backfill_registry:
+        for tname in wanted:
+            n = backfill_registry(tname, api_key=key, sleep=args.sleep,
+                                  progress=lambda m: print(" ", m))
+            print(f"{tname}: registry backfilled for {n} entries")
+        return 0
 
     if args.backfill_panels:
         for tname in wanted:

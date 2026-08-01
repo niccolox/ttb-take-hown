@@ -126,6 +126,7 @@ def _corpus_items(name: str):
         files = m.get("files") or [{"file": m["file"], "panel": "front"}]
         items.append({"id": m["id"], "file": m["file"], "note": note,
                       "application": app_data,
+                      "registry": m.get("registry") or None,
                       "image": f"/api/corpus/{name}/image/{m['file']}",
                       "images": [{"panel": f_["panel"],
                                   "url": f"/api/corpus/{name}/image/{f_['file']}"}
