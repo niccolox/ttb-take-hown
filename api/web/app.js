@@ -972,13 +972,9 @@ $("clearSession").addEventListener("click", async () => {
   refreshSessionUI();
 });
 
-$("restoreBtn").addEventListener("click", async () => {
-  err("");
-  const btn = $("restoreBtn");
-  btn.disabled = true;
-  try {
-    const s = await (await fetch("/api/session")).json();
-    if (!s.saved) { err("No saved session found."); return; }
+async function restoreSession({ quiet = false } = {}) {
+  const s = await (await fetch("/api/session")).json();
+  if (!s.saved) { if (!quiet) err("No saved session found."); return false; }
     for (const rec of s.items) {
       const panelFiles = [];
       for (const p of rec.panels.length ? rec.panels : [{ panel: "front", file: rec.file_name }]) {
@@ -997,12 +993,23 @@ $("restoreBtn").addEventListener("click", async () => {
       if (rec.elapsed_ms != null) it.elapsedMs = rec.elapsed_ms;   // timing chip survives
       unpackOverride(it, rec.override);
     }
-    if (items.length && selectedId === null) select(items[0].id);
-    sessionDirty = false;
-    lastSavedAt = s.saved_at || null;
-    $("progress").textContent = `Restored ${s.items.length} label(s) from the saved session.`;
-    renderList(); renderDetail();
-    updateSaveButton();
+  if (items.length && selectedId === null) select(items[0].id);
+  sessionDirty = false;
+  lastSavedAt = s.saved_at || null;
+  $("progress").textContent = `Restored ${s.items.length} label(s) from the saved session` +
+                              (quiet ? ` (saved ${s.saved_at || ""})` : "") + ".";
+  renderList(); renderDetail();
+  updateSaveButton();
+  refreshSessionUI();
+  return true;
+}
+
+$("restoreBtn").addEventListener("click", async () => {
+  err("");
+  const btn = $("restoreBtn");
+  btn.disabled = true;
+  try {
+    await restoreSession();
   } catch {
     err("Couldn't restore the saved session — retry.");
   } finally {
@@ -1011,5 +1018,13 @@ $("restoreBtn").addEventListener("click", async () => {
   }
 });
 
-refreshSessionUI();
+(async () => {
+  // hard-refresh continuity: if the tab is empty and a session snapshot exists,
+  // restore it automatically — statuses, decisions, and timings come back
+  // without a click. The manual Restore button remains for after "Clear".
+  try {
+    if (!items.length) await restoreSession({ quiet: true });
+  } catch { /* server without a session — leave the tab empty */ }
+  refreshSessionUI();
+})();
 renderPipelines();
