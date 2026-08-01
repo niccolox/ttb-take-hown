@@ -9,3 +9,5 @@ golden:
 	$(VENV)/python api/eval/generate_golden.py
 smoke:
 	@bash scripts/smoke.sh
+eval-napa:
+	$(VENV)/python api/eval/eval_napa.py

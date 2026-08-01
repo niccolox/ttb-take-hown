@@ -163,3 +163,36 @@ def test_stones_throw():
 def test_warning_normalization_preserves_case():
     assert whitespace_only("GOVERNMENT  WARNING:") == "GOVERNMENT WARNING:"
     assert whitespace_only("Government Warning:") != "GOVERNMENT WARNING:"
+
+
+# ── real-photo dispositions (Napa corpus regressions) ────────────────────────
+
+def _mk_locator(words_spec):
+    from api.locator import Locator, Word
+    return Locator([Word(t, (x, y, x + len(t) * 10, y + 20), c) for t, x, y, c in words_spec])
+
+
+def test_not_found_is_review_not_mismatch():
+    from api.verify import _text_field
+    loc = _mk_locator([("MERLOT", 10, 10, 0.95), ("NAPA", 10, 40, 0.95)])
+    r = _text_field("brand_name", "Silver Oak", loc)
+    assert r.status == "NEEDS_REVIEW" and r.reason_code == "not_found_in_image"
+
+
+def test_single_glyph_confusable_is_review():
+    from api.verify import _text_field
+    loc = _mk_locator([("ZINPANDEL", 10, 10, 0.95)])
+    r = _text_field("class_type", "Zinfandel", loc)
+    assert r.status == "NEEDS_REVIEW" and r.reason_code == "possible_ocr_misread"
+
+
+def test_similar_but_different_brand_never_passes():
+    # T1 safety property: 'OLD TOM DISTILLING CO' must never MATCH/LIKELY-MATCH
+    # 'OLD TOM DISTILLERY'. Below the locator threshold it surfaces as
+    # review-not-found (coverage-honest); at/above threshold it's MISMATCH.
+    from api.verify import _text_field
+    loc = _mk_locator([("OLD", 10, 10, 0.95), ("TOM", 50, 10, 0.95),
+                       ("DISTILLING", 90, 10, 0.95), ("CO", 200, 10, 0.95)])
+    r = _text_field("brand_name", "OLD TOM DISTILLERY", loc)
+    assert r.status in ("MISMATCH", "NEEDS_REVIEW")
+    assert r.status not in ("MATCH", "LIKELY_MATCH")

@@ -1,0 +1,154 @@
+[
+  {
+    "file": "ramey_claret_2003.jpg",
+    "id": "ramey_claret_2003",
+    "application": {
+      "beverage_type": "wine",
+      "brand_name": "RAMEY",
+      "class_type": "Claret",
+      "alcohol_content": "14.2%",
+      "net_contents": "750 mL"
+    },
+    "label_truth": "RAMEY / Claret / Napa Valley / Vintage 2003 / 'Alc. 14.2% by Vol.' and '750 ml Red Wine' in small script / Produced and Bottled by Ramey Wine Cellars, Healdsburg CA / PRODUCT OF USA",
+    "expect": "Brand+class MATCH; script-font ABV/net may read or go NEEDS_REVIEW; warning on back label → not visible",
+    "provenance": {
+      "source": "https://commons.wikimedia.org/wiki/File:Ramey_Claret_Napa_2003.jpg",
+      "license": "CC BY-SA 2.0",
+      "credit": "Nick Sieger",
+      "note": "Real Napa/California wine label photo via Wikimedia Commons; ground truth transcribed by human review of the image."
+    }
+  },
+  {
+    "file": "brown_zin_2008.jpg",
+    "id": "brown_zin_2008",
+    "application": {
+      "beverage_type": "wine",
+      "brand_name": "BROWN ESTATE",
+      "class_type": "Zinfandel",
+      "alcohol_content": "",
+      "net_contents": "750 mL"
+    },
+    "label_truth": "BROWN ESTATE / 2008 / ZINFANDEL / NAPA VALLEY — small dark low-res photo",
+    "expect": "Honest-degradation case: low res → mostly NEEDS_REVIEW, never false verdicts",
+    "provenance": {
+      "source": "https://commons.wikimedia.org/wiki/File:Brown_08_napa_zin.jpg",
+      "license": "CC BY 2.5",
+      "credit": "Randy Reyes",
+      "note": "Real Napa/California wine label photo via Wikimedia Commons; ground truth transcribed by human review of the image."
+    }
+  },
+  {
+    "file": "stags_leap_merlot_2008.jpg",
+    "id": "stags_leap_merlot_2008",
+    "application": {
+      "beverage_type": "wine",
+      "brand_name": "Stag's Leap Wine Cellars",
+      "class_type": "Merlot",
+      "alcohol_content": "14.1%",
+      "net_contents": "750 mL"
+    },
+    "label_truth": "STAG'S LEAP WINE CELLARS / Merlot / Napa Valley / 2008 — no ABV or net contents on front label",
+    "expect": "Brand LIKELY_MATCH (case differs — Dave's case); Merlot not table/light → absent ABV = required → review/not-found path",
+    "provenance": {
+      "source": "https://commons.wikimedia.org/wiki/File:2008_Stag%27s_Leap_Wine_Cellars_Merlot.jpg",
+      "license": "CC BY 2.0",
+      "credit": "Dominic Lockyer",
+      "note": "Real Napa/California wine label photo via Wikimedia Commons; ground truth transcribed by human review of the image."
+    }
+  },
+  {
+    "file": "stags_leap_cask23_1997.jpg",
+    "id": "stags_leap_cask23_1997",
+    "application": {
+      "beverage_type": "wine",
+      "brand_name": "Stag's Leap Wine Cellars",
+      "class_type": "Red Table Wine",
+      "alcohol_content": "14.4%",
+      "net_contents": "750 mL"
+    },
+    "label_truth": "1997 ESTATE BOTTLED / STAG'S LEAP WINE CELLARS / CASK 23 / RED TABLE WINE / NAPA VALLEY / tiny 'ALC. 14.x% BY VOL.' + CONTAINS SULFITES — two bottles in frame",
+    "expect": "THE §4.36(a) live test: 'Red Table Wine' on a real label — if tiny ABV is unreadable, verdict must be NOT_REQUIRED, not MISMATCH",
+    "provenance": {
+      "source": "https://commons.wikimedia.org/wiki/File:Stag%27s_Leap_Wine_Cellars_Cabernet_Sauvignon_CASK_23_1997.jpg",
+      "license": "CC BY-SA 2.0",
+      "credit": "Nagarazoku",
+      "note": "Real Napa/California wine label photo via Wikimedia Commons; ground truth transcribed by human review of the image."
+    }
+  },
+  {
+    "file": "stags_leap_cask23_2002.jpg",
+    "id": "stags_leap_cask23_2002",
+    "application": {
+      "beverage_type": "wine",
+      "brand_name": "Stag's Leap Wine Cellars",
+      "class_type": "Cabernet Sauvignon",
+      "alcohol_content": "",
+      "net_contents": "750 mL"
+    },
+    "label_truth": "STAG'S LEAP WINE CELLARS / CASK 23 / Cabernet Sauvignon / 2002 Estate Napa Valley — two bottles, left label partially occluded",
+    "expect": "Cab (not table/light); no app ABV → NOT_CHECKED; brand LIKELY_MATCH; duplicate-region ambiguity plausible (two bottles)",
+    "provenance": {
+      "source": "https://commons.wikimedia.org/wiki/File:2002_Stag%27s_Leap_Wine_Cellars_Cask_23.jpg",
+      "license": "CC BY-SA 2.0",
+      "credit": "titanium22",
+      "note": "Real Napa/California wine label photo via Wikimedia Commons; ground truth transcribed by human review of the image."
+    }
+  },
+  {
+    "file": "silver_oak_1994.jpg",
+    "id": "silver_oak_1994",
+    "application": {
+      "beverage_type": "wine",
+      "brand_name": "Silver Oak",
+      "class_type": "Napa Valley Cabernet Sauvignon",
+      "alcohol_content": "",
+      "net_contents": "750 mL"
+    },
+    "label_truth": "SILVER OAK / Napa Valley Cabernet Sauvignon / 1994 vintage on glass — label partially occluded by a wine glass",
+    "expect": "Occlusion test: brand may partially read; class behind glass → NEEDS_REVIEW territory; never a confident wrong verdict",
+    "provenance": {
+      "source": "https://commons.wikimedia.org/wiki/File:Silver_Oak_Napa_Valley_1994.jpg",
+      "license": "CC BY-SA 2.0",
+      "credit": "Steve Ryan",
+      "note": "Real Napa/California wine label photo via Wikimedia Commons; ground truth transcribed by human review of the image."
+    }
+  },
+  {
+    "file": "chappellet_chard_2018.jpg",
+    "id": "chappellet_chard_2018",
+    "application": {
+      "beverage_type": "wine",
+      "brand_name": "CHAPPELLET",
+      "class_type": "Carneros Chardonnay",
+      "alcohol_content": "",
+      "net_contents": "750 mL"
+    },
+    "label_truth": "CHAPPELLET / Grower Collection / 2017 / Sangiacomo Vineyard / CARNEROS CHARDONNAY — angled bottle, clean white label",
+    "expect": "Brand+class should locate despite bottle angle; chardonnay not 'table' → absent-ABV handling with no app value → NOT_CHECKED",
+    "provenance": {
+      "source": "https://commons.wikimedia.org/wiki/File:Chappellet_Chardonnay_-_Dec_2018_-_Sarah_Stierch.jpg",
+      "license": "CC BY 4.0",
+      "credit": "Missvain",
+      "note": "Real Napa/California wine label photo via Wikimedia Commons; ground truth transcribed by human review of the image."
+    }
+  },
+  {
+    "file": "vsattui_gewurz.jpg",
+    "id": "vsattui_gewurz",
+    "application": {
+      "beverage_type": "wine",
+      "brand_name": "V. Sattui Winery",
+      "class_type": "Gewürztraminer",
+      "alcohol_content": "11.5%",
+      "net_contents": "750 mL"
+    },
+    "label_truth": "V. Sattui Winery (script) / Est. 1885 / MENDOCINO / Gewürztraminer (script, umlaut) / Produced and bottled by V. Sattui Winery, St. Helena, California / tiny 'ALC 11.5% BY VOLUME' + CONTAINS SULFITES — two bottles",
+    "expect": "Unicode (ü) + script-font test; Napa-county winery w/ Mendocino appellation; tiny ABV likely unreadable → Gewürz not table/light → review path",
+    "provenance": {
+      "source": "https://commons.wikimedia.org/wiki/File:V._Sattui%27s_Wine_Gewurztraminer.jpg",
+      "license": "CC BY 2.0",
+      "credit": "Lauren \"Lolly\" Weinhold",
+      "note": "Real Napa/California wine label photo via Wikimedia Commons; ground truth transcribed by human review of the image."
+    }
+  }
+]

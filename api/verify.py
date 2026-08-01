@@ -55,9 +55,11 @@ def _text_field(name: str, expected: str | None, locator: Locator) -> FieldResul
                                "unreadable",
                                "Couldn't read this part of the image — check the label "
                                "yourself or upload a clearer photo.", _evidence(loc))
-        return FieldResult(name, "MISMATCH", None, expected, "not_found",
+        # Absence without coverage proof is uncertainty, not a finding
+        # (Rev 2.1: photos rarely establish that a region was adequately observed)
+        return FieldResult(name, "NEEDS_REVIEW", None, expected, "not_found_in_image",
                            "Expected text was not found in the submitted image — "
-                           "inspect the full label.", None)
+                           "inspect the full label (it may be on another panel).", None)
     if loc.ambiguous:
         return FieldResult(name, "NEEDS_REVIEW", loc.text, expected, "ambiguous",
                            "Two similar regions match — check both candidates.",
@@ -76,7 +78,21 @@ def _text_field(name: str, expected: str | None, locator: Locator) -> FieldResul
                            "Capitalization or punctuation differs — compare both values.",
                            _evidence(loc))
     if loc.score >= 85:
-        # high fuzzy but not normalized-equal is MISMATCH, never LIKELY (T1 rule)
+        # High fuzzy but not normalized-equal is MISMATCH, never LIKELY (T1 rule) —
+        # with a char-level carve-out (Rev 2.1 confusable doctrine): a single-glyph
+        # difference (ZINPANDEL/Zinfandel) is within OCR error and goes to the human
+        # with the crop; multi-character differences are genuine mismatches.
+        from rapidfuzz.distance import Levenshtein
+        dist = Levenshtein.distance(loose(loc.text), loose(expected))
+        if dist <= max(1, len(loose(expected)) // 10):
+            return FieldResult(name, "NEEDS_REVIEW", loc.text, expected, "possible_ocr_misread",
+                               f'The label may read "{loc.text}" — within one character of the '
+                               "application value, which is inside OCR error range. Check the crop.",
+                               _evidence(loc))
+        if loc.min_conf < 0.80:
+            return FieldResult(name, "NEEDS_REVIEW", loc.text, expected, "unreadable",
+                               "The label reads differently here but the image quality "
+                               "is marginal — check the crop.", _evidence(loc))
         return FieldResult(name, "MISMATCH", loc.text, expected, "value_differs",
                            "Application and label differ.", _evidence(loc))
     return FieldResult(name, "MISMATCH", loc.text or None, expected, "value_differs",

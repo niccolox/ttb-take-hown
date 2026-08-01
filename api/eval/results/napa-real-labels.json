@@ -1,0 +1,275 @@
+{
+  "summary": {
+    "corpus": "napa (8 real Napa/California wine label photos, Wikimedia Commons, CC)",
+    "engine": "PaddleOCR PP-OCRv5 (pinned)",
+    "warmup_s": 11.91,
+    "latency_p50_s": 3.09,
+    "latency_max_s": 4.4
+  },
+  "rows": [
+    {
+      "id": "ramey_claret_2003",
+      "latency_s": 3.81,
+      "screening": "screening_incomplete",
+      "fields": {
+        "brand_name": {
+          "status": "MATCH",
+          "label_value": "RAMEY",
+          "note": "Label matches the application exactly."
+        },
+        "class_type": {
+          "status": "MATCH",
+          "label_value": "Claret",
+          "note": "Label matches the application exactly."
+        },
+        "alcohol_content": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "ABV not found in the submitted image (required unless designated table/light wine ≤14% (§4"
+        },
+        "net_contents": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "net contents not located (commodity-aware disposition upstream: may be molded in glass for"
+        },
+        "government_warning": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "Government warning not found in the submitted image (disposition is coverage-gated upstrea"
+        }
+      },
+      "expect": "Brand+class MATCH; script-font ABV/net may read or go NEEDS_REVIEW; warning on back label → not visible"
+    },
+    {
+      "id": "brown_zin_2008",
+      "latency_s": 0.33,
+      "screening": "screening_incomplete",
+      "fields": {
+        "brand_name": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "Expected text was not found in the submitted image — inspect the full label (it may be on "
+        },
+        "class_type": {
+          "status": "NEEDS_REVIEW",
+          "label_value": "ZINPANDEL",
+          "note": "The label may read \"ZINPANDEL\" — within one character of the application value, which is i"
+        },
+        "alcohol_content": {
+          "status": "NOT_CHECKED",
+          "label_value": null,
+          "note": "No application value entered."
+        },
+        "net_contents": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "net contents not located (commodity-aware disposition upstream: may be molded in glass for"
+        },
+        "government_warning": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "Government warning not found in the submitted image (disposition is coverage-gated upstrea"
+        }
+      },
+      "expect": "Honest-degradation case: low res → mostly NEEDS_REVIEW, never false verdicts"
+    },
+    {
+      "id": "stags_leap_merlot_2008",
+      "latency_s": 2.37,
+      "screening": "screening_incomplete",
+      "fields": {
+        "brand_name": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "Expected text was not found in the submitted image — inspect the full label (it may be on "
+        },
+        "class_type": {
+          "status": "MATCH",
+          "label_value": "Merlot",
+          "note": "Label matches the application exactly."
+        },
+        "alcohol_content": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "ABV not found in the submitted image (required unless designated table/light wine ≤14% (§4"
+        },
+        "net_contents": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "net contents not located (commodity-aware disposition upstream: may be molded in glass for"
+        },
+        "government_warning": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "Government warning not found in the submitted image (disposition is coverage-gated upstrea"
+        }
+      },
+      "expect": "Brand LIKELY_MATCH (case differs — Dave's case); Merlot not table/light → absent ABV = required → review/not-found path"
+    },
+    {
+      "id": "stags_leap_cask23_1997",
+      "latency_s": 3.89,
+      "screening": "screening_incomplete",
+      "fields": {
+        "brand_name": {
+          "status": "NEEDS_REVIEW",
+          "label_value": "STAGS LEAP WINE CELLARS",
+          "note": "Two similar regions match — check both candidates."
+        },
+        "class_type": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "Expected text was not found in the submitted image — inspect the full label (it may be on "
+        },
+        "alcohol_content": {
+          "status": "NOT_REQUIRED",
+          "label_value": null,
+          "note": "No ABV found on the label — optional: \"table\"/\"light\" wine designation present (§4.36(a))"
+        },
+        "net_contents": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "net contents not located (commodity-aware disposition upstream: may be molded in glass for"
+        },
+        "government_warning": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "Government warning not found in the submitted image (disposition is coverage-gated upstrea"
+        }
+      },
+      "expect": "THE §4.36(a) live test: 'Red Table Wine' on a real label — if tiny ABV is unreadable, verdict must be NOT_REQUIRED, not MISMATCH"
+    },
+    {
+      "id": "stags_leap_cask23_2002",
+      "latency_s": 3.83,
+      "screening": "screening_incomplete",
+      "fields": {
+        "brand_name": {
+          "status": "NEEDS_REVIEW",
+          "label_value": "STAG'S LEAP WINE CELLARS",
+          "note": "Two similar regions match — check both candidates."
+        },
+        "class_type": {
+          "status": "MATCH",
+          "label_value": "Cabernet Sauvignon",
+          "note": "Label matches the application exactly."
+        },
+        "alcohol_content": {
+          "status": "NOT_CHECKED",
+          "label_value": null,
+          "note": "No application value entered."
+        },
+        "net_contents": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "net contents not located (commodity-aware disposition upstream: may be molded in glass for"
+        },
+        "government_warning": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "Government warning not found in the submitted image (disposition is coverage-gated upstrea"
+        }
+      },
+      "expect": "Cab (not table/light); no app ABV → NOT_CHECKED; brand LIKELY_MATCH; duplicate-region ambiguity plausible (two bottles)"
+    },
+    {
+      "id": "silver_oak_1994",
+      "latency_s": 1.71,
+      "screening": "screening_incomplete",
+      "fields": {
+        "brand_name": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "Expected text was not found in the submitted image — inspect the full label (it may be on "
+        },
+        "class_type": {
+          "status": "NEEDS_REVIEW",
+          "label_value": "SILVER Napa Valley H01 Cah",
+          "note": "Couldn't read this part of the image — check the label yourself or upload a clearer photo."
+        },
+        "alcohol_content": {
+          "status": "NOT_CHECKED",
+          "label_value": null,
+          "note": "No application value entered."
+        },
+        "net_contents": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "net contents not located (commodity-aware disposition upstream: may be molded in glass for"
+        },
+        "government_warning": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "Government warning not found in the submitted image (disposition is coverage-gated upstrea"
+        }
+      },
+      "expect": "Occlusion test: brand may partially read; class behind glass → NEEDS_REVIEW territory; never a confident wrong verdict"
+    },
+    {
+      "id": "chappellet_chard_2018",
+      "latency_s": 4.4,
+      "screening": "screening_incomplete",
+      "fields": {
+        "brand_name": {
+          "status": "MATCH",
+          "label_value": "CHAPPELLET",
+          "note": "Label matches the application exactly."
+        },
+        "class_type": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "Expected text was not found in the submitted image — inspect the full label (it may be on "
+        },
+        "alcohol_content": {
+          "status": "NOT_CHECKED",
+          "label_value": null,
+          "note": "No application value entered."
+        },
+        "net_contents": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "net contents not located (commodity-aware disposition upstream: may be molded in glass for"
+        },
+        "government_warning": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "Government warning not found in the submitted image (disposition is coverage-gated upstrea"
+        }
+      },
+      "expect": "Brand+class should locate despite bottle angle; chardonnay not 'table' → absent-ABV handling with no app value → NOT_CHECKED"
+    },
+    {
+      "id": "vsattui_gewurz",
+      "latency_s": 0.56,
+      "screening": "screening_incomplete",
+      "fields": {
+        "brand_name": {
+          "status": "NEEDS_REVIEW",
+          "label_value": "inel CONT F",
+          "note": "Couldn't read this part of the image — check the label yourself or upload a clearer photo."
+        },
+        "class_type": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "Expected text was not found in the submitted image — inspect the full label (it may be on "
+        },
+        "alcohol_content": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "ABV not found in the submitted image (required unless designated table/light wine ≤14% (§4"
+        },
+        "net_contents": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "net contents not located (commodity-aware disposition upstream: may be molded in glass for"
+        },
+        "government_warning": {
+          "status": "NEEDS_REVIEW",
+          "label_value": null,
+          "note": "Government warning not found in the submitted image (disposition is coverage-gated upstrea"
+        }
+      },
+      "expect": "Unicode (ü) + script-font test; Napa-county winery w/ Mendocino appellation; tiny ABV likely unreadable → Gewürz not table/light → review path"
+    }
+  ]
+}
