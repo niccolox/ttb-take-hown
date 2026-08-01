@@ -61,6 +61,8 @@ button.secondary{background:#fff;color:var(--accent);border:2px solid var(--acce
 .banner.red{background:var(--red-bg);color:var(--red);display:block}
 .row{display:grid;grid-template-columns:150px 130px 1fr 90px;gap:10px;align-items:start;
   padding:10px 0;border-bottom:1px solid var(--line)}
+.row .cropwide{grid-column:1 / -1}
+.row .cropwide canvas.crop{max-height:160px}
 .row .fname{font-weight:700;font-size:15px}
 .chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;
   font-size:14px;font-weight:700;white-space:nowrap}

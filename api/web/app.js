@@ -460,12 +460,18 @@ function renderResult(container, it) {
       c.title = "Click to enlarge — region outlined on the full label";
       const diffBoxes = f.evidence.diff_boxes || null;
       if (drawCrop(c, evBitmap, f.evidence.bbox, 12, diffBoxes)) {
-        row.querySelector(".cropcell").appendChild(c);
         if (diffBoxes && diffBoxes.length) {
+          // diff image gets a full-width cell spanning the row's columns
+          const wide = document.createElement("div");
+          wide.className = "cropwide";
+          wide.appendChild(c);
           const legend = document.createElement("div");
           legend.className = "cite";
           legend.textContent = "boxed: differs from required text; dashed: required words missing here";
-          row.querySelector(".cropcell").appendChild(legend);
+          wide.appendChild(legend);
+          row.appendChild(wide);
+        } else {
+          row.querySelector(".cropcell").appendChild(c);
         }
         const open = () => zoomCrop(evBitmap, f.evidence.bbox, diffBoxes);
         c.addEventListener("click", open);
@@ -518,7 +524,7 @@ function drawCrop(canvas, bitmap, bbox, pad = 12, diffBoxes = null) {
   const sw = Math.min(bitmap.width - sx, x2 - x1 + 2 * pad);
   const sh = Math.min(bitmap.height - sy, y2 - y1 + 2 * pad);
   if (sw <= 0 || sh <= 0) return false;
-  const scale = (diffBoxes && diffBoxes.length ? 96 : 56) / sh;   // taller when boxing a diff
+  const scale = (diffBoxes && diffBoxes.length ? 140 : 56) / sh;  // taller when boxing a diff (full-width row)
   canvas.width = Math.max(1, sw * scale); canvas.height = Math.round(sh * scale);
   const ctx = canvas.getContext("2d");
   ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
