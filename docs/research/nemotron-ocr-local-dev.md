@@ -189,3 +189,32 @@ adapter implementing `Extractor.extract() -> list[Word]` (scale normalized
 bboxes by image dims, conf already 0-1), plugged into `make eval-compare`
 as the `nemotron` engine — runs on this laptop's 3050 Ti with the English
 variant.
+
+## Verified run on this machine (2026-08-02 — Route B SHIPPED)
+
+Landed as `docker-compose.gpu.yml` (labelcheck-gpu + nemotron-ocr sidecar),
+`scripts/nemotron_server.py` (HTTP wrapper inside the sidecar), and
+`NemotronExtractor` behind `build_extractor()` in `api/extractor.py`
+(`LABELCHECK_EXTRACTOR=nemotron`). Facts observed live, correcting/extending
+the sections above:
+
+- **The 4 GB data point exists now: it works.** English variant on the
+  RTX 3050 Ti: **856 MiB VRAM** in use, ready ~30 s after container start,
+  full verify through the app end-to-end.
+- **API corrections** (from reading the shipped pipeline source):
+  predictions are **normalized** coords, and the y-naming is flipped —
+  `upper` is max-y, `lower` is min-y (`pipeline_v2._process_batch`).
+  `model_dir=` short-circuits the hub download entirely (`lang=` is then
+  ignored), so mounting the clone and passing
+  `NEMOTRON_MODEL_DIR=/workspace/v2_english` gives zero-egress startup.
+- The clone's real Dockerfile builds from the `nemotron-ocr/` SUBDIR, needs
+  `hatchling` pre-installed, and its compose uses `ipc: host` + memlock
+  ulimits — the gpu compose replicates it via `dockerfile_inline`.
+  No git-lfs needed: `huggingface_hub.snapshot_download` fetches the repo.
+- **First engine-quality delta for M1 eval-compare:** on golden
+  `spirits_clean.jpg` (65 words, conf 0.92-0.94) nemotron **drops the
+  standalone word "a"** in the small-print warning ("drive a car" →
+  "drive car") → `government_warning` MISMATCH `statutory_text_differs`,
+  with diff boxes correctly framing the gap. Paddle passes this golden.
+  Single-character-word recall in dense small print is a nemotron weak spot
+  to measure, not a pipeline bug.

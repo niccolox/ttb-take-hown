@@ -14,6 +14,18 @@ class Extractor(Protocol):
     def ready(self) -> bool: ...
 
 
+def build_extractor() -> Extractor:
+    """Engine selection stays an env-var swap, not a rewrite (PLAN.md).
+    LABELCHECK_EXTRACTOR=nemotron points at the GPU sidecar from
+    docker-compose.gpu.yml; anything else keeps the paddle default."""
+    import os
+
+    if os.environ.get("LABELCHECK_EXTRACTOR", "paddle") == "nemotron":
+        return NemotronExtractor(
+            os.environ.get("NEMOTRON_OCR_URL", "http://localhost:8200"))
+    return PaddleExtractor()
+
+
 class PaddleExtractor:
     """Single warmed PaddleOCR instance behind a lock (M1 posture; the plan's
     measured worker pool arrives with the job API in M3 — M0 measured 2.2s/label
@@ -90,3 +102,51 @@ class PaddleExtractor:
                                       conf=float(score)))
                     cursor += w + (x2 - x1) / max(1, total_chars)
         return words
+
+
+class NemotronExtractor:
+    """HTTP client for the Nemotron OCR v2 GPU sidecar (scripts/nemotron_server.py
+    via docker-compose.gpu.yml). stdlib urllib only — the api image carries no
+    requests/httpx. The sidecar already returns word-level boxes in pixel
+    coords, so no proportional splitting is needed here."""
+
+    def __init__(self, base_url: str) -> None:
+        self._base = base_url.rstrip("/")
+        self._ready = False
+
+    def warm(self, sample_path: str) -> None:
+        # The sidecar loads ~2 GiB of weights after container start; poll its
+        # readiness rather than racing it, then prove the wire with one extract.
+        import time
+        import urllib.error
+        import urllib.request
+
+        deadline = time.monotonic() + 300
+        while time.monotonic() < deadline:
+            try:
+                with urllib.request.urlopen(f"{self._base}/v1/health/ready",
+                                            timeout=5):
+                    break
+            except (urllib.error.URLError, OSError):
+                time.sleep(3)
+        else:
+            raise RuntimeError(f"nemotron sidecar at {self._base} never became "
+                               f"ready within 300s")
+        self.extract(sample_path)
+        self._ready = True
+
+    def ready(self) -> bool:
+        return self._ready
+
+    def extract(self, image_path: str) -> list[Word]:
+        import json
+        import urllib.request
+
+        with open(image_path, "rb") as f:
+            req = urllib.request.Request(
+                f"{self._base}/v1/ocr", data=f.read(), method="POST",
+                headers={"Content-Type": "application/octet-stream"})
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            payload = json.load(resp)
+        return [Word(text=w["text"], box=tuple(w["box"]), conf=float(w["conf"]))
+                for w in payload["words"] if w["text"].strip()]

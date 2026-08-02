@@ -1,0 +1,79 @@
+# GPU dev variant: live-reload server + Nemotron OCR v2 sidecar on the NVIDIA GPU.
+#   docker compose -f docker-compose.gpu.yml up --build
+# Prereq (once, ~530 MB): the sidecar builds from the HF repo's own sources —
+#   git lfs install && git clone https://huggingface.co/nvidia/nemotron-ocr-v2 vendor/nemotron-ocr-v2
+# (no git-lfs? python -c "from huggingface_hub import snapshot_download; \
+#    snapshot_download('nvidia/nemotron-ocr-v2', local_dir='vendor/nemotron-ocr-v2')")
+# Host needs a working driver + nvidia-container-toolkit only (no NGC key, no NIM);
+# route rationale, VRAM math, and fallbacks: docs/research/nemotron-ocr-local-dev.md.
+# 4 GB VRAM (RTX 3050 Ti): English variant only — NEMOTRON_LANG=en is load-bearing.
+# First build is long (CUDA extension compile for arch 8.6 + model warm at start).
+# Session store: ./api/data rides the ./api bind mount — same DuckDB single-writer
+# rule as the other compose files: never run this alongside native/other modes.
+services:
+  labelcheck-gpu:
+    build: .
+    ports:
+      - "127.0.0.1:8123:8123"   # loopback only — the app is auth-less by design
+    mem_limit: 4g
+    environment:
+      - PORT=8123
+      - LABELCHECK_EXTRACTOR=nemotron          # engine swap is an env var (PLAN.md)
+      - NEMOTRON_OCR_URL=http://nemotron-ocr:8000
+    env_file:                  # host .env → container env (registry pipelines key)
+      - path: .env
+        required: false
+    volumes:
+      - ./api:/app/api          # live source (code, web UI, eval corpora incl. pulls)
+      - ./scripts:/app/scripts
+    depends_on:
+      - nemotron-ocr            # start order only; the adapter polls readiness (300s)
+    command: sh -c "python -m uvicorn api.main:app --host 0.0.0.0 --port $${PORT} --reload --reload-dir /app/api"
+
+  nemotron-ocr:
+    build:
+      context: ./vendor/nemotron-ocr-v2
+      # Replicates the HF repo's own Dockerfile (verified against the clone)
+      # + fastapi/uvicorn for the HTTP wrapper. 8.6 = GA107 (RTX 3050 Ti).
+      dockerfile_inline: |
+        FROM nvcr.io/nvidia/pytorch:25.09-py3
+        ARG TARGETARCH
+        ARG TORCH_CUDA_ARCH_LIST
+        ENV TORCH_CUDA_ARCH_LIST=$${TORCH_CUDA_ARCH_LIST}
+        RUN --mount=type=cache,target=/root/.cache/pip \
+            pip install -U pip hatchling "setuptools>=68" --root-user-action ignore
+        COPY nemotron-ocr /workspace/nemotron-ocr
+        WORKDIR /workspace/nemotron-ocr
+        RUN rm -f src/nemotron_ocr_cpp/*.so || true \
+            && rm -rf build/ dist/
+        RUN --mount=type=cache,target=/root/.cache/pip \
+            BUILD_CPP_FORCE=1 ARCH=$${TARGETARCH} pip install -v . --no-build-isolation --root-user-action ignore
+        RUN --mount=type=cache,target=/root/.cache/pip \
+            pip install fastapi uvicorn --root-user-action ignore
+        WORKDIR /workspace
+      args:
+        TORCH_CUDA_ARCH_LIST: "8.6"
+    environment:
+      # v2_english weights from the mounted clone: no runtime hub download,
+      # and the 4 GB VRAM choice (multilingual needs 2.7-3.2 GiB).
+      - NEMOTRON_MODEL_DIR=/workspace/v2_english
+    ports:
+      - "127.0.0.1:8200:8000"   # direct curl for debugging; app talks over the compose network
+    working_dir: /workspace
+    volumes:
+      - ./vendor/nemotron-ocr-v2:/workspace:rw   # weights + example image, as upstream's compose does
+      - ./scripts/nemotron_server.py:/workspace/nemotron_server.py:ro
+    command: python -m uvicorn nemotron_server:app --host 0.0.0.0 --port 8000
+    ipc: host                   # upstream's compose settings (torch shared mem)
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      stack: 67108864
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

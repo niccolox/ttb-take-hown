@@ -5,3 +5,4 @@ __pycache__/
 .env
 api/eval/colacloud/
 api/data/
+vendor/

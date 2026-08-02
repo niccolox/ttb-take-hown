@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps
 
-from .extractor import PaddleExtractor
+from .extractor import build_extractor
 from .verify import verify_multi
 
 MAX_BYTES = 8 * 1024 * 1024
@@ -29,7 +29,7 @@ WEB = Path(__file__).parent / "web"
 
 app = FastAPI(title="TTB Label Screening Assistant",
               description="Screening, never approval — the agent decides.")
-extractor = PaddleExtractor()
+extractor = build_extractor()
 pool = ThreadPoolExecutor(max_workers=2)
 
 SAMPLES = {
