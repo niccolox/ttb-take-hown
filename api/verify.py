@@ -246,6 +246,10 @@ def verify(words: list[Word], application: dict, image_gray=None) -> dict:
         w_status, w_code = "MATCH", None
     elif text_o == Outcome.NOT_FOUND:
         w_status, w_code = "NEEDS_REVIEW", "not_visible_in_image"
+    elif text_o == Outcome.UNVERIFIABLE and wr.confusable_punct:
+        # comma↔period-only deviation: probable OCR glyph confusion at label
+        # size — a human confirms the punctuation, the model doesn't call it red
+        w_status, w_code = "NEEDS_REVIEW", "ocr_confusable_punctuation"
     elif text_o == Outcome.UNVERIFIABLE:
         w_status, w_code = "NEEDS_REVIEW", "unreadable"
     else:

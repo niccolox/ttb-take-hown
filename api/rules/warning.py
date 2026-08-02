@@ -46,6 +46,7 @@ class WarningResult:
     details: dict[SubCheck, str]
     diff_tokens: list[tuple[str, str]] = field(default_factory=list)  # (op, token)
     citation: str = STATUTORY_SOURCE
+    confusable_punct: bool = False  # deviation is comma↔period glyphs only
 
 
 def word_diff(expected: str, found: str) -> list[tuple[str, str]]:
@@ -89,6 +90,7 @@ def validate_warning(extracted_verbatim: str | None,
     """
     outcomes: dict[SubCheck, Outcome] = {}
     details: dict[SubCheck, str] = {}
+    confusable_punct = False
 
     if not extracted_verbatim or not PREFIX_ANY_RE.search(extracted_verbatim):
         outcomes[SubCheck.TEXT] = Outcome.NOT_FOUND
@@ -117,9 +119,33 @@ def validate_warning(extracted_verbatim: str | None,
             # wording change, omission, or interior insertion breaks containment.
             squash = lambda s: "".join(whitespace_only(s).casefold().split())
             exact = squash(STATUTORY_WARNING) in squash(extracted_verbatim)
-        outcomes[SubCheck.TEXT] = Outcome.PASS if exact else Outcome.FAIL
-        details[SubCheck.TEXT] = ("The label's warning text matches the required text."
-                                  if exact else plain_sentence(diff))
+        if not exact:
+            # Comma↔period carve-out: at label point sizes a comma and a period
+            # are near-identical glyphs, and OCR substitutes one for the other
+            # (real case: 'GENERAL.' read where the label prints 'General,').
+            # If folding commas to periods makes containment pass, the ONLY
+            # deviation is that glyph — a probable OCR read error, not a proven
+            # label defect. Screening principle: uncertainty → review, never a
+            # confident wrong verdict. Substitution only: a MISSING comma
+            # changes the char-stream length and still fails red.
+            fold = lambda s: "".join(whitespace_only(s).casefold().split()).replace(",", ".")
+            if fold(STATUTORY_WARNING) in fold(extracted_verbatim):
+                confusable_punct = True
+        if exact:
+            outcomes[SubCheck.TEXT] = Outcome.PASS
+            details[SubCheck.TEXT] = "The label's warning text matches the required text."
+        elif confusable_punct:
+            outcomes[SubCheck.TEXT] = Outcome.UNVERIFIABLE
+            exp = next((t for op, t in diff if op == "expected"), "General,")
+            fnd = next((t for op, t in diff if op == "found"), "GENERAL.")
+            details[SubCheck.TEXT] = (
+                f'The warning read "{fnd}" where the required text says "{exp}" — '
+                "a comma/period difference at label size is usually an OCR read "
+                "error, not a wording defect. Check the punctuation on the label "
+                "yourself.")
+        else:
+            outcomes[SubCheck.TEXT] = Outcome.FAIL
+            details[SubCheck.TEXT] = plain_sentence(diff)
         result_diff = diff
     caps = bool(PREFIX_CAPS_RE.search(extracted_verbatim))
     outcomes[SubCheck.PREFIX_CAPS] = Outcome.PASS if caps else Outcome.FAIL
@@ -139,7 +165,9 @@ def validate_warning(extracted_verbatim: str | None,
     outcomes[SubCheck.WEIGHT_CONTRAST] = o
     details[SubCheck.WEIGHT_CONTRAST] = msg
 
-    res = WarningResult(outcomes, details)
-    if outcomes.get(SubCheck.TEXT) == Outcome.FAIL:
+    res = WarningResult(outcomes, details, confusable_punct=confusable_punct)
+    # attach the diff on FAIL and on the confusable carve-out — the reviewer
+    # confirming punctuation visually needs the diff boxes pointing at the glyph
+    if outcomes.get(SubCheck.TEXT) == Outcome.FAIL or confusable_punct:
         res.diff_tokens = result_diff
     return res

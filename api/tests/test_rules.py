@@ -93,6 +93,37 @@ def test_low_quality_region_unverifiable_not_fail():
                          region_quality_ok=False)
     assert r.outcomes[SubCheck.TEXT] == Outcome.UNVERIFIABLE  # never a false red
 
+def test_comma_period_confusable_needs_review_not_red():
+    """Real case: OCR reads 'GENERAL.' where the label prints 'General,'.
+    Comma vs period at label point size is a probable OCR glyph error — carve
+    out to UNVERIFIABLE (→ NEEDS_REVIEW), never a confident red MISMATCH."""
+    bad = STATUTORY_WARNING.upper().replace("GENERAL,", "GENERAL.")
+    r = validate_warning(bad)
+    assert r.outcomes[SubCheck.TEXT] == Outcome.UNVERIFIABLE
+    assert r.confusable_punct
+    assert "comma/period" in r.details[SubCheck.TEXT]
+    assert r.diff_tokens  # the reviewer still gets diff boxes to confirm against
+
+def test_period_read_as_comma_also_carved_out():
+    r = validate_warning(STATUTORY_WARNING.replace("defects. (2)", "defects, (2)"))
+    assert r.outcomes[SubCheck.TEXT] == Outcome.UNVERIFIABLE
+    assert r.confusable_punct
+
+def test_confusable_plus_real_word_change_still_fails():
+    bad = (STATUTORY_WARNING.upper()
+           .replace("GENERAL,", "GENERAL.")
+           .replace("BIRTH DEFECTS", "BIRTH DEFECT"))
+    r = validate_warning(bad)
+    assert r.outcomes[SubCheck.TEXT] == Outcome.FAIL
+    assert not r.confusable_punct
+
+def test_dropped_comma_still_fails():
+    """Substitution only: a MISSING comma shortens the char stream — the fold
+    can't rescue it, and a dropped glyph stays a red wording finding."""
+    r = validate_warning(STATUTORY_WARNING.replace("General,", "General"))
+    assert r.outcomes[SubCheck.TEXT] == Outcome.FAIL
+    assert not r.confusable_punct
+
 def test_missing_warning_not_found():
     r = validate_warning("KENTUCKY STRAIGHT BOURBON WHISKEY 750 ML")
     assert r.outcomes[SubCheck.TEXT] == Outcome.NOT_FOUND
