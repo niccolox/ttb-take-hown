@@ -373,6 +373,118 @@ def test_wine_net_molded_carveout():
     assert fs["net_contents"]["reason_code"] == "not_visible_in_image"
     assert "molded" in fs["net_contents"]["note"]
 
+
+# ── Wine BAM chapter 10 sample labels (source/c10-sample-wine-labels.pdf) ────
+# TTB's own approvable formats as fixtures: every one must screen clean.
+
+_BAM_WARN = ["GOVERNMENT WARNING: (1) ACCORDING TO THE SURGEON GENERAL, WOMEN SHOULD",
+             "NOT DRINK ALCOHOLIC BEVERAGES DURING PREGNANCY BECAUSE OF THE RISK OF BIRTH",
+             "DEFECTS. (2) CONSUMPTION OF ALCOHOLIC BEVERAGES IMPAIRS YOUR ABILITY TO DRIVE",
+             "A CAR OR OPERATE MACHINERY, AND MAY CAUSE HEALTH PROBLEMS."]
+
+
+def test_bam_varietal_percentages_do_not_hijack_abv():
+    """BAM p.10-7 (three-piece blend): '60% CHARDONNAY' sits above the real
+    ABV line and §4.23(d) REQUIRES it — the first-percent-line locator read
+    label ABV as 60% and went red across a class boundary."""
+    fs = _wine_fields(
+        ["ABC WINES", "2007", "CALIFORNIA", "60% CHARDONNAY", "40% SEMILLON",
+         "ALC. 12.5% BY VOL.", "BOTTLED BY ABC VINTNERS, CITY, STATE", "750 ML",
+         "CONTAINS SULFITES"],
+        {"beverage_type": "wine", "brand_name": "ABC WINES", "class_type": "Chardonnay",
+         "alcohol_content": "12.5%", "net_contents": "750 mL", "vintage": "2007",
+         "appellation": "California", "grape_varietals": "chardonnay/semillon"})
+    assert fs["alcohol_content"]["status"] == "MATCH"
+    assert "12.5" in fs["alcohol_content"]["label_value"]
+    # p.10-8: blend prose ('blend of 50% MERLOT and…') above the ABV line
+    fs8 = _wine_fields(
+        ["ABC WINERY", "AMERICAN RED WINE", "This red wine is a blend of 50% MERLOT and",
+         "50% CABERNET SAUVIGNON. We find it", "quite yummy.", "ALC. 13% BY VOL.",
+         "BOTTLED BY XYZ CELLARS, CITY, STATE", "CONTAINS SULFITES", "750 ML"],
+        {"beverage_type": "wine", "brand_name": "ABC WINERY",
+         "class_type": "American Red Wine", "alcohol_content": "13%",
+         "net_contents": "750 mL"})
+    assert fs8["alcohol_content"]["status"] == "MATCH"
+
+
+def test_bam_bare_percent_still_locates_without_context():
+    """No ALC/VOL context anywhere → the fallback keeps the old first-line
+    behavior rather than losing the statement entirely."""
+    fs = _wine_fields(["SEABREEZE CELLARS", "California Chardonnay — Table Wine",
+                       "12.5%", "750 mL", "Contains Sulfites",
+                       "Vinted and bottled by Seabreeze Cellars, Napa, California"],
+                      _WINE_APP_FULL)
+    assert fs["alcohol_content"]["status"] == "MATCH"
+
+
+def test_table_light_designation_is_word_bounded():
+    """'Moonlight Cellars' / 'Twilight Zinfandel' are brands, not light-wine
+    designations — substring matching excused a mandatory ABV statement."""
+    req, _ = abv_required(BevType.WINE, "Moonlight Cellars Red")
+    assert req is True
+    req, _ = abv_required(BevType.WINE, "Twilight Zinfandel")
+    assert req is True
+    req, _ = abv_required(BevType.WINE, "Light Rice Wine")
+    assert req is False
+
+
+def test_bam_bottler_name_serves_as_brand():
+    """BAM p.10-2: no separate brand line — the bottler's name IS the brand
+    (§4.33(a)). Found-inside-the-bottled-by-line must match, not review."""
+    lines = ["RED TABLE WINE", "BOTTLED BY XYZ WINERY, CITY, STATE", *_BAM_WARN,
+             "CONTAINS SULFITES", "750 ML"]
+    fs = _wine_fields(lines, {"beverage_type": "wine", "brand_name": "XYZ WINERY",
+                              "class_type": "Red Table Wine", "alcohol_content": "12.5%",
+                              "net_contents": "750 mL"})
+    assert fs["brand_name"]["status"] == "MATCH"
+    assert fs["brand_name"]["citation"] == "27 CFR §4.33(a)"
+    # a brand genuinely absent from the label stays a review item
+    fs2 = _wine_fields(lines, {"beverage_type": "wine", "brand_name": "OTHER ESTATE",
+                               "class_type": "Red Table Wine", "alcohol_content": "12.5%",
+                               "net_contents": "750 mL"})
+    assert fs2["brand_name"]["status"] == "NEEDS_REVIEW"
+
+
+def test_bam_sparse_front_panel_combined_floor():
+    """BAM p.10-6 (imported + strip label): the front is brand + vintage +
+    artwork. Per-panel flooring called it 'not a label' and dropped its words
+    — brand/vintage went not_found despite being printed."""
+    from api.verify import verify_multi
+    front = _label_words(["DOWNUNDER WINERY", "2007"])
+    strip = _label_words(["RED WINE   VICTORIA   12% ALC./VOL.",
+                          "IMPORTED BY OZ IMPORTS, CITY, STATE",
+                          "PRODUCT OF AUSTRALIA   750 ML"])
+    back = _label_words([*_BAM_WARN, "CONTAINS SULFITES"])
+    app = {"beverage_type": "wine", "brand_name": "DOWNUNDER WINERY",
+           "class_type": "Red Wine", "alcohol_content": "12%", "net_contents": "750 mL",
+           "vintage": "2007", "appellation": "Victoria", "origin": "Australia"}
+    r = verify_multi([(front, None), (strip, None), (back, None)], app)
+    fs = {f["field"]: f for f in r["fields"]}
+    assert "image" not in fs                       # no 'not a label' noise
+    assert fs["brand_name"]["status"] == "MATCH"
+    assert fs["vintage"]["status"] == "MATCH"
+    assert r["screening_result"] == "no_mismatch_found"
+    # a single sparse image is still floored (nothing to combine with)
+    from api.verify import verify
+    r1 = verify(_label_words(["DOWNUNDER WINERY"]), app)
+    assert r1["screening_result"] == "screening_incomplete"
+
+
+def test_varietal_percentages_must_total_100():
+    lines = ["ABC WINES", "CALIFORNIA", "60% CHARDONNAY", "45% SEMILLON",
+             "ALC. 12.5% BY VOL.", "BOTTLED BY ABC VINTNERS, CITY, STATE",
+             "750 ML", "CONTAINS SULFITES"]
+    app = {"beverage_type": "wine", "brand_name": "ABC WINES", "class_type": "Chardonnay",
+           "alcohol_content": "12.5%", "net_contents": "750 mL",
+           "appellation": "California", "grape_varietals": "chardonnay/semillon"}
+    fs = _wine_fields(lines, app)
+    assert fs["grape_varietals"]["status"] == "NEEDS_REVIEW"
+    assert fs["grape_varietals"]["reason_code"] == "varietal_percentages_sum"
+    assert "105" in fs["grape_varietals"]["note"]
+    # 60/40 totals 100 — stays green
+    ok = _wine_fields([l.replace("45%", "40%") for l in lines], app)
+    assert ok["grape_varietals"]["status"] == "MATCH"
+
 def test_proof_consistency():
     ok, _ = proof_consistency(parse_abv("45% Alc./Vol. (90 Proof)"))
     assert ok is True

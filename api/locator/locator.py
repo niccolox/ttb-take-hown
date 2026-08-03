@@ -169,15 +169,26 @@ class Locator:
             and best.runner_up >= threshold
         return best
 
-    def find_regex(self, pattern: re.Pattern) -> LocatedField:
+    def find_regex(self, pattern: re.Pattern,
+                   prefer: re.Pattern | None = None) -> LocatedField:
         """Locate the first regex hit line-by-line (ABV / net contents).
         Returns the FULL line text (not just the match span) so downstream
-        parsers see co-located statements like "45% Alc./Vol. (90 Proof)"."""
+        parsers see co-located statements like "45% Alc./Vol. (90 Proof)".
+
+        `prefer`: when given, the first hit whose line ALSO matches it wins
+        over earlier hits that don't — the ABV statement must not lose to a
+        varietal-percentage line that merely appears higher on the label
+        (BAM c10 audit); with no preferred hit, first match stands."""
+        first = None
         for line in self.lines:
             if pattern.search(line.text):
-                return LocatedField(found=True, text=line.text, box=line.box,
-                                    score=100.0, min_conf=line.min_conf)
-        return LocatedField(found=False)
+                lf = LocatedField(found=True, text=line.text, box=line.box,
+                                  score=100.0, min_conf=line.min_conf)
+                if prefer is None or prefer.search(line.text):
+                    return lf
+                if first is None:
+                    first = lf
+        return first or LocatedField(found=False)
 
     # ── warning block reconstruction (anchor → grow by line adjacency) ──────
     def find_warning(self, expected_tokens: int = 60) -> LocatedField:

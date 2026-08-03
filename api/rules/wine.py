@@ -24,6 +24,22 @@ WINE_FILL_ML = (3000.0, 2250.0, 1800.0, 1500.0, 1000.0, 750.0, 720.0, 700.0,
                 330.0, 300.0, 250.0, 200.0, 187.0, 180.0, 100.0, 50.0)
 
 
+def varietal_percentages(lines: list[str], varietals: list[str]) -> list[float] | None:
+    """Percentages printed with the named varieties ('60% CHARDONNAY') —
+    §4.23(d): when two or more varieties designate the wine, each percentage
+    must be shown and they must total 100. Returns one value per varietal, or
+    None unless EVERY named varietal carries a printed percentage (a partial
+    read proves nothing)."""
+    vals: list[float] = []
+    for v in varietals:
+        pat = re.compile(rf"(\d{{1,3}}(?:\.\d+)?)\s*%\s*{re.escape(v)}", re.I)
+        hit = next((m for t in lines if (m := pat.search(t))), None)
+        if hit is None:
+            return None
+        vals.append(float(hit.group(1)))
+    return vals
+
+
 def wine_fill_authorized(ml: float, tol_ml: float = 1.0) -> tuple[bool, str]:
     """Is this volume an authorized wine standard of fill? ±1 mL matches the
     repo's practical net-contents tolerance (unit-conversion rounding)."""

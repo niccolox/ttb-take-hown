@@ -16,10 +16,12 @@ import uuid
 from dataclasses import asdict, dataclass
 
 from .locator import Locator, Word
-from .rules.abv import (AbvVerdict, BevType, abv_format_legality, abv_required,
-                        compare_abv, parse_abv, proof_consistency, PCT_RE, PROOF_RE)
+from .rules.abv import (ABV_CONTEXT_RE, AbvVerdict, BevType, abv_format_legality,
+                        abv_required, compare_abv, parse_abv, proof_consistency,
+                        PCT_RE, PROOF_RE)
 from .rules.net_contents import NET_RE, compare_net, parse_net_ml
-from .rules.wine import NAME_ADDRESS_RE, SULFITE_RE, wine_fill_authorized
+from .rules.wine import (NAME_ADDRESS_RE, SULFITE_RE, varietal_percentages,
+                         wine_fill_authorized)
 from .rules.normalize import loose, whitespace_only
 from .rules.warning import STATUTORY_WARNING, Outcome, SubCheck, validate_warning
 
@@ -159,7 +161,8 @@ def _text_field_one(name: str, expected: str | None, locator: Locator) -> FieldR
                        "Application and label differ.", _evidence(loc))
 
 
-def verify(words: list[Word], application: dict, image_gray=None) -> dict:
+def verify(words: list[Word], application: dict, image_gray=None,
+           enforce_floor: bool = True) -> dict:
     t0 = time.perf_counter()
     try:
         bev = BevType(application.get("beverage_type", "unspecified"))
@@ -168,7 +171,7 @@ def verify(words: list[Word], application: dict, image_gray=None) -> dict:
     locator = Locator(words)
     fields: list[FieldResult] = []
 
-    if len(words) < TEXT_MASS_FLOOR:
+    if enforce_floor and len(words) < TEXT_MASS_FLOOR:
         return _envelope("screening_incomplete", [FieldResult(
             "image", "NEEDS_REVIEW", None, None, "not_a_label",
             "This doesn't look like a label — very little text was found. "
@@ -202,7 +205,10 @@ def verify(words: list[Word], application: dict, image_gray=None) -> dict:
 
     # ABV — commodity-aware (Rev 2.1)
     app_abv_text = application.get("alcohol_content")
-    abv_loc = locator.find_regex(PCT_RE)
+    # prefer percent lines with alcohol context — varietal percentages
+    # ('60% CHARDONNAY') are also percent lines and sit higher on blend
+    # labels (BAM c10: false MISMATCH on approvable formats)
+    abv_loc = locator.find_regex(PCT_RE, prefer=ABV_CONTEXT_RE)
     if not abv_loc.found:
         abv_loc = locator.find_regex(PROOF_RE)   # proof-only labels (converted 2:1)
     label_abv = parse_abv(abv_loc.text) if abv_loc.found else parse_abv("")
@@ -341,12 +347,45 @@ def verify(words: list[Word], application: dict, image_gray=None) -> dict:
                 "name_address", "MATCH", na_loc.text, None, None,
                 "Name and address statement present.", _evidence(na_loc),
                 "27 CFR §4.35"))
+            # C10-2 (BAM p.10-2/10-3): with no separate brand line, the
+            # bottler's name serves as the brand — a brand found only inside
+            # the BOTTLED BY line is a match, not a review item
+            bf = next((f for f in fields if f.field == "brand_name"), None)
+            brand_loose = loose(application.get("brand_name") or "")
+            # covers not-found AND the confusable guard tripping on the
+            # address comma ('XYZ WINERY,') — loose containment in the
+            # bottler line proves the difference is punctuation, not a glyph
+            if (bf is not None and bf.status == "NEEDS_REVIEW"
+                    and bf.reason_code in ("not_found_in_image", "possible_ocr_misread")
+                    and brand_loose and brand_loose in loose(na_loc.text)):
+                bf.status, bf.reason_code = "MATCH", None
+                bf.label_value = na_loc.text
+                bf.evidence = _evidence(na_loc)
+                bf.citation = "27 CFR §4.33(a)"
+                bf.note = ("Brand appears within the bottler statement — with no "
+                           "separate brand line, the bottler's name serves as the "
+                           "brand (§4.33(a)).")
         else:
             fields.append(FieldResult(
                 "name_address", "NEEDS_REVIEW", None, None, "name_address_not_found",
                 "No 'Bottled by' / 'Packed by' / 'Imported by' statement found — "
                 "mandatory on every wine label — check the other panel.",
                 None, "27 CFR §4.35"))
+        # C10-5 (§4.23(d)): two or more varieties designating the wine must
+        # print percentages totalling 100 — checkable arithmetic when every
+        # named varietal carries one
+        varietals = [v.strip() for v in
+                     (application.get("grape_varietals") or "").replace(",", "/").split("/")
+                     if v.strip()]
+        if len(varietals) >= 2:
+            pcts = varietal_percentages([l.text for l in locator.lines], varietals)
+            if pcts is not None and abs(sum(pcts) - 100.0) > 0.01:
+                gv = next((f for f in fields if f.field == "grape_varietals"), None)
+                if gv is not None and gv.status in ("MATCH", "LIKELY_MATCH"):
+                    gv.status, gv.reason_code = "NEEDS_REVIEW", "varietal_percentages_sum"
+                    gv.note += (f" — but the printed varietal percentages total "
+                                f"{sum(pcts):g}%; they must total 100% (§4.23(d))")
+                    gv.citation = "27 CFR §4.23(d)"
 
     # government warning — always-on
     warn_loc = locator.find_warning()
@@ -463,9 +502,15 @@ def verify_multi(panels: list[tuple[list[Word], "object"]], application: dict,
     t0 = time.perf_counter()
     if not panels:
         return _envelope("screening_incomplete", [], t0)
+    # text-mass floor applies to the PANELS COMBINED: an art-dominant front
+    # carrying only brand + vintage is a legitimate brand label (BAM c10
+    # imported/strip format) — per-panel flooring rejected it as "not a
+    # label" and dropped its words, sending printed facts to not_found
+    combined_mass = sum(len(w) for w, _ in panels)
     per_panel = []
     for idx, (words, gray) in enumerate(panels):
-        r = verify(words, application, image_gray=gray)
+        r = verify(words, application, image_gray=gray,
+                   enforce_floor=combined_mass < TEXT_MASS_FLOOR)
         for f in r["fields"]:
             if f.get("evidence"):
                 f["evidence"]["panel"] = idx

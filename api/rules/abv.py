@@ -49,6 +49,13 @@ PCT_RE = re.compile(
 _PROOF_NUM = r"(\d{1,3}(?:\.\d{1,2})?)"
 PROOF_RE = re.compile(rf"\b{_PROOF_NUM}\s*PROOF", re.I)
 
+# a percent line is the ABV statement only when it carries alcohol context —
+# varietal percentages ('60% CHARDONNAY', §4.23(d)) and blend prose are also
+# percent lines and hijacked the first-match locator on TTB's own BAM c10
+# sample labels (false MISMATCH on approvable three-piece/designated-brand
+# formats). Callers prefer a context line, falling back to any percent line.
+ABV_CONTEXT_RE = re.compile(r"ALC|VOL|PROOF", re.I)
+
 
 def parse_abv(text: str) -> AbvReading:
     r = AbvReading(raw=text)
@@ -172,7 +179,9 @@ def abv_required(bev: BevType, label_class_type: str | None) -> tuple[bool, str]
         return True, "mandatory for distilled spirits (§5.63(a)(3))"
     if bev == BevType.WINE:
         ct = (label_class_type or "").casefold()
-        if "table" in ct or "light" in ct:
+        # word-boundary, not substring: 'Moonlight Cellars' / 'Twilight
+        # Zinfandel' must not read as a light-wine designation (BAM c10 audit)
+        if re.search(r"\b(?:table|light)\b", ct):
             return False, 'optional: "table"/"light" wine designation present (§4.36(a))'
         return True, "required unless designated table/light wine ≤14% (§4.36(a))"
     if bev == BevType.MALT:
