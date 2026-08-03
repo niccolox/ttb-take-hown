@@ -101,6 +101,68 @@ def test_side_column_stays_out_of_the_warning_block():
     assert "HEALTH PROBLEMS" in text.upper()
 
 
+# ── distilled spirits (2024 tool, api/eval/anatomy_spirits/) ─────────────────
+
+DS_ROOT = Path(__file__).parents[1] / "eval" / "anatomy_spirits"
+DS_REF = json.loads((DS_ROOT / "reference.json").read_text())
+
+# what TTB's spirits reference label actually says (specialty product:
+# the statement of composition serves as the class/type designation)
+DS_APPLICATION = {"beverage_type": "distilled_spirits",
+                  "brand_name": "CAPTAIN JOHN'S",
+                  "fanciful_name": "Spiced Rum",
+                  "class_type": "Rum With Natural Flavors Added",
+                  "alcohol_content": "20%", "net_contents": "750 mL"}
+
+
+def test_ds_slices_match_reference_geometry():
+    for s in DS_REF["slices"]:
+        p = DS_ROOT / s["file"]
+        assert p.exists() and Image.open(p).size == (s["w"], s["h"]), s["file"]
+    for panel in ("front", "back"):
+        area = sum(s["w"] * s["h"] for s in DS_REF["slices"] if s["panel"] == panel)
+        pw, ph = DS_REF["panels"][panel]["width"], DS_REF["panels"][panel]["height"]
+        assert area == pw * ph                       # spirits rows tile exactly
+        assert Image.open(DS_ROOT / f"{panel}.png").size == (pw, ph)
+
+
+def test_ds_hotspots_and_field_mapping():
+    keys = {s["element"] for s in DS_REF["slices"] if s["element"]}
+    assert keys == set(DS_REF["elements"])
+    mapped = {e["field"] for e in DS_REF["elements"].values() if e["field"]}
+    assert mapped == {"brand_name", "fanciful_name", "class_type",
+                      "alcohol_content", "net_contents", "government_warning"}
+    # unmapped = TTB's optional/unregulated elements + nameAddress, which is
+    # deliberately unmapped until the part 5 audit lands
+    unmapped = {k for k, e in DS_REF["elements"].items() if not e["field"]}
+    assert unmapped == {"GPI", "nameAddress", "webAdd", "addInfo", "upcBar"}
+    for key, e in DS_REF["elements"].items():
+        assert e["ttb_text"], key
+
+
+@pytest.mark.skipif(not os.environ.get("LABELCHECK_OCR_EVAL"),
+                    reason="set LABELCHECK_OCR_EVAL=1 for the slow OCR e2e")
+def test_ds_reference_label_screens_clean_end_to_end():
+    import numpy as np
+    from api.extractor import PaddleExtractor
+    from api.verify import verify_multi
+
+    ex = PaddleExtractor()
+    ex.warm(str(DS_ROOT / "front.png"))
+    panels = []
+    for panel in ("front", "back"):
+        img = Image.open(DS_ROOT / f"{panel}.png").convert("RGB")
+        panels.append((ex.extract(np.asarray(img)), np.asarray(img.convert("L"))))
+    r = verify_multi(panels, DS_APPLICATION)
+    assert r["screening_result"] != "mismatch_found"
+    # at the tool's 325px width the warning body is below the contrast
+    # measurement floor → an HONEST amber (weight_contrast_suspect) is the
+    # expected disposition; the wording itself must verify
+    warn = next(f for f in r["fields"] if f["field"] == "government_warning")
+    subs = {s["check"]: s["outcome"] for s in (warn.get("sub_results") or [])}
+    assert subs.get("text_exact") == "pass"
+
+
 @pytest.mark.skipif(not os.environ.get("LABELCHECK_OCR_EVAL"),
                     reason="set LABELCHECK_OCR_EVAL=1 for the slow OCR e2e")
 def test_ttb_reference_label_screens_clean_end_to_end():

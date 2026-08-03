@@ -1,18 +1,21 @@
-"""Anatomy-of-a-Wine-Label ingest (TTB's interactive label tool → eval
-reference case).
+"""Anatomy-of-a-Label ingest (TTB's interactive label tools → eval
+reference cases): wine (api/eval/anatomy/) and distilled spirits
+(api/eval/anatomy_spirits/).
 
-Source: https://www.ttb.gov/regulated-commodities/beverage-alcohol/wine/anatomy-of-a-label
-(U.S. government work — public domain). The page's "image map" is modern:
-each label panel is a stack of horizontal PNG slices, clickable slices wired
-to an explanation panel via showInfo('<element>','<slice>'). This script
-reads the saved page (api/eval/anatomy/page.html) + downloaded slices and
-regenerates:
+Sources (U.S. government works — public domain):
+- wine: ttb.gov/.../wine/anatomy-of-a-label
+- spirits: ttb.gov/.../distilled-spirits/ds-labeling-home/
+  anatomy-of-a-distilled-spirits-label-tool
 
-- api/eval/anatomy/front.png, back.png — stitched full panels (usable as
-  real front/back inputs to the verifier)
-- api/eval/anatomy/reference.json — slice geometry (x, y, w, h per slice),
-  the element each slice activates, TTB's full explanation text per
-  element, and the mapping onto this tool's field model
+The pages' "image maps" are modern: each label panel is a stack of PNG
+slices, clickable slices wired to an explanation panel via
+showInfo('<element>','<slice>') (HTML-escaped quotes on the 2024 spirits
+tool). This script reads each saved page + downloaded slices and
+regenerates, per commodity:
+
+- front.png / back.png — stitched full panels (real verifier inputs)
+- reference.json — slice geometry, the element each slice activates,
+  TTB's full explanation text, and the mapping onto this tool's fields
 
 Run: .venv/bin/python -m api.eval.ingest_anatomy
 """
@@ -67,7 +70,8 @@ BACK_ROWS = ["b1", "b2", "b3", "b4", "b5"]
 
 
 def _element_of(page: str, slice_id: str) -> str | None:
-    m = re.search(rf"id=\"{slice_id}\"[^>]*onclick=\"showInfo\('([^']+)'", page)
+    # quotes are literal on the wine tool, &apos;-escaped on the 2024 spirits tool
+    m = re.search(rf"id=\"{slice_id}\"[^>]*showInfo\((?:'|&apos;)([A-Za-z0-9]+)", page)
     return m.group(1) if m else None
 
 
@@ -79,7 +83,7 @@ def _info_text(page: str, key: str) -> str:
     return re.sub(r"\s+", " ", html_mod.unescape(txt)).strip()
 
 
-def main() -> int:
+def build_wine() -> None:
     page = (ROOT / "page.html").read_text(encoding="utf-8")
     dims = {p.stem: Image.open(p).size for p in IMAGES.glob("*.png")}
 
@@ -139,6 +143,103 @@ def main() -> int:
     covered = sum(1 for e in elements.values() if e["field"])
     print(f"anatomy: {len(slices)} slices, front {front_h}px, back {back_h}px, "
           f"{covered}/{len(elements)} elements mapped to fields")
+
+
+# ── distilled spirits (2024 tool) ────────────────────────────────────────────
+
+DS_ROOT = Path(__file__).parent / "anatomy_spirits"
+DS_IMAGES = DS_ROOT / "images"
+
+# nameAddress maps to None on purpose: the name_address check is wine/malt
+# only so far — the part 5 audit is pending, and this reference records the
+# coverage gap honestly rather than papering over it
+DS_FIELD_MAP = {
+    "GPI": None, "brandName": "brand_name", "fancifulName": "fanciful_name",
+    "classType": "class_type", "alcoholContent": "alcohol_content",
+    "nameAddress": None, "webAdd": None, "netCont": "net_contents",
+    "addInfo": None, "healthWarning": "government_warning", "upcBar": None,
+}
+
+DS_REQUIREDNESS = {
+    "GPI": ("no", "any label"),
+    "brandName": ("yes", "any label"),
+    "fancifulName": ("conditional — required with a statement of composition "
+                     "(specialty products)", "any label"),
+    "classType": ("yes", "any label"),
+    "alcoholContent": ("yes — mandatory for distilled spirits (§5.63)", "any label"),
+    "nameAddress": ("yes", "any label, or blown/embossed/molded into the container"),
+    "webAdd": ("no", "any label"),
+    "netCont": ("yes", "any label, or blown/embossed/molded into the container"),
+    "addInfo": ("no", "any label"),
+    "healthWarning": ("yes (0.5%+ ABV)", "any label"),
+    "upcBar": ("no", "any label"),
+}
+
+# straight from the page markup: full-width stacks with two side-by-side
+# pairs on the back (webAdd+netCont, healthWarning+upcBar)
+DS_FRONT_ROWS = [["f0"], ["f1"], ["f2"], ["f3"], ["f4"], ["f5"], ["f6"]]
+DS_BACK_ROWS = [["b0"], ["b1"], ["b2", "b7"], ["b3"], ["b4", "b5"], ["b6"]]
+
+
+def build_spirits() -> None:
+    page = (DS_ROOT / "page.html").read_text(encoding="utf-8")
+    dims = {p.stem: Image.open(p).size for p in DS_IMAGES.glob("*.png")}
+
+    slices = []
+
+    def stack(rows: list[list[str]], panel: str) -> int:
+        y = 0
+        for row in rows:
+            x, row_h = 0, 0
+            for name in row:
+                w, h = dims[name]
+                slices.append({"file": f"images/{name}.png", "panel": panel,
+                               "x": x, "y": y, "w": w, "h": h,
+                               "element": _element_of(page, name)})
+                x += w
+                row_h = max(row_h, h)
+            y += row_h
+        return y
+
+    front_h = stack(DS_FRONT_ROWS, "front")
+    back_h = stack(DS_BACK_ROWS, "back")
+
+    for panel, height in (("front", front_h), ("back", back_h)):
+        canvas = Image.new("RGB", (325, height), "#ffffff")
+        for s in slices:
+            if s["panel"] == panel:
+                canvas.paste(Image.open(DS_ROOT / s["file"]), (s["x"], s["y"]))
+        canvas.save(DS_ROOT / f"{panel}.png")
+
+    elements = {}
+    for key, field in DS_FIELD_MAP.items():
+        mandatory, placement = DS_REQUIREDNESS[key]
+        elements[key] = {"field": field, "mandatory": mandatory,
+                         "placement": placement, "ttb_text": _info_text(page, key)}
+
+    ref = {
+        "source": "https://www.ttb.gov/regulated-commodities/beverage-alcohol/"
+                  "distilled-spirits/ds-labeling-home/anatomy-of-a-distilled-spirits-label-tool",
+        "fetched": "2026-08-03",
+        "license": "U.S. government work (public domain)",
+        "note": "TTB's interactive Anatomy of a Distilled Spirits Label (2024 tool): "
+                "slice geometry is the page's image map; elements carry TTB's own "
+                "explanation text and the mapping onto this tool's fields. "
+                "nameAddress is unmapped pending the part 5 audit.",
+        "panels": {"front": {"width": 325, "height": front_h},
+                   "back": {"width": 325, "height": back_h}},
+        "slices": slices,
+        "elements": elements,
+    }
+    (DS_ROOT / "reference.json").write_text(json.dumps(ref, indent=2) + "\n")
+    covered = sum(1 for e in elements.values() if e["field"])
+    print(f"anatomy_spirits: {len(slices)} slices, front {front_h}px, back {back_h}px, "
+          f"{covered}/{len(elements)} elements mapped to fields")
+
+
+def main() -> int:
+    build_wine()
+    build_spirits()
     return 0
 
 
