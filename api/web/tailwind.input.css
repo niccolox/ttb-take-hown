@@ -9,7 +9,7 @@
 @source "./index.html";
 @source "./app.js";
 @plugin "daisyui" {
-  themes: corporate --default;
+  themes: winter --default;
 }
 
 :root {
