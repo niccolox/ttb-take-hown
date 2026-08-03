@@ -761,30 +761,50 @@ function renderResult(container, it) {
   if (it.elapsedMs != null) {                       // 5s target (Sarah's threshold) made visible
     const s = it.elapsedMs / 1000;
     const within = s < 5;
-    const timing = document.createElement("div");
-    timing.className = "timing " + (within ? "ok" : "over");
     const ocr = r.timing_ms?.ocr != null ? ` (reading the label: ${(r.timing_ms.ocr / 1000).toFixed(1)}s)` : "";
-    // Two-stage pipeline (N3): stage 1 is the answer the 5s promise covers;
-    // stage 2 is the background cross-check. Single-engine results (no
-    // background jobs) keep the original one-stage line.
+    // Two-stage pipeline (N3): the first answer is what the 5s promise
+    // covers; the background cross-check follows. Rendered as a stepper in
+    // agent language ("Screened" / "Cross-checked" — no pipeline stage
+    // numbers). Single-engine results keep the original one-line form.
     const twoStage = r.settled === false || it.settleMs != null
       || (r.jobs || []).length > 0;
     if (twoStage) {
-      const s1 = within
-        ? `⏱ Stage 1 — answer in ${s.toFixed(1)}s, within the 5-second target${ocr}`
-        : `⏱ Stage 1 — answer in ${s.toFixed(1)}s, OVER the 5-second target${ocr}`;
-      const s2 = r.settled === false
-        ? "Stage 2 — cross-checks running…"
-        : (it.settleMs != null
-          ? `Stage 2 — cross-checks settled at ${(it.settleMs / 1000).toFixed(1)}s total`
-          : "Stage 2 — cross-checks settled");
-      timing.textContent = `${s1} · ${s2}`;
+      const steps = document.createElement("ul");
+      steps.className = "steps timing-steps";
+      steps.setAttribute("aria-label", "Check progress");
+      const s1 = document.createElement("li");
+      s1.className = "step " + (within ? "step-primary" : "step-error");
+      s1.dataset.content = within ? "✓" : "!";
+      s1.textContent = within ? `Screened ${s.toFixed(1)}s`
+                              : `Screened ${s.toFixed(1)}s — over 5s target`;
+      const s2 = document.createElement("li");
+      if (r.settled === false) {
+        s2.className = "step step-running";
+        s2.dataset.content = "●";
+        s2.textContent = "Cross-checking…";
+      } else {
+        s2.className = "step step-primary";
+        s2.dataset.content = "✓";
+        s2.textContent = it.settleMs != null
+          ? `Cross-checked ${(it.settleMs / 1000).toFixed(1)}s`
+          : "Cross-checked";
+      }
+      steps.append(s1, s2);
+      container.appendChild(steps);
+      const sub = document.createElement("p");
+      sub.className = "cite timing-sub";
+      const ocrNote = r.timing_ms?.ocr != null
+        ? `reading the label: ${(r.timing_ms.ocr / 1000).toFixed(1)}s — ` : "";
+      sub.textContent = `${ocrNote}first answer ${within ? "within" : "OVER"} the 5-second target`;
+      container.appendChild(sub);
     } else {
+      const timing = document.createElement("div");
+      timing.className = "timing " + (within ? "ok" : "over");
       timing.textContent = within
         ? `⏱ Checked in ${s.toFixed(1)}s — within the 5-second target${ocr}`
         : `⏱ Checked in ${s.toFixed(1)}s — OVER the 5-second target${ocr}`;
+      container.appendChild(timing);
     }
-    container.appendChild(timing);
   }
   let [cls, text] = bannerFor(r.fields.filter((f) => !isRefining(it, f)), it);
   const ov = ovValue(it);
@@ -930,7 +950,7 @@ function screeningLabel(it) {
   return { done_green: "All clear", pass_agent: "Passed by agent decision",
            fail_agent: "Failed by agent decision",
            done_amber: "Needs review", done_red: "Needs correction",
-           error: "Couldn't finish" }[s] || "Received";
+           checking: "In Process", error: "Couldn't finish" }[s] || "Received";
 }
 
 // ── crops ────────────────────────────────────────────────────────────────────

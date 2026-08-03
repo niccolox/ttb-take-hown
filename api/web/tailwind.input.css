@@ -203,6 +203,19 @@ dialog canvas { max-width: 86vw; }
 .timing.ok { @apply badge-success; }
 .timing.over { @apply badge-error; }
 
+/* two-stage stepper (Screened → Cross-checked): daisyui steps, compacted —
+   the default component is sized for wizards, not a status line */
+.timing-steps { @apply mb-1; }
+.timing-steps .step { @apply text-[12.5px] font-bold min-h-0 gap-y-1; }
+.timing-steps .step:after { @apply w-6 h-6 text-[12px]; }
+.timing-steps .step:before { @apply h-1; }
+.timing-steps .step-running:after {
+  @apply bg-warning text-warning-content;
+  animation: step-pulse 1.2s ease-in-out infinite;
+}
+@keyframes step-pulse { 50% { opacity: 0.45; } }
+.timing-sub { @apply mb-2 mt-0; }
+
 .override { @apply mt-3 pt-2 border-t border-dashed border-base-300; }
 .override .btns { @apply flex gap-2 mt-1.5; }
 /* decision buttons carry their daisyui classes inline (icon + color per
