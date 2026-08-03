@@ -77,7 +77,7 @@ def _status_class(status: str) -> str:
 
 def run_j1(rid: str, store, qa_extractor, qa_engine: str, jobq,
            gpu_extractor=None, gpu_engine: str = "nemotron",
-           gpu_available=lambda: True) -> None:
+           gpu_available=lambda: True, vlm_client=None) -> None:
     """Second-engine QA. Chains J2 submission for qualifying warning fields
     (J2 needs J1's read for the AD-20 concurrence decision)."""
     entry = store.get(rid)
@@ -167,11 +167,97 @@ def run_j1(rid: str, store, qa_extractor, qa_engine: str, jobq,
                  or (warn.get("guard") or {}).get("state") == "disagreed") \
             and gpu_available():
         jobq.submit(rid, "warning-reread",
-                    lambda: run_j2(rid, store, gpu_extractor, gpu_engine),
+                    lambda: run_j2(rid, store, gpu_extractor, gpu_engine,
+                                   jobq=jobq, vlm_client=vlm_client),
                     deadline_s=30)
+    elif vlm_client is not None and vlm_client.available():
+        # no J2 needed — chain the VLM fallback reader directly (N5)
+        jobq.submit(rid, "vlm-assist",
+                    lambda: run_j3(rid, store, vlm_client), deadline_s=45)
 
 
-def run_j2(rid: str, store, gpu_extractor, gpu_engine: str) -> None:
+VLM_QUESTIONS = {
+    "government_warning": "Transcribe the government warning text printed in "
+                          "this label crop exactly, word for word.",
+    "alcohol_content": "What alcohol content statement is printed in this "
+                       "label crop? Answer with just the printed text.",
+    "net_contents": "What net contents statement is printed in this label "
+                    "crop? Answer with just the printed text.",
+}
+DEFAULT_VLM_QUESTION = ("What text is printed in this label crop? Answer with "
+                        "just the printed text.")
+J3_MAX_FIELDS = 3               # hosted free tier is rate-limited; cap per label
+
+
+def run_j3(rid: str, store, vlm_client) -> None:
+    """VLM fallback reader (N5). Reads the CROPS of fields still flagged
+    after J1/J2 and attaches suggestions — never a status change ("zero
+    autonomous verdict changes" is the N5 exit criterion, and the
+    hallucination data in the research is why)."""
+    from PIL import Image
+
+    entry = store.get(rid)
+    if entry is None or entry.cancelled or not vlm_client.available():
+        return
+    meta = entry.meta
+    targets = []
+    for f in entry.result.get("fields", []):
+        ev = f.get("evidence") or {}
+        # evidence bbox is in ORIGINAL-bitmap coords by response time, but the
+        # stored panel jpegs are the PROCESSED frame — use the pre-mapping
+        # coords captured for J2 when present, else skip (crops only, never
+        # a full panel)
+        if f["status"] == "NEEDS_REVIEW" and ev.get("bbox"):
+            targets.append(f)
+        if len(targets) >= J3_MAX_FIELDS:
+            break
+    if not targets:
+        return
+    suggestions = {}
+    for f in targets:
+        ev = f["evidence"]
+        p = ev.get("panel") or 0
+        raw = meta["panels_jpeg"][p]
+        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        # map original-bitmap bbox back to processed frame: divide by scale
+        # (the skew rotation makes exact inversion lossy; the axis-aligned
+        # hull is fine for a question crop)
+        s = (meta.get("scales") or [1.0])[p] if p < len(meta.get("scales") or []) else 1.0
+        x1, y1, x2, y2 = [v / s for v in ev["bbox"]]
+        m = 20
+        box = (max(0, x1 - m), max(0, y1 - m),
+               min(img.width, x2 + m), min(img.height, y2 + m))
+        if box[2] <= box[0] or box[3] <= box[1]:
+            continue
+        crop = img.crop(box)
+        buf = io.BytesIO()
+        crop.save(buf, "JPEG", quality=85)
+        q = VLM_QUESTIONS.get(f["field"], DEFAULT_VLM_QUESTION)
+        answer = vlm_client.read_crop(buf.getvalue(), q)
+        if answer:
+            suggestions[f["field"]] = {"suggestion": answer[:300], "question": q,
+                                       "engine": "nano-vl-8b",
+                                       "disclaimer": "AI-suggested — verify "
+                                                     "against the label crop"}
+
+    if not suggestions:
+        return
+
+    def apply(entry):
+        for f in entry.result.get("fields", []):
+            sug = suggestions.get(f["field"])
+            if sug:
+                f["vlm"] = sug
+                f.setdefault("refinements", []).append(
+                    {"layer": "vlm-assist", "engine": "nano-vl-8b",
+                     "from": f["status"], "to": f["status"], "kind": "annotation",
+                     "applied": False, "note": "suggestion attached, no status change"})
+
+    store.mutate(rid, apply)
+
+
+def run_j2(rid: str, store, gpu_extractor, gpu_engine: str,
+           jobq=None, vlm_client=None) -> None:
     """Warning-band crop re-OCR + splice re-verify (the N4 fix)."""
     from PIL import Image
 
@@ -262,3 +348,9 @@ def run_j2(rid: str, store, gpu_extractor, gpu_engine: str) -> None:
                     "guard": True, "ts": time.time()})
 
     store.mutate(rid, apply)
+
+    # chain the VLM fallback reader (N5) after the re-read settles — it only
+    # looks at fields STILL flagged, so J2's upgrades shrink its work
+    if jobq is not None and vlm_client is not None and vlm_client.available():
+        jobq.submit(rid, "vlm-assist",
+                    lambda: run_j3(rid, store, vlm_client), deadline_s=45)

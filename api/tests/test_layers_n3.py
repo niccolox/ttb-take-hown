@@ -213,6 +213,59 @@ def test_j1_chains_j2_on_retryable_warning(stack, monkeypatch):
     assert submitted == ["warning-reread"]
 
 
+class FakeVLM:
+    def __init__(self, answer="45% Alc./Vol.", available=True):
+        self.answer = answer
+        self._available = available
+        self.calls = []
+
+    def available(self):
+        return self._available
+
+    def read_crop(self, crop_jpeg, question):
+        self.calls.append((len(crop_jpeg), question))
+        return self.answer
+
+
+def test_j3_attaches_suggestion_without_status_change(stack):
+    store, q, _ = stack
+    _seed(store, [{"field": "alcohol_content", "status": "NEEDS_REVIEW",
+                   "reason_code": "unreadable", "label_value": None, "note": "",
+                   "evidence": {"bbox": [5, 5, 50, 30], "panel": 0}},
+                  {"field": "brand_name", "status": "MATCH",
+                   "label_value": "X", "note": ""}])
+    vlm = FakeVLM()
+    layers.run_j3("r-1", store, vlm)
+    fields = {f["field"]: f for f in store.get("r-1").result["fields"]}
+    abv = fields["alcohol_content"]
+    assert abv["status"] == "NEEDS_REVIEW"            # ZERO verdict changes (N5 exit)
+    assert abv["vlm"]["suggestion"] == "45% Alc./Vol."
+    assert "AI-suggested" in abv["vlm"]["disclaimer"]
+    assert abv["refinements"][-1]["kind"] == "annotation"
+    assert abv["refinements"][-1]["applied"] is False
+    assert "vlm" not in fields["brand_name"]          # unflagged fields untouched
+    assert len(vlm.calls) == 1
+    assert vlm.calls[0][0] < 180_000                  # a crop, never the full panel
+
+
+def test_j3_silent_noop_without_key(stack):
+    store, q, _ = stack
+    _seed(store, [{"field": "alcohol_content", "status": "NEEDS_REVIEW",
+                   "reason_code": "unreadable", "label_value": None, "note": "",
+                   "evidence": {"bbox": [5, 5, 50, 30], "panel": 0}}])
+    before_rev = store.get("r-1").revision
+    layers.run_j3("r-1", store, FakeVLM(available=False))
+    assert store.get("r-1").revision == before_rev    # byte-identical no-op
+
+
+def test_vlm_client_noop_paths():
+    from api.vlm import NanoVLClient
+    assert NanoVLClient(api_key="").available() is False
+    assert NanoVLClient(api_key="").read_crop(b"x", "q") is None
+    big = NanoVLClient(api_key="k")
+    assert big.read_crop(b"x" * 200_001, "q") is None  # crop budget enforced
+
+
 def test_j2_upgrade_requires_j1_concurrence(stack, monkeypatch):
     store, q, _ = stack
     entry = _seed(store, [_field("MISMATCH", reason_code="statutory_text_differs")])

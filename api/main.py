@@ -52,6 +52,8 @@ if PRIMARY_ENGINE == "nemotron" \
 pool = ThreadPoolExecutor(max_workers=2)          # fast path ONLY (AD-23)
 store = ResultStore()                             # single-process (AD-25)
 jobq = JobQueue(store)                            # background layers (N3+)
+from .vlm import NanoVLClient
+vlm_client = NanoVLClient()                       # N5 J3; silent no-op without NVIDIA_API_KEY
 
 # AD-26 circuit breaker: consecutive sidecar failures short-circuit GPU
 # calls (fast path falls back to paddle; J2 jobs fail fast) until a cooloff.
@@ -651,7 +653,8 @@ def _verify_impl(image, images, application):
                     lambda: run_j1(rid, store, qa_extractor, "paddle", jobq,
                                    gpu_extractor=extractor,
                                    gpu_engine="nemotron",
-                                   gpu_available=_gpu_ok),
+                                   gpu_available=_gpu_ok,
+                                   vlm_client=vlm_client),
                     deadline_s=45)
     body = entry.public()
     body["cancel_token"] = entry.cancel_token  # only in the POST response (AD-39)

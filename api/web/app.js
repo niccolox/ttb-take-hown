@@ -657,6 +657,7 @@ function renderResult(container, it) {
         <div class="note">${esc(f.note || "")}</div>
         ${f.citation ? `<div class="cite">${esc(f.citation)}</div>` : ""}
         ${(f.sub_results || []).map((s) => `<div class="sub"><strong>${esc(s.check.replace(/_/g, " "))}:</strong> ${esc(s.outcome.toUpperCase())} — ${esc(s.detail)}</div>`).join("")}
+        ${f.vlm ? `<div class="sub" style="border-left:3px solid #b58900;padding-left:6px;margin-top:4px"><strong>Vision model suggests:</strong> ${esc(f.vlm.suggestion)}<div class="cite">${esc(f.vlm.disclaimer)} · ${esc(f.vlm.engine)}</div></div>` : ""}
       </div>
       <div class="cropcell"></div>`;
     rowsHost.appendChild(row);
