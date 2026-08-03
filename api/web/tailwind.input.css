@@ -132,7 +132,9 @@ button.secondary { @apply btn btn-outline btn-primary btn-sm font-semibold; min-
   min-height: 44px;
 }
 .list-item[aria-current="true"] { border-color: var(--accent); border-width: 2px; }
-.list-item .fn { @apply flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-semibold; }
+.list-item .fn { @apply flex-1 overflow-hidden font-semibold; }
+.list-item .fn-file { @apply block overflow-hidden text-ellipsis whitespace-nowrap not-italic font-normal; }
+.empty-hero { @apply mt-2 p-4 border border-dashed border-base-300 rounded-lg bg-base-200/50; }
 .list-item img.mini {
   @apply rounded border border-base-300 bg-base-200;
   width: 44px; height: 44px; object-fit: cover; flex: none;
@@ -151,11 +153,11 @@ button.secondary { @apply btn btn-outline btn-primary btn-sm font-semibold; min-
 .chip.red { @apply badge-error; }
 .chip.grey { @apply badge-neutral; }
 
-.filters { @apply flex flex-col gap-1.5 my-2; }
+.filters { @apply grid grid-cols-2 gap-1.5 my-2; }
 .filters button {
-  @apply flex justify-between items-center gap-2 border border-base-300
-    rounded-lg bg-base-100 w-full cursor-pointer text-sm text-left;
-  padding: 7px 12px; min-height: 40px;
+  @apply flex justify-between items-center gap-1.5 border border-base-300
+    rounded-lg bg-base-100 w-full cursor-pointer text-[13px] text-left;
+  padding: 5px 9px; min-height: 36px;
 }
 .filters button[aria-pressed="true"] { border-color: var(--accent); border-width: 2px; @apply font-bold; }
 .filters .dot { @apply rounded-full flex-none; width: 10px; height: 10px; }
@@ -165,7 +167,7 @@ button.secondary { @apply btn btn-outline btn-primary btn-sm font-semibold; min-
 .status-note { @apply text-[15px] opacity-70 my-1.5; }
 #progressbar { @apply my-1; height: 0.625rem; }
 
-.banner { @apply alert font-bold text-lg mb-3; display: none; }
+.banner { @apply alert font-bold text-lg mb-3 sticky top-2 z-30 shadow-sm; display: none; }
 .banner.green { @apply alert-success; display: flex; }
 .banner.amber { @apply alert-warning; display: flex; }
 .banner.red { @apply alert-error; display: flex; }
@@ -173,7 +175,7 @@ button.secondary { @apply btn btn-outline btn-primary btn-sm font-semibold; min-
 .row {
   /* col 2 sized to the decision buttons: 3 x 48px + 2 x 10px gaps + group
      padding = 172px — they must never bleed into the results column */
-  display: grid; grid-template-columns: 150px 172px 1fr 90px; gap: 10px;
+  display: grid; grid-template-columns: 150px 172px 1fr 130px; gap: 10px;
   align-items: start; @apply py-2.5 border-b border-base-300;
 }
 .row .cropwide { grid-column: 1 / -1; }
@@ -185,7 +187,11 @@ button.secondary { @apply btn btn-outline btn-primary btn-sm font-semibold; min-
 .note { @apply text-[15px] opacity-80 mt-0.5; }
 .cite { @apply text-xs opacity-60 italic; }
 
-canvas.crop { @apply border border-base-300 rounded; max-height: 96px; max-width: 100%; cursor: zoom-in; }
+canvas.crop { @apply border border-base-300 rounded; max-height: 140px; max-width: 100%; cursor: zoom-in; }
+.cropcell.has-crop { @apply relative inline-block; }
+.cropcell.has-crop::after {
+  content: "🔍"; @apply absolute top-1 right-1 text-xs opacity-70 pointer-events-none;
+}
 .sub { @apply mt-1 px-2 py-1.5 bg-base-200 rounded-md text-[13px]; }
 
 dialog { @apply border-2 border-base-content rounded-xl; max-width: 90vw; }

@@ -380,6 +380,26 @@ function renderList() {
   const focusSel = captureFocus();
   const list = $("list");
   list.innerHTML = "";
+  if (!items.length) {
+    // empty first-run must offer the two most likely actions in the main
+    // field, not only behind the nav menus (UX audit P1)
+    const hero = document.createElement("div");
+    hero.className = "empty-hero";
+    hero.innerHTML = `
+      <p class="note" style="margin:0 0 10px">Screen a label against its COLA
+        application — start with your own images or a built-in sample.</p>
+      <button type="button" class="btn btn-primary btn-block" data-hero="files">Choose label image(s)</button>
+      <button type="button" class="btn btn-outline btn-primary btn-block mt-2" data-hero="sample">Try a sample</button>
+      <p class="cite" style="margin-top:10px">Batches: Start a check → Import CSV manifest.
+        Eval sets and registry pipelines live in the top navigation.</p>`;
+    hero.querySelector('[data-hero="files"]').addEventListener("click", () => $("files").click());
+    hero.querySelector('[data-hero="sample"]').addEventListener("click", () => {
+      const d = document.querySelectorAll("header details")[1];
+      d?.setAttribute("open", "");
+      d?.querySelector("#samples button")?.focus();
+    });
+    list.appendChild(hero);
+  }
   const counts = { waiting: 0, attention: 0, mismatch: 0, review: 0,
                    passed: 0, progress: 0, failed: 0, all: items.length };
   for (const it of items) {
@@ -394,14 +414,19 @@ function renderList() {
   }
   for (const it of items) {                      // insertion order — never reorder
     if (!visible(it)) continue;
-    const [cls, txt] = ITEM_STATES[itemState(it)] || ITEM_STATES.waiting;
+    const state = itemState(it);
+    const [cls, txt] = ITEM_STATES[state] || ITEM_STATES.waiting;
     const b = document.createElement("button");
     b.className = "list-item"; b.type = "button";
         b.setAttribute("aria-current", String(it.id === selectedId));
-    b.title = it.file.name;                       // filename stays discoverable
-    const decided = reviewComplete(it);
-    b.innerHTML = `<span class="fn">${esc(itemTitle(it))}</span>
-      <span class="loz ${cls}">${decided ? "✓ " : ""}${txt}${it.stale ? " ⟳" : ""}</span>`;
+    b.title = it.file.name;
+    // glyph follows the VERDICT family, never "decided-ness" — a checkmark
+    // on a Fail chip read as approval (UX audit P1)
+    const glyph = { done_green: "✓ ", pass_agent: "✓ ", done_amber: "👁 ",
+                    done_red: "✗ ", fail_agent: "✗ ", error: "✗ " }[state] || "";
+    b.innerHTML = `<span class="fn">${esc(itemTitle(it))}
+        <span class="cite fn-file">${esc(it.file.name)}</span></span>
+      <span class="loz ${cls}">${glyph}${txt}${it.stale ? " ⟳" : ""}</span>`;
     const mini = document.createElement("img");
     mini.className = "mini"; mini.alt = "";           // decorative; the title names the label
     mini.loading = "lazy";
@@ -424,7 +449,7 @@ function renderList() {
     $("progress").classList.toggle("text-success", allDone);
     $("progress").classList.toggle("font-bold", allDone);
   }
-  $("filters").style.display = items.length ? "flex" : "none";
+  $("filters").style.display = items.length ? "grid" : "none";
   $("saveSession").style.display = items.length ? "inline-block" : "none";
   updateSaveButton();
   const FILTER_META = {   // literal colors — the old CSS vars left with the restyle
@@ -588,7 +613,7 @@ function renderDetail() {
     const bar = document.createElement("div");
     bar.style.cssText = "display:flex;gap:8px;margin-bottom:10px";
     const add = document.createElement("button");
-    add.type = "button"; add.className = "secondary";
+    add.type = "button"; add.className = "btn btn-sm btn-outline btn-primary";
     add.textContent = hasBack ? "Replace back panel image" : "Add back panel image";
     add.addEventListener("click", () => {
       const inp = document.createElement("input");
@@ -607,7 +632,7 @@ function renderDetail() {
     bar.appendChild(add);
     if (hasBack) {
       const rm = document.createElement("button");
-      rm.type = "button"; rm.className = "secondary";
+      rm.type = "button"; rm.className = "btn btn-sm btn-outline btn-primary";
       rm.textContent = "Remove back panel";
       rm.addEventListener("click", () => {
         it.panels = (it.panels || []).filter((p) => p.panel !== "back");
@@ -668,16 +693,19 @@ function renderDetail() {
     <label>Class / type</label><input type="text" data-k="class_type" value="${esc(it.app.class_type)}">
     <label>Fanciful name</label><input type="text" data-k="fanciful_name" value="${esc(it.app.fanciful_name || "")}" placeholder="optional — e.g. Pelopee">
     <label>Origin</label><input type="text" data-k="origin" value="${esc(it.app.origin || "")}" placeholder="optional — e.g. France">
+    ${it.app.beverage_type === "wine" ? `
     <label>Vintage</label><input type="text" data-k="vintage" value="${esc(it.app.vintage || "")}" placeholder="optional — e.g. 2022">
     <label>Appellation</label><input type="text" data-k="appellation" value="${esc(it.app.appellation || "")}" placeholder="optional — e.g. Margaux">
-    <label>Grape varietal(s)</label><input type="text" data-k="grape_varietals" value="${esc(it.app.grape_varietals || "")}" placeholder="optional — any listed matches, e.g. chardonnay/pinot noir">
+    <label>Grape varietal(s)</label><input type="text" data-k="grape_varietals" value="${esc(it.app.grape_varietals || "")}" placeholder="optional — any listed matches, e.g. chardonnay/pinot noir">` : ""}
     <label>Alcohol content</label><input type="text" data-k="alcohol_content" value="${esc(it.app.alcohol_content)}" placeholder="e.g. 45% Alc./Vol.">
     <label>Net contents</label><input type="text" data-k="net_contents" value="${esc(it.app.net_contents)}" placeholder="e.g. 750 mL">
     <p class="note">The Government Warning is always checked — no entry needed.</p>`;
   form.addEventListener("change", (e) => {
     const k = e.target.dataset.k;
     if (k) { it.app[k] = e.target.value.trim(); markStale(it); markSessionDirty(); renderList();
-             if (it.stale) staleNote.style.display = "block"; }
+             if (it.stale) staleNote.style.display = "block";
+             if (k === "beverage_type") renderDetail();   // wine fields show/hide
+    }
   });
   fp.appendChild(form);
 
@@ -836,7 +864,8 @@ function renderResult(container, it) {
     const evBitmap = (it.panels || [])[f.evidence?.panel ?? 0]?.bitmap || it.bitmap;
     if (f.evidence?.bbox && evBitmap) {
       const c = document.createElement("canvas");
-      c.className = "crop"; c.tabIndex = 0; c.setAttribute("role", "button");
+      c.className = "crop";
+      // visible zoom affordance rides the cell (UX audit P2) c.tabIndex = 0; c.setAttribute("role", "button");
       c.title = "Click to enlarge — region outlined on the full label";
       const diffBoxes = f.evidence.diff_boxes || null;
       if (drawCrop(c, evBitmap, f.evidence.bbox, 12, diffBoxes)) {
@@ -851,7 +880,9 @@ function renderResult(container, it) {
           wide.appendChild(legend);
           row.appendChild(wide);
         } else {
-          row.querySelector(".cropcell").appendChild(c);
+          const cell = row.querySelector(".cropcell");
+          cell.classList.add("has-crop");
+          cell.appendChild(c);
         }
         const open = () => zoomCrop(evBitmap, f.evidence.bbox, diffBoxes);
         c.addEventListener("click", open);
