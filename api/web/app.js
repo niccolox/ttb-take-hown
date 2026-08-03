@@ -27,7 +27,8 @@ const FAMILY = {
 };
 const ITEM_STATES = {   // item lifecycle (UI spec: named states)
   waiting: ["grey", "Waiting"], checking: ["amber", "Checking…"],
-  done_green: ["green", "All clear"], done_amber: ["amber", "Review"],
+  done_green: ["green", "All clear"], pass_agent: ["green", "Pass ·agent"],
+  done_amber: ["amber", "Review"],
   done_red: ["red", "Mismatch"], error: ["red", "Couldn't finish"],
   canceled: ["grey", "Canceled"],
 };
@@ -187,7 +188,10 @@ async function loadSamples() {
 }
 
 // ── list pane (stable order, filters, progress) ──────────────────────────────
-const OV_STATE = { "PASS": "done_green", "NEEDS REVIEW": "done_amber", "FAIL": "done_red" };
+// PASS renders its own chip: green must say "Pass ·agent" when the state is
+// the reviewer's decision rather than the machine's all-clear
+const OV_STATE = { "PASS": "pass_agent", "NEEDS REVIEW": "done_amber", "FAIL": "done_red" };
+const GREENS = ["done_green", "pass_agent"];
 const OV_FIELD_STATUS = { "PASS": "MATCH", "NEEDS REVIEW": "NEEDS_REVIEW", "FAIL": "MISMATCH" };
 
 function fieldOv(it, name) { return (it.fieldOverrides || {})[name] || null; }
@@ -292,7 +296,7 @@ function itemTitle(it) {
 function visible(it) {
   const s = itemState(it);
   if (filter === "attention") return !reviewComplete(it) && ["done_red", "done_amber", "error"].includes(s);
-  if (filter === "passed") return s === "done_green";   // auto all-clear or agent PASS
+  if (filter === "passed") return GREENS.includes(s);   // auto all-clear or agent PASS
   if (filter === "progress") return ["waiting", "checking"].includes(s);
   return true;
 }
@@ -304,7 +308,7 @@ function renderList() {
   for (const it of items) {
     const s = itemState(it);
     if (!reviewComplete(it) && ["done_red", "done_amber", "error"].includes(s)) counts.attention++;
-    if (s === "done_green") counts.passed++;
+    if (GREENS.includes(s)) counts.passed++;
     if (["waiting", "checking"].includes(s)) counts.progress++;
   }
   for (const it of items) {                      // insertion order — never reorder
@@ -370,14 +374,14 @@ function reviewComplete(it) {
   if (it.state !== "done") return false;
   const ov = ovValue(it);
   if (ov === "PASS" || ov === "FAIL") return true;
-  return itemState(it) === "done_green";
+  return GREENS.includes(itemState(it));
 }
 
 function completionText() {
   const total = items.length;
   const complete = items.filter(reviewComplete).length;
   if (complete === total && total > 0) {
-    const passed = items.filter((it) => itemState(it) === "done_green").length;
+    const passed = items.filter((it) => GREENS.includes(itemState(it))).length;
     const failed = total - passed;
     return `✓ Review complete — ${total} application${total > 1 ? "s" : ""} decided ` +
            `(${passed} passed${failed ? `, ${failed} failed` : ""})`;
@@ -385,7 +389,7 @@ function completionText() {
   let g = 0, a = 0, r = 0;
   for (const it of items) {
     const s = itemState(it);
-    if (s === "done_green") g++; else if (s === "done_amber") a++; else if (s === "done_red" || s === "error") r++;
+    if (GREENS.includes(s)) g++; else if (s === "done_amber") a++; else if (s === "done_red" || s === "error") r++;
   }
   return `Checked: ${g} matched, ${a} need review, ${r} mismatched/failed — ` +
          `${complete} of ${total} reviews complete`;
@@ -761,7 +765,8 @@ function renderResult(container, it) {
 
 function screeningLabel(it) {
   const s = autoState(it);
-  return { done_green: "All clear", done_amber: "Needs review", done_red: "Mismatch found",
+  return { done_green: "All clear", pass_agent: "Passed by agent decision",
+           done_amber: "Needs review", done_red: "Mismatch found",
            error: "Couldn't finish" }[s] || "Not checked";
 }
 
