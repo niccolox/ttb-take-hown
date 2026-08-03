@@ -6,8 +6,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[2]))
 
-from api.rules.abv import (AbvVerdict, BevType, abv_required, compare_abv,
-                           parse_abv, proof_consistency)
+from api.rules.abv import (AbvVerdict, BevType, abv_format_legality,
+                           abv_required, compare_abv, parse_abv,
+                           proof_consistency)
 from api.rules.net_contents import compare_net, parse_net_ml
 from api.rules.normalize import loose, whitespace_only
 from api.rules.warning import (STATUTORY_WARNING, Outcome, SubCheck,
@@ -468,6 +469,76 @@ def test_bam_sparse_front_panel_combined_floor():
     from api.verify import verify
     r1 = verify(_label_words(["DOWNUNDER WINERY"]), app)
     assert r1["screening_result"] == "screening_incomplete"
+
+
+# ── part 7 malt audit (docs/research/malt-labeling-audit-ttb.md, M-1..M-9) ───
+
+_MALT_APP = {"beverage_type": "malt_beverage", "brand_name": "IRON HARBOR BREWING CO.",
+             "class_type": "American Pale Ale", "alcohol_content": "5.6%",
+             "net_contents": "12 FL OZ"}
+_MALT_LINES = ["IRON HARBOR BREWING CO.", "American Pale Ale", "5.6% ALC/VOL",
+               "12 FL OZ", "BREWED AND CANNED BY IRON HARBOR BREWING CO.",
+               "PORTLAND, MAINE"]
+
+
+def test_malt_range_statement_is_prohibited():
+    """§7.65(b): malt alcohol content may not be a range or max/min — the
+    statement itself is the defect, even when the application falls inside."""
+    v, note = compare_abv(5.0, parse_abv("4% to 6% alc/vol"), BevType.MALT)
+    assert v == AbvVerdict.MISMATCH and "range" in note
+
+
+def test_malt_format_legality():
+    assert abv_format_legality("5.6% ABV", BevType.MALT)[0] == "FAIL"
+    assert abv_format_legality("4.4% ABW", BevType.MALT)[0] == "FAIL"
+    assert abv_format_legality("5.25% ALC/VOL", BevType.MALT)[0] == "FAIL"   # nearest 0.1 at 0.5%+
+    assert abv_format_legality("0.25% ALC/VOL", BevType.MALT)[0] == "PASS"   # hundredths OK under 0.5
+    assert abv_format_legality("5.6% ALC/VOL", BevType.MALT)[0] == "PASS"
+    assert abv_format_legality("ALC. 5.6% BY VOL.", BevType.MALT)[0] == "PASS"
+    assert abv_format_legality("5.6% ABV", BevType.SPIRITS) is None          # spirits unasserted
+
+
+def test_malt_brewed_canned_by_matches_and_absence_is_not_amber():
+    """§7.66: the explanatory phrase is OPTIONAL for malt — found phrase is a
+    positive MATCH ('BREWED AND CANNED BY' was invisible to the old regex);
+    absence is NOT_CHECKED (grey), never a review item."""
+    fs = _wine_fields(_MALT_LINES, _MALT_APP)
+    assert fs["name_address"]["status"] == "MATCH"
+    bare = _wine_fields(_MALT_LINES[:4] + ["PORTLAND, MAINE"], _MALT_APP)
+    assert bare["name_address"]["status"] == "NOT_CHECKED"
+
+
+def test_malt_sulfites_silent_when_absent_flagged_when_negative():
+    fs = _wine_fields(_MALT_LINES, _MALT_APP)
+    assert "sulfite_declaration" not in fs           # absence is normal for malt
+    pos = _wine_fields([*_MALT_LINES, "CONTAINS SULFITES"], _MALT_APP)
+    assert pos["sulfite_declaration"]["status"] == "MATCH"
+    neg = _wine_fields([*_MALT_LINES, "SULFITE FREE"], _MALT_APP)
+    assert neg["sulfite_declaration"]["status"] == "NEEDS_REVIEW"
+    assert neg["sulfite_declaration"]["reason_code"] == "sulfite_negative_claim"
+
+
+def test_malt_aspartame_declaration_form():
+    ok = _wine_fields([*_MALT_LINES, "PHENYLKETONURICS: CONTAINS PHENYLALANINE."], _MALT_APP)
+    assert ok["aspartame_declaration"]["status"] == "MATCH"
+    bad = _wine_fields([*_MALT_LINES, "Contains aspartame"], _MALT_APP)
+    assert bad["aspartame_declaration"]["status"] == "NEEDS_REVIEW"
+    none = _wine_fields(_MALT_LINES, _MALT_APP)
+    assert "aspartame_declaration" not in none       # absence proves nothing
+
+
+def test_malt_net_contents_form():
+    from api.rules.malt import malt_net_form
+    from api.rules.net_contents import parse_net_ml
+    assert malt_net_form("12 FL OZ", parse_net_ml("12 FL OZ")) is None
+    assert malt_net_form("1 PINT 0.9 FL. OZ.", parse_net_ml("1 PINT 0.9 FL. OZ.")) is None
+    assert malt_net_form("355 mL", parse_net_ml("355 mL"))[0] == "metric_only_net"
+    assert malt_net_form("16 FL OZ", parse_net_ml("16 FL OZ"))[0] == "net_form"
+    # verify-level: agreeing 16 FL OZ still escalates to amber form review
+    fs = _wine_fields([*_MALT_LINES[:3], "16 FL OZ", *_MALT_LINES[4:]],
+                      {**_MALT_APP, "net_contents": "16 FL OZ"})
+    assert fs["net_contents"]["status"] == "NEEDS_REVIEW"
+    assert fs["net_contents"]["reason_code"] == "net_form"
 
 
 def test_varietal_percentages_must_total_100():

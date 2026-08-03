@@ -20,6 +20,7 @@ from .rules.abv import (ABV_CONTEXT_RE, AbvVerdict, BevType, abv_format_legality
                         abv_required, compare_abv, parse_abv, proof_consistency,
                         PCT_RE, PROOF_RE)
 from .rules.net_contents import NET_RE, compare_net, parse_net_ml
+from .rules.malt import SULFITE_FREE_RE, aspartame_check, malt_net_form
 from .rules.wine import (NAME_ADDRESS_RE, SULFITE_RE, varietal_percentages,
                          wine_fill_authorized)
 from .rules.normalize import loose, whitespace_only
@@ -318,6 +319,15 @@ def verify(words: list[Word], application: dict, image_gray=None,
                 verdict, code = "NEEDS_REVIEW", "nonstandard_fill"
                 note += f" — but {fill_why} — confirm"
                 net_citation = "27 CFR §4.72"
+    # M-4/M-5 (malt audit): §7.70 form — US standard measures mandatory
+    # (metric may accompany, never replace) and exact pint/quart/gallon
+    # volumes must be stated as such
+    if bev == BevType.MALT and verdict == "MATCH" and net_loc.found:
+        form = malt_net_form(net_loc.text, parse_net_ml(net_loc.text))
+        if form:
+            verdict, code = "NEEDS_REVIEW", form[0]
+            note += f" — but {form[1]} — confirm"
+            net_citation = "27 CFR §7.70"
     fields.append(FieldResult("net_contents", verdict,
                               net_loc.text if net_loc.found else None,
                               application.get("net_contents"), code, note,
@@ -386,6 +396,60 @@ def verify(words: list[Word], application: dict, image_gray=None,
                     gv.note += (f" — but the printed varietal percentages total "
                                 f"{sum(pcts):g}%; they must total 100% (§4.23(d))")
                     gv.citation = "27 CFR §4.23(d)"
+
+    # malt audit (M-6..M-9): part 7 semantics differ from wine — the
+    # name/address PHRASE is optional (§7.66), sulfite absence is normal
+    # (no waiver regime), negative sulfite claims are prohibited, and the
+    # aspartame declaration has required capital-letter wording
+    elif bev == BevType.MALT:
+        neg_loc = locator.find_regex(SULFITE_FREE_RE)
+        sul_loc = locator.find_regex(SULFITE_RE)
+        if neg_loc.found:
+            fields.append(FieldResult(
+                "sulfite_declaration", "NEEDS_REVIEW", neg_loc.text, None,
+                "sulfite_negative_claim",
+                "TTB does not permit negative sulfite claims ('sulfite free', "
+                "'contains no sulfites') on malt beverage labels.",
+                _evidence(neg_loc), "27 CFR §7.63(b)(3)"))
+        elif sul_loc.found:
+            fields.append(FieldResult(
+                "sulfite_declaration", "MATCH", sul_loc.text, None, None,
+                "Sulfite declaration present (mandatory at ≥10 ppm total SO2).",
+                _evidence(sul_loc), "27 CFR §7.63(b)(3)"))
+        # absent → no field: unlike wine there is no waiver regime — most
+        # malt beverages are under 10 ppm and lawfully carry no declaration
+        na_loc = locator.find_regex(NAME_ADDRESS_RE)
+        if na_loc.found:
+            fields.append(FieldResult(
+                "name_address", "MATCH", na_loc.text, None, None,
+                "Bottler statement present.", _evidence(na_loc), "27 CFR §7.66"))
+            bf = next((f for f in fields if f.field == "brand_name"), None)
+            brand_loose = loose(application.get("brand_name") or "")
+            if (bf is not None and bf.status == "NEEDS_REVIEW"
+                    and bf.reason_code in ("not_found_in_image", "possible_ocr_misread")
+                    and brand_loose and brand_loose in loose(na_loc.text)):
+                bf.status, bf.reason_code = "MATCH", None
+                bf.label_value = na_loc.text
+                bf.evidence = _evidence(na_loc)
+                bf.citation = "27 CFR §7.64"
+                bf.note = ("Brand appears within the bottler statement — with no "
+                           "separate brand line, the bottler's name serves as the "
+                           "brand (§7.64).")
+        else:
+            fields.append(FieldResult(
+                "name_address", "NOT_CHECKED", None, None, None,
+                "No 'Brewed/Bottled/Packed by' phrase found — for malt the phrase "
+                "is OPTIONAL: the bottler's name and city/state alone satisfy "
+                "§7.66, and they must match the brewer's notice (not machine-"
+                "checkable from the label) — confirm visually.",
+                None, "27 CFR §7.66"))
+        asp = aspartame_check([l.text for l in locator.lines])
+        if asp is not None:
+            status, note_a = asp
+            fields.append(FieldResult(
+                "aspartame_declaration", status, None, None,
+                None if status == "MATCH" else "aspartame_declaration_form",
+                note_a, None, "27 CFR §7.63(b)(4)"))
 
     # government warning — always-on
     warn_loc = locator.find_warning()

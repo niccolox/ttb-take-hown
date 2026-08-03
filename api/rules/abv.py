@@ -102,6 +102,14 @@ def compare_abv(app_percent: float | None, label: AbvReading, bev: BevType,
         return AbvVerdict.NEEDS_REVIEW, "no application ABV supplied"
 
     if label.range_lo is not None:
+        # malt beverages may not state alcohol content as a range or as
+        # max/min values at all (§7.65(b), TTB malt-ABV guidance) — the
+        # statement itself is the defect, whatever the application says
+        if bev == BevType.MALT:
+            return AbvVerdict.MISMATCH, (
+                f"label states a range {label.range_lo}%–{label.range_hi}% — alcohol "
+                "content on malt beverages may not be expressed as a range or "
+                "max/min (§7.65(b))")
         # wine range statements carry their own legality limits (§4.36(b),
         # TTB wine-ABV guidance): the span may not exceed 2 points above 14%
         # or 3 points at/below, and a range may never overlap a class/tax-
@@ -155,19 +163,31 @@ def proof_consistency(label: AbvReading) -> tuple[bool | None, str]:
 
 
 _ABV_ABBREV_RE = re.compile(r"\bA\.?\s?B\.?\s?V\.?\b", re.I)
+_ABW_ABBREV_RE = re.compile(r"\bA\.?\s?B\.?\s?W\.?\b", re.I)
+_OVERPRECISE_RE = re.compile(r"(\d+\.\d{2,})\s*%")
 
 
 def abv_format_legality(label_text: str | None, bev: BevType) -> tuple[str, str] | None:
-    """Statement-wording check for wine (§4.36(a); TTB wine-ABV guidance):
-    only 'alc.' and 'vol.' may abbreviate 'alcohol'/'volume' — 'ABV' is not
-    permitted on wine labels. Wording is a labeling defect, not a data
+    """Statement-wording check for wine (§4.36(a)) and malt (§7.65(b)):
+    only 'alc.' and 'vol.' may abbreviate — 'ABV' is not permitted on
+    either; malt additionally bans 'ABW' and requires expression to the
+    nearest 0.1% at 0.5%+ ABV. Wording is a labeling defect, not a data
     mismatch, so callers escalate green to amber at most. None = no opinion
-    (other commodities' wording rules are not asserted here)."""
-    if bev != BevType.WINE or not label_text:
+    (spirits wording is not asserted here)."""
+    if bev not in (BevType.WINE, BevType.MALT) or not label_text:
         return None
+    cite = "§4.36(a)" if bev == BevType.WINE else "§7.65(b)"
     if _ABV_ABBREV_RE.search(label_text):
-        return ("FAIL", "'ABV' is not a permitted abbreviation on wine labels — "
-                        "only 'alc.' and 'vol.' may abbreviate (§4.36(a))")
+        return ("FAIL", f"'ABV' is not a permitted abbreviation — only 'alc.' "
+                        f"and 'vol.' may abbreviate ({cite})")
+    if bev == BevType.MALT:
+        if _ABW_ABBREV_RE.search(label_text):
+            return ("FAIL", "'ABW' is not a permitted abbreviation for alcohol "
+                            "by weight (§7.65(b)(1))")
+        m = _OVERPRECISE_RE.search(label_text)
+        if m and float(m.group(1)) >= 0.5:
+            return ("FAIL", f"{m.group(1)}% — malt alcohol content must be "
+                            "stated to the nearest 0.1% at 0.5%+ ABV (§7.65(b)(2))")
     return ("PASS", "statement wording uses permitted forms")
 
 

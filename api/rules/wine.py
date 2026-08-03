@@ -15,7 +15,9 @@ SULFITE_RE = re.compile(r"\bSUL(?:F|PH)ITES?\b", re.I)
 # §4.35 mandatory phrase family: BOTTLED/PACKED BY (domestic), IMPORTED BY
 # (imports). Optional descriptive prefixes (Produced and…, Vinted and…)
 # still contain the mandatory verb, so matching the core phrase suffices.
-NAME_ADDRESS_RE = re.compile(r"\b(?:BOTTLED|PACKED|IMPORTED)\s+BY\b", re.I)
+# BREWED/CANNED cover malt's optional phrases (§7.66 — where the phrase
+# itself is optional, so callers treat absence differently per commodity).
+NAME_ADDRESS_RE = re.compile(r"\b(?:BOTTLED|PACKED|IMPORTED|BREWED|CANNED)\s+BY\b", re.I)
 
 # §4.72 authorized standards of fill (mL). 4–17 L must be even liters;
 # ≥18 L (and saké) are exempt from the standards entirely.

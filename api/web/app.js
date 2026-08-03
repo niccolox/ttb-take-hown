@@ -17,6 +17,7 @@ const FIELD_LABELS = {
   grape_varietals: "Grape varietal(s)",
   alcohol_content: "Alcohol content", net_contents: "Net contents",
   sulfite_declaration: "Sulfite declaration", name_address: "Name & address",
+  aspartame_declaration: "Aspartame declaration",
   internal_consistency: "Internal consistency",
   government_warning: "Government Warning", image: "Image",
 };
