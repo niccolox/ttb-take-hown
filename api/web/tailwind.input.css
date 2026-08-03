@@ -171,7 +171,9 @@ button.secondary { @apply btn btn-outline btn-primary btn-sm font-semibold; min-
 .banner.red { @apply alert-error; display: flex; }
 
 .row {
-  display: grid; grid-template-columns: 150px 130px 1fr 90px; gap: 10px;
+  /* col 2 sized to the decision buttons: 3 x 48px + 2 x 10px gaps + group
+     padding = 172px — they must never bleed into the results column */
+  display: grid; grid-template-columns: 150px 172px 1fr 90px; gap: 10px;
   align-items: start; @apply py-2.5 border-b border-base-300;
 }
 .row .cropwide { grid-column: 1 / -1; }
@@ -202,7 +204,7 @@ dialog canvas { max-width: 86vw; }
    room here: roomier hit areas and clear separation between the icons */
 .override button { min-height: 44px; padding-inline: 14px; }
 .fieldov button { min-height: 44px; min-width: 48px; }
-.fieldov.btns { gap: 10px; padding: 6px 2px; }
+.fieldov.btns { gap: 10px; padding: 6px 2px; flex-wrap: wrap; max-width: 100%; }
 .override .btns { gap: 12px; }
 .fieldov.btns { @apply flex gap-1; }
 
