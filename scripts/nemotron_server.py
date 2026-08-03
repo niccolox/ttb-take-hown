@@ -79,12 +79,17 @@ def _box(pred: dict, w: int, h: int) -> list[float]:
     return [x1, y1, x2, y2]
 
 
-@app.post("/v1/ocr")
-async def ocr_endpoint(request: Request, response: Response):
-    if _ocr is None:
-        response.status_code = 503
-        return {"error": "model still loading"}
-    body = await request.body()
+# AD-21 (PLAN-enrichment N1): inference must never run on the event loop —
+# it froze /v1/health/ready during every request, so callers misdiagnosed
+# "busy" as "down". Work runs in one executor thread (the pipeline is not
+# thread-safe; one instance, one worker); a bounded counter sheds with 503
+# + queue depth instead of stacking waiters invisibly.
+_MAX_WAITING = 8
+_waiting = 0
+_waiting_lock = threading.Lock()
+
+
+def _ocr_sync(body: bytes) -> dict:
     from PIL import Image
 
     with tempfile.NamedTemporaryFile(suffix=".png") as tmp:
@@ -97,3 +102,29 @@ async def ocr_endpoint(request: Request, response: Response):
     return {"width": w, "height": h,
             "words": [{"text": p["text"], "conf": float(p.get("confidence", 1.0)),
                        "box": _box(p, w, h)} for p in preds]}
+
+
+@app.post("/v1/ocr")
+async def ocr_endpoint(request: Request, response: Response):
+    global _waiting
+    if _ocr is None:
+        response.status_code = 503
+        return {"error": "model still loading"}
+    with _waiting_lock:
+        if _waiting >= _MAX_WAITING:
+            response.status_code = 503
+            return {"error": "queue full", "queue_depth": _waiting}
+        _waiting += 1
+    try:
+        body = await request.body()
+        import anyio
+        return await anyio.to_thread.run_sync(_ocr_sync, body)
+    finally:
+        with _waiting_lock:
+            _waiting -= 1
+
+
+@app.get("/v1/health/queue")
+def queue_depth():
+    with _waiting_lock:
+        return {"queue_depth": _waiting, "max_waiting": _MAX_WAITING}

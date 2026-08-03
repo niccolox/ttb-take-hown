@@ -10,6 +10,7 @@ import io
 import json
 import logging
 import tempfile
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -20,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps
 
 from .extractor import build_extractor
+from .jobs import JobQueue, ResultStore
 from .verify import verify_multi
 
 MAX_BYTES = 8 * 1024 * 1024
@@ -30,7 +32,32 @@ WEB = Path(__file__).parent / "web"
 app = FastAPI(title="TTB Label Screening Assistant",
               description="Screening, never approval — the agent decides.")
 extractor = build_extractor()
-pool = ThreadPoolExecutor(max_workers=2)
+pool = ThreadPoolExecutor(max_workers=2)          # fast path ONLY (AD-23)
+store = ResultStore()                             # single-process (AD-25)
+jobq = JobQueue(store)                            # background layers (N3+)
+
+# Wedge detection (AD-33): a native OCR call that hangs keeps its pool
+# thread + engine lock forever; count timed-out-but-still-running extracts
+# and stop reporting ready when the whole fast-path pool is wedged.
+_wedged = 0
+_wedge_lock = threading.Lock()
+
+
+def _note_wedge(fut) -> None:
+    global _wedged
+    with _wedge_lock:
+        _wedged += 1
+
+    def _clear(_):
+        global _wedged
+        with _wedge_lock:
+            _wedged -= 1
+    fut.add_done_callback(_clear)
+
+
+def _wedged_out() -> bool:
+    with _wedge_lock:
+        return _wedged >= pool._max_workers
 
 SAMPLES = {
     "clean_match": {
@@ -71,6 +98,13 @@ SAMPLES = {
 
 @app.on_event("startup")
 def _warm():
+    # AD-25: the result store lives in this process; a second worker would
+    # 404 randomly on GET /api/verify/{id}. uvicorn --workers N sets
+    # WEB_CONCURRENCY; refuse anything but 1.
+    import os
+    if os.environ.get("WEB_CONCURRENCY", "1") not in ("", "1"):
+        raise RuntimeError("labelcheck requires a single worker process "
+                           "(in-process result store, PLAN-enrichment AD-25)")
     fut = pool.submit(extractor.warm, str(GOLDEN / "spirits_clean.jpg"))
     fut.add_done_callback(                    # a swallowed warm-up error = silent forever-503
         lambda f: f.exception() and logging.getLogger("uvicorn.error").error(
@@ -78,10 +112,32 @@ def _warm():
             f.exception()))
 
 
+def _rss_mb() -> float:
+    try:
+        with open("/proc/self/status") as f:
+            for line in f:
+                if line.startswith("VmRSS:"):
+                    return round(int(line.split()[1]) / 1024, 1)
+    except OSError:
+        pass
+    return 0.0
+
+
 @app.get("/healthz")
 def healthz():
-    return {"status": "ready" if extractor.ready() else "loading models",
-            "ready": extractor.ready()}
+    # AD-40 schema: `ready` keeps its historical meaning (can serve verdicts);
+    # `state` is the tri-state (degraded_paddle arrives with N3's dual-engine).
+    if _wedged_out():
+        state, ready = "down", False
+    elif extractor.ready():
+        state, ready = "ready", True
+    else:
+        state, ready = "loading", False
+    return {"status": "ready" if ready else ("wedged" if state == "down"
+                                             else "loading models"),
+            "ready": ready, "state": state,
+            "queue": {"depth": jobq.depth(), "oldest_age_s": jobq.oldest_age_s()},
+            "rss_mb": _rss_mb()}
 
 
 @app.get("/api/samples")
@@ -268,8 +324,8 @@ def session_get(summary: bool = False):
 
 
 @app.post("/api/session")
-async def session_save(meta: str = Form("{}"),
-                       images: list[UploadFile] = File(None)):
+def session_save(meta: str = Form("{}"),
+                 images: list[UploadFile] = File(None)):
     """Snapshot the batch. `meta` = JSON [{file_name, state, override,
     application, result, panels: [{panel, file}]}]; `images` = the panel files
     in the exact order the panels appear across items."""
@@ -293,7 +349,7 @@ async def session_save(meta: str = Form("{}"),
     blobs = []
     total = 0
     for (idx, p), up in zip(expected, uploads):
-        raw = await up.read()
+        raw = up.file.read()
         total += len(raw)
         if len(raw) > MAX_BYTES or total > 64 * 1024 * 1024:
             return JSONResponse({"error": "Session images too large.",
@@ -363,10 +419,17 @@ def run_pipeline(tname: str, per_type: int = 4, query: str | None = None):
 
 
 @app.post("/api/verify")
-async def api_verify(image: UploadFile = File(None),
-                     images: list[UploadFile] = File(None),
-                     application: str = Form("{}")):
-    """Single `image` (back-compat) or multiple `images` (front/back panels)."""
+def api_verify(image: UploadFile = File(None),
+               images: list[UploadFile] = File(None),
+               application: str = Form("{}")):
+    """Single `image` (back-compat) or multiple `images` (front/back panels).
+
+    Sync `def` on purpose (N1): PIL decode/resize and the OCR wait run in
+    FastAPI's threadpool, so /healthz and other requests stay live during a
+    40 MP decode. Response carries the explicit finality contract (AD-34):
+    `status`/`settled`/`revision`/`pending[]` — in N1 every result settles
+    immediately (no background layers yet), so `status` is always
+    "settled" and old consumers keep their semantics byte-identical."""
     if not extractor.ready():
         return JSONResponse({"error": "Still loading OCR models — try again in a few "
                                        "seconds.", "code": "warming_up"}, status_code=503)
@@ -389,7 +452,7 @@ async def api_verify(image: UploadFile = File(None),
     scales = []                                  # OCR-space → original-bitmap factor per panel
     t0 = time.perf_counter()
     for up in uploads:
-        raw = await up.read()
+        raw = up.file.read()
         if len(raw) > MAX_BYTES:
             return JSONResponse({"error": "Image too large — max 8MB.",
                                  "code": "too_large"}, status_code=413)
@@ -415,8 +478,15 @@ async def api_verify(image: UploadFile = File(None),
                                            "corrupt.", "code": "decode_failed"}, status_code=422)
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=True) as tmp:
             img.save(tmp.name, "JPEG", quality=92)
+            fut = pool.submit(extractor.extract, tmp.name)
             try:
-                words = pool.submit(extractor.extract, tmp.name).result(timeout=15)
+                words = fut.result(timeout=15)
+            except TimeoutError:
+                # the native call may be hung holding the engine lock — track
+                # it so /healthz stops reporting ready if the pool wedges
+                _note_wedge(fut)
+                return JSONResponse({"error": "This check didn't finish — retry.",
+                                     "code": "system_error"}, status_code=500)
             except Exception:
                 return JSONResponse({"error": "This check didn't finish — retry.",
                                      "code": "system_error"}, status_code=500)
@@ -437,7 +507,42 @@ async def api_verify(image: UploadFile = File(None),
             for d in ev.get("diff_boxes") or []:
                 d["box"] = [round(v * s, 1) for v in d["box"]]
     result["timing_ms"]["ocr"] = round((time.perf_counter() - t0) * 1000)
-    return result
+    entry = store.put(result)                 # result_id == request_id (AD-36)
+    body = entry.public()
+    body["cancel_token"] = entry.cancel_token  # only in the POST response (AD-39)
+    return body
+
+
+@app.get("/api/verify/{result_id}")
+def api_verify_get(result_id: str):
+    """Refinement lifecycle read (AD-34): poll until `settled` is true.
+    `revision` is monotonic per result — clients apply a response only if
+    its revision is >= the last one seen (AD-19/AD-32)."""
+    entry = store.get(result_id)
+    if entry is None:
+        code = store.status_of_missing(result_id)   # expired ≠ not_found (AD-38)
+        msg = ("This result expired — re-verify the label."
+               if code == "expired" else "Unknown result id — re-verify the label.")
+        return JSONResponse({"error": msg, "code": code}, status_code=404)
+    return entry.public()
+
+
+@app.post("/api/verify/{result_id}/cancel", include_in_schema=False)
+def api_verify_cancel(result_id: str, token: str = Form("")):
+    """Internal (AD-39): invoked by re-verify, gated by the POST-issued token."""
+    entry = store.get(result_id)
+    if entry is None:
+        return JSONResponse({"error": "Unknown or expired result id.",
+                             "code": store.status_of_missing(result_id)},
+                            status_code=404)
+    if token != entry.cancel_token:
+        return JSONResponse({"error": "Bad cancel token.", "code": "bad_token"},
+                            status_code=403)
+    if entry.settled():
+        return JSONResponse({"error": "Already settled — nothing to cancel.",
+                             "code": "already_settled"}, status_code=409)
+    jobq.cancel_result(result_id)
+    return {"cancelled": True, "result_id": result_id}
 
 
 # static UI last so /docs, /redoc, /openapi.json stay reachable (DX spec)

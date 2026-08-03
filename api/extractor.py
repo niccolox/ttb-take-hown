@@ -146,7 +146,9 @@ class NemotronExtractor:
             req = urllib.request.Request(
                 f"{self._base}/v1/ocr", data=f.read(), method="POST",
                 headers={"Content-Type": "application/octet-stream"})
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        # 10s not 60s (AD-26): the engine's median is ~250 ms — a longer wait
+        # only serializes queue backlog behind a dead/degraded sidecar
+        with urllib.request.urlopen(req, timeout=10) as resp:
             payload = json.load(resp)
         return [Word(text=w["text"], box=tuple(w["box"]), conf=float(w["conf"]))
                 for w in payload["words"] if w["text"].strip()]
