@@ -23,5 +23,30 @@
   "provenance": {
    "source": "generate_golden_cola.py (synthetic; fictional brand, controlled truth)"
   }
+ },
+ {
+  "id": "gw_beer_02",
+  "file": "gw_beer_02_front.jpg",
+  "files": [
+   {
+    "file": "gw_beer_02_front.jpg",
+    "panel": "front"
+   },
+   {
+    "file": "gw_beer_02_back.jpg",
+    "panel": "back"
+   }
+  ],
+  "application": {
+   "beverage_type": "malt_beverage",
+   "brand_name": "BRIDGETOWN ORGANIC ALES",
+   "class_type": "Organic Stout",
+   "alcohol_content": "5.9%",
+   "net_contents": "12 FL OZ"
+  },
+  "note": "Synthetic golden patterned on the beer corpus structure; ground truth by construction. Expected: all green; organic claims are USDA NOP territory (certifier line on the info panel), outside TTB screening scope",
+  "provenance": {
+   "source": "generate_golden_cola.py (synthetic; fictional brand, controlled truth)"
+  }
  }
 ]

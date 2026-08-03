@@ -156,6 +156,23 @@ PIPELINES: list[dict] = [
                           class_type="American Pale Ale",
                           alcohol_content="5.6%", net_contents="12 FL OZ"),
          expect="all green; malt ABV optional but printed and matching"),
+    dict(pipeline="beer", id="gw_beer_02",
+         brand_label="BRIDGETOWN\nORGANIC ALES", brand_font="sans_bold",
+         brand_size=54, bg="#efe7d8", frame="#2b1d16",
+         class_type="Organic Stout", sulfites=False,
+         front_extras=["MADE WITH ORGANIC BARLEY & HOPS",
+                       "ROASTED · FULL-BODIED"],
+         net_line="12 FL OZ", abv_line="5.9% ALC/VOL", front_abv="5.9% ALC/VOL",
+         origin_line="PORTLAND, OREGON",
+         back_block=["BREWED AND BOTTLED BY BRIDGETOWN ORGANIC ALES",
+                     "PORTLAND, OREGON",
+                     "CERTIFIED ORGANIC BY OREGON TILTH"],
+         application=dict(beverage_type="malt_beverage",
+                          brand_name="BRIDGETOWN ORGANIC ALES",
+                          class_type="Organic Stout",
+                          alcohol_content="5.9%", net_contents="12 FL OZ"),
+         expect="all green; organic claims are USDA NOP territory (certifier "
+                "line on the info panel), outside TTB screening scope"),
     dict(pipeline="spirits", id="gw_spirits_01",
          brand_label="SILVER MERIDIAN", class_type="Straight Rye Whiskey",
          front_extras=["AGED 4 YEARS IN NEW CHARRED OAK"], sulfites=False,
@@ -242,6 +259,9 @@ def _entry(fid: str, spec: dict, expect: str) -> dict:
 
 
 def main() -> None:
+    # manifests accumulate per pipeline — a pipeline may carry several
+    # goldens (beer has two), and per-spec writes clobbered the earlier ones
+    manifests: dict[str, list] = {}
     for spec in PIPELINES:
         out = OUT / spec["pipeline"]
         out.mkdir(parents=True, exist_ok=True)
@@ -250,19 +270,21 @@ def main() -> None:
         back = back_panel(spec)
         front.save(out / f"{fid}_front.jpg", "JPEG", quality=92)
         back.save(out / f"{fid}_back.jpg", "JPEG", quality=92)
-        manifest = [_entry(fid, spec, spec["expect"])]
+        entries = manifests.setdefault(spec["pipeline"], [])
+        entries.append(_entry(fid, spec, spec["expect"]))
         if spec["pipeline"] == "wine":
             for suffix, transform, desc in WINE_DEGRADATIONS:
                 did = f"gw_wine_{suffix}"          # gw_wine_blur, gw_wine_angle…
                 transform(front).save(out / f"{did}_front.jpg", "JPEG", quality=88)
                 transform(back).save(out / f"{did}_back.jpg", "JPEG", quality=88)
-                manifest.append(_entry(did, spec,
-                                       f"{desc} — recoverable checks stay green; "
-                                       f"unrecoverable ones degrade to honest "
-                                       f"NEEDS_REVIEW, never a false MISMATCH"))
+                entries.append(_entry(did, spec,
+                                      f"{desc} — recoverable checks stay green; "
+                                      f"unrecoverable ones degrade to honest "
+                                      f"NEEDS_REVIEW, never a false MISMATCH"))
                 print(f"  wine degraded: {did} ({desc})")
-        (out / "manifest.json").write_text(json.dumps(manifest, indent=1))
         print(f"{spec['pipeline']}: {fid} (front+back)")
+    for pipeline, entries in manifests.items():
+        (OUT / pipeline / "manifest.json").write_text(json.dumps(entries, indent=1))
 
 
 if __name__ == "__main__":
