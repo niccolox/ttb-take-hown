@@ -8,3 +8,4 @@ api/data/
 /vendor/
 api/eval/batches/
 api/web/node_modules
+source/
