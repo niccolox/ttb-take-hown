@@ -1,0 +1,150 @@
+/* Tailwind + DaisyUI source for the Label Check UI.
+   Compiled OFFLINE and vendored (no CDN — the no-egress premise applies to
+   the browser too). Regenerate:
+     scripts/build-css.sh
+   Mapping strategy: existing semantic class names are preserved (app.js is
+   untouched) and restyled onto DaisyUI components via @apply. */
+
+@import "tailwindcss" source(none);
+@source "./index.html";
+@source "./app.js";
+@plugin "daisyui" {
+  themes: corporate --default;
+}
+
+:root {
+  --accent: #005ea2;                 /* USWDS federal blue, kept as anchor */
+}
+
+body {
+  margin: 0;
+  font: 18px/1.5 "Public Sans", "DejaVu Sans", system-ui, sans-serif;
+  @apply bg-base-200 text-base-content;
+}
+
+header { border-bottom: 3px solid var(--accent); @apply bg-base-100 px-6 py-3; }
+header h1 { @apply text-2xl font-bold m-0; }
+header p { @apply text-base opacity-70 mt-0.5 mb-0; }
+
+main {
+  width: 100%; margin: 0; padding: 20px 24px;
+  display: grid; grid-template-columns: 320px 520px 1fr; gap: 18px;
+}
+@media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+
+h2 { @apply text-lg font-bold border-b border-base-300 pb-1.5 mt-0; }
+
+section.panel { @apply card bg-base-100 border border-base-300 rounded-xl p-4 shadow-sm; }
+
+label { @apply block font-semibold text-sm mt-2.5 mb-1; }
+input[type=text], select { @apply input w-full text-base; height: 44px; }
+select { @apply select; }
+
+/* focus visibility (508): keep the strong 3px federal outline everywhere */
+input:focus, select:focus, button:focus,
+canvas.crop:focus-visible, summary:focus-visible {
+  outline: 3px solid var(--accent) !important; outline-offset: 2px;
+}
+input[type=file]:focus + .filebtn, input[type=file]:focus-visible + .filebtn,
+label.filebtn:has(+ input:focus) {
+  outline: 3px solid var(--accent); outline-offset: 2px;
+}
+
+.filebtn { @apply btn btn-outline btn-primary btn-block text-[17px] font-bold; min-height: 48px; }
+button.primary { @apply btn btn-primary btn-block mt-3.5 text-[17px] font-bold; min-height: 48px; }
+button.primary:disabled { @apply opacity-50; cursor: wait; }
+button.secondary { @apply btn btn-outline btn-primary btn-sm font-semibold; min-height: 40px; }
+
+.samples button {
+  @apply block w-full text-left my-1.5 px-2.5 py-2 border border-base-300
+    rounded-lg bg-base-100 cursor-pointer text-[15px];
+  min-height: 44px;
+}
+.samples button:hover, .list-item:hover, .filters button:hover { border-color: var(--accent); }
+.samples .shows { @apply block text-[13px] opacity-60; }
+
+.inline-error { @apply alert alert-error mt-3 py-2.5 px-3 text-[15px]; display: none; }
+
+.list-item {
+  @apply flex gap-2 items-center w-full text-left p-2.5 border border-base-300
+    rounded-lg bg-base-100 my-1.5 cursor-pointer text-[15px];
+  min-height: 44px;
+}
+.list-item[aria-current="true"] { border-color: var(--accent); border-width: 2px; }
+.list-item .fn { @apply flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-semibold; }
+.list-item img.mini {
+  @apply rounded border border-base-300 bg-base-200;
+  width: 44px; height: 44px; object-fit: cover; flex: none;
+}
+
+/* status lozenges + field chips → DaisyUI badges (soft) */
+.loz { @apply badge badge-soft badge-sm gap-1 font-bold whitespace-nowrap; }
+.loz.green { @apply badge-success; }
+.loz.amber { @apply badge-warning; }
+.loz.red { @apply badge-error; }
+.loz.grey { @apply badge-neutral; }
+
+.chip { @apply badge badge-soft gap-1 font-bold whitespace-nowrap text-sm py-3; }
+.chip.green { @apply badge-success; }
+.chip.amber { @apply badge-warning; }
+.chip.red { @apply badge-error; }
+.chip.grey { @apply badge-neutral; }
+
+.filters { @apply flex flex-col gap-1.5 my-2; }
+.filters button {
+  @apply flex justify-between items-center gap-2 border border-base-300
+    rounded-lg bg-base-100 w-full cursor-pointer text-sm text-left;
+  padding: 7px 12px; min-height: 40px;
+}
+.filters button[aria-pressed="true"] { border-color: var(--accent); border-width: 2px; @apply font-bold; }
+.filters .dot { @apply rounded-full flex-none; width: 10px; height: 10px; }
+.filters .flabel { @apply flex-1; }
+.filters .cnt { @apply font-bold tabular-nums; }
+
+.progress { @apply text-[15px] opacity-70 my-1.5; height: auto; width: auto; }
+
+.banner { @apply alert font-bold text-lg mb-3; display: none; }
+.banner.green { @apply alert-success; display: flex; }
+.banner.amber { @apply alert-warning; display: flex; }
+.banner.red { @apply alert-error; display: flex; }
+
+.row {
+  display: grid; grid-template-columns: 150px 130px 1fr 90px; gap: 10px;
+  align-items: start; @apply py-2.5 border-b border-base-300;
+}
+.row .cropwide { grid-column: 1 / -1; }
+.row .cropwide canvas.crop { max-height: 160px; }
+.row .fname { @apply font-bold text-[15px]; }
+
+.vals { @apply text-base; }
+.vals .lbl { @apply opacity-60; }
+.note { @apply text-[15px] opacity-80 mt-0.5; }
+.cite { @apply text-xs opacity-60 italic; }
+
+canvas.crop { @apply border border-base-300 rounded; max-height: 96px; max-width: 100%; cursor: zoom-in; }
+.sub { @apply mt-1 px-2 py-1.5 bg-base-200 rounded-md text-[13px]; }
+
+dialog { @apply border-2 border-base-content rounded-xl; max-width: 90vw; }
+dialog canvas { max-width: 86vw; }
+
+.storage-note { @apply text-[13px] opacity-60 mt-2; }
+
+.timing { @apply badge badge-soft font-bold text-[15px] mb-2 py-3 px-2.5 inline-flex h-auto whitespace-normal text-left; }
+.timing.ok { @apply badge-success; }
+.timing.over { @apply badge-error; }
+
+.override { @apply mt-3 pt-2 border-t border-dashed border-base-300; }
+.override .btns { @apply flex gap-2 mt-1.5; }
+.override button, .fieldov button {
+  @apply btn btn-sm btn-outline font-semibold;
+  min-height: 40px;
+}
+.override button[aria-pressed="true"], .fieldov button[aria-pressed="true"] {
+  @apply btn-primary btn-active;
+}
+.fieldov.btns { @apply flex gap-1; }
+
+.ov-note { @apply text-sm font-semibold mt-1 text-warning; }
+.batchbar { @apply flex gap-2 mt-2.5 flex-wrap; }
+footer { @apply px-6 py-4 opacity-60 text-[13px]; }
+img.thumb { @apply max-w-full border border-base-300 rounded-lg mb-2.5; }
