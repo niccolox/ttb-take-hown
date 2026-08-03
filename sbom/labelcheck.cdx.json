@@ -1,0 +1,1394 @@
+{
+ "bomFormat": "CycloneDX",
+ "specVersion": "1.5",
+ "version": 1,
+ "metadata": {
+  "timestamp": "2026-08-03T16:17:18+00:00",
+  "component": {
+   "type": "application",
+   "name": "labelcheck",
+   "version": "a763b85169e5"
+  },
+  "properties": [
+   {
+    "name": "labelcheck:generation-context",
+    "value": "scripts/gen_sbom.py from api/requirements.lock (hash-locked install source) + api/models.sha256 at commit a763b85169e5"
+   }
+  ]
+ },
+ "components": [
+  {
+   "type": "library",
+   "name": "aistudio-sdk",
+   "version": "0.3.9",
+   "purl": "pkg:pypi/aistudio-sdk@0.3.9",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "41621d052ddb7a58643438a7ca541f58ef0ab94a2acdfff0a71db81bf68dc027"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "Apache-2.0"
+     }
+    }
+   ],
+   "properties": [
+    {
+     "name": "labelcheck:origin-risk",
+     "value": "Baidu (PRC) \u2014 transitive, never imported at runtime"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "annotated-doc",
+   "version": "0.0.5",
+   "purl": "pkg:pypi/annotated-doc@0.0.5",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "117bac03a25ede5df5440e855b32d556049ca169ead221505badf432fed4b101"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "annotated-types",
+   "version": "0.8.0",
+   "purl": "pkg:pypi/annotated-types@0.8.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "13b2beaad985e05e2d6407ee4c4f35590b11f8d693a258a561055cac8f64cab7"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "anyio",
+   "version": "4.14.2",
+   "purl": "pkg:pypi/anyio@4.14.2",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "9f505dda5ac9f0c8309b5e8bd445a8c2bf7246f3ce950121e45ea15bc41d1494"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "bce-python-sdk",
+   "version": "0.9.76",
+   "purl": "pkg:pypi/bce-python-sdk@0.9.76",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "01c630ce8dcbf8be0563d65f18b5201eaac6bd954b3dc776040aec268f81b6ff"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "Apache License 2.0"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "certifi",
+   "version": "2026.7.22",
+   "purl": "pkg:pypi/certifi@2026.7.22",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MPL-2.0"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "chardet",
+   "version": "7.4.3",
+   "purl": "pkg:pypi/chardet@7.4.3",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "0ac3bf11c645734a1701a3804e43eabd98851838192267d08c353a834ab79fea"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "0BSD"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "charset-normalizer",
+   "version": "3.4.9",
+   "purl": "pkg:pypi/charset-normalizer@3.4.9",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "0327fcd59a935777d83410750c50600ee9571af2846f71ce40f25b13da1ef380"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "click",
+   "version": "8.4.2",
+   "purl": "pkg:pypi/click@8.4.2",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "9a6cea6e60b17ebe0a44c5cc636d94f09bd66142c1cd7d8b4cd731c4917a15f6"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "BSD-3-Clause"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "colacloud",
+   "version": "0.4.4",
+   "purl": "pkg:pypi/colacloud@0.4.4",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "738e8f2ff0c2a27444b8a7fdfcfa797b4b8956b599bb777fefdd3dacf75e121c"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "colorlog",
+   "version": "6.12.0",
+   "purl": "pkg:pypi/colorlog@6.12.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "2a7924c1dadf18b22a0eb8b06d1c7b01d5341707ec1641eb6fcc4fde0c3e8e5f"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT License"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "crc32c",
+   "version": "2.8",
+   "purl": "pkg:pypi/crc32c@2.8",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "0184369aad562d801f91f454c81f56b9ecb966f6b96684c4d6cf82fc8741d2ad"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "LGPL-2.1-or-later"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "duckdb",
+   "version": "1.5.5",
+   "purl": "pkg:pypi/duckdb@1.5.5",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "078e6a60dd8eedde5832f45422ca5c4a6b8c837aeabd8a56ca0b7d933f588053"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT License"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "fastapi",
+   "version": "0.141.1",
+   "purl": "pkg:pypi/fastapi@0.141.1",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "bfb91aa2d334c61cb35ba9a116fc123b3d3df31640b801cf57a7a78ec3f603b3"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "filelock",
+   "version": "3.32.2",
+   "purl": "pkg:pypi/filelock@3.32.2",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "87dd94cf281e586d135fa51132b8e3d9a598b316e90377a288663c9321036c82"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "fsspec",
+   "version": "2026.7.0",
+   "purl": "pkg:pypi/fsspec@2026.7.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "b57ddbafedfaef7018c1ecab32aa200a9d7ca26b77965f64e48b70061249d279"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "BSD-3-Clause"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "future",
+   "version": "1.0.0",
+   "purl": "pkg:pypi/future@1.0.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "929292d34f5872e70396626ef385ec22355a1fae8ad29e1a734c3e43f9fbc216"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "h11",
+   "version": "0.16.0",
+   "purl": "pkg:pypi/h11@0.16.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "hf-xet",
+   "version": "1.5.2",
+   "purl": "pkg:pypi/hf-xet@1.5.2",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "045f84440c55cdeb659cf1a1dd48c77bcd0d2e93632e2fea8f2c3bdee79f38ed"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "Apache-2.0"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "httpcore",
+   "version": "1.0.9",
+   "purl": "pkg:pypi/httpcore@1.0.9",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "BSD-3-Clause"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "httpx",
+   "version": "0.28.1",
+   "purl": "pkg:pypi/httpx@0.28.1",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "BSD-3-Clause"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "huggingface-hub",
+   "version": "1.26.0",
+   "purl": "pkg:pypi/huggingface-hub@1.26.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "c8cd4e2df1ba9402f77fce9b509ec1d52debb502551789473f34016acc14e361"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "Apache-2.0"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "idna",
+   "version": "3.18",
+   "purl": "pkg:pypi/idna@3.18",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "7f952cbe720b688055e3f87de14f5c3e5fdaa8bc3928985c4077ca689de849a2"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "BSD-3-Clause"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "imagesize",
+   "version": "2.0.0",
+   "purl": "pkg:pypi/imagesize@2.0.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "5667c5bbb57ab3f1fa4bc366f4fbc971db3d5ed011fd2715fd8001f782718d96"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "iniconfig",
+   "version": "2.3.0",
+   "purl": "pkg:pypi/iniconfig@2.3.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "c76315c77db068650d49c5b56314774a7804df16fee4402c1f19d6d15d8c4730"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "modelscope",
+   "version": "1.39.0",
+   "purl": "pkg:pypi/modelscope@1.39.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "a363298e4620db83b3ec0057a23a73c4ee1fa122ca11b375e72ef94874123efa"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "Apache-2.0"
+     }
+    }
+   ],
+   "properties": [
+    {
+     "name": "labelcheck:origin-risk",
+     "value": "Alibaba (PRC) \u2014 transitive, never imported at runtime"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "modelscope-hub",
+   "version": "0.2.0",
+   "purl": "pkg:pypi/modelscope-hub@0.2.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "00288d3e08ad7fadfdd7539f4dffa9d75f9006c43c73abd33ea51767317f001c"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "Apache-2.0"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "networkx",
+   "version": "3.6.1",
+   "purl": "pkg:pypi/networkx@3.6.1",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "26b7c357accc0c8cde558ad486283728b65b6a95d85ee1cd66bafab4c8168509"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "BSD-3-Clause"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "numpy",
+   "version": "2.5.1",
+   "purl": "pkg:pypi/numpy@2.5.1",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "08d60c810432eb83360958dea0999ac4cfb94531ea8efcbf0b7f277c2068aeb2"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "BSD License"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "opencv-contrib-python",
+   "version": "4.10.0.84",
+   "purl": "pkg:pypi/opencv-contrib-python@4.10.0.84",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "040575b69e4f3aa761676bace4e3d1b8485fbfaf77ef77b266ab6bda5a3b5e9b"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "Apache 2.0"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "opencv-python-headless",
+   "version": "5.0.0.93",
+   "purl": "pkg:pypi/opencv-python-headless@5.0.0.93",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "030ca5e0837a2963ab36ef896baa9767eb8d2b83353fb28af5a521e40dd8756f"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "Apache 2.0"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "opt-einsum",
+   "version": "3.3.0",
+   "purl": "pkg:pypi/opt-einsum@3.3.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "2455e59e3947d3c275477df7f5205b30635e266fe6dc300e3d9f9646bfcea147"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "packaging",
+   "version": "26.2",
+   "purl": "pkg:pypi/packaging@26.2",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "Apache-2.0 OR BSD-2-Clause"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "paddleocr",
+   "version": "3.2.0",
+   "purl": "pkg:pypi/paddleocr@3.2.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "2b942295ad5963de8e01d68afb15a9507d713bc7299e2dfeb198d9c3ac5cf76f"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "Apache License 2.0"
+     }
+    }
+   ],
+   "properties": [
+    {
+     "name": "labelcheck:origin-risk",
+     "value": "Baidu (PRC) \u2014 mitigations: version+hash pinned, weights SHA-256 pinned (api/models.sha256), no-egress runtime, no telemetry path"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "paddlepaddle",
+   "version": "3.2.2",
+   "purl": "pkg:pypi/paddlepaddle@3.2.2",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "00d2241235f446c216565da6db54e079696fd6be13184e588527c16b2cc43f73"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "Apache Software License"
+     }
+    }
+   ],
+   "properties": [
+    {
+     "name": "labelcheck:origin-risk",
+     "value": "Baidu (PRC) \u2014 same mitigations as paddleocr"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "paddlex",
+   "version": "3.2.1",
+   "purl": "pkg:pypi/paddlex@3.2.1",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "36644d8845f0d433b2412ffad61683ec2647c7475ff29dffdff153f42cb9c9b4"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "Apache 2.0"
+     }
+    }
+   ],
+   "properties": [
+    {
+     "name": "labelcheck:origin-risk",
+     "value": "Baidu (PRC) \u2014 transitive; same mitigations"
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pandas",
+   "version": "3.0.5",
+   "purl": "pkg:pypi/pandas@3.0.5",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "08d24fe11a17dc33bd6e937dc9c665f9cba08fbdc9f657f405713515febe300d"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "BSD License"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pillow",
+   "version": "12.3.0",
+   "purl": "pkg:pypi/pillow@12.3.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "00808c5e14ef63ac5161091d242999076604ff74b883423a11e5d7bbb38bf756"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT-CMU"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pluggy",
+   "version": "1.6.0",
+   "purl": "pkg:pypi/pluggy@1.6.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "prettytable",
+   "version": "3.18.0",
+   "purl": "pkg:pypi/prettytable@3.18.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "439217116152244369caf3d9f1caf2f9fe29b03bd79e88d2928c8e718c95d680"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "BSD-3-Clause"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "protobuf",
+   "version": "7.35.1",
+   "purl": "pkg:pypi/protobuf@7.35.1",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "11d6b0ec246892d85215b0a13ca6e0233cf5284b68f0ac02646427f4ff88a799"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "3-Clause BSD License"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "psutil",
+   "version": "7.2.2",
+   "purl": "pkg:pypi/psutil@7.2.2",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "0746f5f8d406af344fd547f1c8daa5f5c33dbc293bb8d6a16d80b4bb88f59372"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "BSD-3-Clause"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "py-cpuinfo",
+   "version": "9.0.0",
+   "purl": "pkg:pypi/py-cpuinfo@9.0.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "3cdbbf3fac90dc6f118bfd64384f309edeadd902d7c8fb17f02ffa1fc3f49690"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pyclipper",
+   "version": "1.4.0",
+   "purl": "pkg:pypi/pyclipper@1.4.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "0a4d2736fb3c42e8eb1d38bf27a720d1015526c11e476bded55138a977c17d9d"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pycryptodome",
+   "version": "3.23.0",
+   "purl": "pkg:pypi/pycryptodome@3.23.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "0011f7f00cdb74879142011f95133274741778abba114ceca229adbf8e62c3e4"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "BSD, Public Domain"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pydantic",
+   "version": "2.13.4",
+   "purl": "pkg:pypi/pydantic@2.13.4",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "45a282cde31d808236fd7ea9d919b128653c8b38b393d1c4ab335c62924d9aba"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pydantic-core",
+   "version": "2.46.4",
+   "purl": "pkg:pypi/pydantic-core@2.46.4",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "00c603d540afdd6b80eb39f078f33ebd46211f02f33e34a32d9f053bba711de0"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pygments",
+   "version": "2.20.0",
+   "purl": "pkg:pypi/pygments@2.20.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "6757cd03768053ff99f3039c1a36d6c0aa0b263438fcab17520b30a303a82b5f"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "BSD-2-Clause"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pypdfium2",
+   "version": "5.12.1",
+   "purl": "pkg:pypi/pypdfium2@5.12.1",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "05bab9b1ba2de7fc299ae2af25cb9c8a0543bc8bb893e879fe8c9ba8310e9ce4"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "BSD-3-Clause, Apache-2.0, dependency licenses"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pytest",
+   "version": "9.1.1",
+   "purl": "pkg:pypi/pytest@9.1.1",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "1088fbde8f2b49d95a549a195707afa7a76a3ce9bcadc26b6d71f0ffda5fe313"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python-dateutil",
+   "version": "2.9.0.post0",
+   "purl": "pkg:pypi/python-dateutil@2.9.0.post0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "Dual License"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "python-multipart",
+   "version": "0.0.32",
+   "purl": "pkg:pypi/python-multipart@0.0.32",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "be54b7f3fa167bb83e4fcd936b887b708f4e57fe75911c02aebf53efaf8d938e"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "Apache-2.0"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "pyyaml",
+   "version": "6.0.2",
+   "purl": "pkg:pypi/pyyaml@6.0.2",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "01179a4a8559ab5de078078f37e5c1a30d76bb88519906844fd7bdea1b7729ff"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "rapidfuzz",
+   "version": "3.14.5",
+   "purl": "pkg:pypi/rapidfuzz@3.14.5",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "0084b687b02b4e569b46d8d6d4ad25659528e6081cd6d067ca453a69035f07e4"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "requests",
+   "version": "2.34.2",
+   "purl": "pkg:pypi/requests@2.34.2",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "Apache-2.0"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "ruamel-yaml",
+   "version": "0.19.1",
+   "purl": "pkg:pypi/ruamel-yaml@0.19.1",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "27592957fedf6e0b62f281e96effd28043345e0e66001f97683aa9a40c667c93"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "safetensors",
+   "version": "0.8.0",
+   "purl": "pkg:pypi/safetensors@0.8.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "040070828e36dc8e122178bbbd5830ff9e97920affb84cbe0f46442497bed358"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "Apache Software License"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "setuptools",
+   "version": "83.0.0",
+   "purl": "pkg:pypi/setuptools@83.0.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "025bccbbf0fa05b6192bc64ae1e7b16e001fd6d6d4d5de03c97b1c1ade523bef"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "shapely",
+   "version": "2.1.2",
+   "purl": "pkg:pypi/shapely@2.1.2",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "0036ac886e0923417932c2e6369b6c52e38e0ff5d9120b90eef5cd9a5fc5cae9"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "BSD 3-Clause"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "six",
+   "version": "1.17.0",
+   "purl": "pkg:pypi/six@1.17.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "starlette",
+   "version": "1.3.1",
+   "purl": "pkg:pypi/starlette@1.3.1",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "05d0213193f2fbaae60e2ecb593b4add4262ad4e46536b54abe36f11a71724e0"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "BSD-3-Clause"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "tqdm",
+   "version": "4.70.0",
+   "purl": "pkg:pypi/tqdm@4.70.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "55b0b0dbd97462d06ebee91e4dac24ed4d4702be82b24f07e6c1d27e08cea220"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MPL-2.0 AND MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "typing-extensions",
+   "version": "4.16.0",
+   "purl": "pkg:pypi/typing-extensions@4.16.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "PSF-2.0"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "typing-inspection",
+   "version": "0.4.2",
+   "purl": "pkg:pypi/typing-inspection@0.4.2",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "4ed1cacbdc298c220f1bd249ed5287caa16f34d44ef4e9c3d0cbad5b521545e7"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "ujson",
+   "version": "5.13.0",
+   "purl": "pkg:pypi/ujson@5.13.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "02200035bc80e830f076ffc1b329a94c295aee6d9de8c9043647cb9a7bd4f76f"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "BSD-3-Clause AND TCL"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "urllib3",
+   "version": "2.7.0",
+   "purl": "pkg:pypi/urllib3@2.7.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "uvicorn",
+   "version": "0.52.1",
+   "purl": "pkg:pypi/uvicorn@0.52.1",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "112ec661814189acbccd3f7b86460147cc065fc92c0821afa78918780e4354dd"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "BSD-3-Clause"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "wcwidth",
+   "version": "0.8.2",
+   "purl": "pkg:pypi/wcwidth@0.8.2",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "91fbef97204b96a3d4d421609b80340b760cf33e26da123ff243d76b1fda8dda"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "machine-learning-model",
+   "name": "paddleocr-weights/PP-OCRv5_server_det",
+   "version": "pinned-2026-08-02",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "1365d237af2bcf1d8798c37399c000acd83e2cc3fc794ea0230ce8eb9f95177c"
+    }
+   ],
+   "properties": [
+    {
+     "name": "labelcheck:origin-risk",
+     "value": "Baidu (PRC) CDN download \u2014 integrity asserted at image build AND extractor warm (api/integrity.py)"
+    }
+   ]
+  },
+  {
+   "type": "machine-learning-model",
+   "name": "paddleocr-weights/en_PP-OCRv5_mobile_rec",
+   "version": "pinned-2026-08-02",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "6608570443ebb25d06f5f533f7b0db465c16b63dcc5996088f3cd50b7dece3ab"
+    }
+   ],
+   "properties": [
+    {
+     "name": "labelcheck:origin-risk",
+     "value": "Baidu (PRC) CDN download \u2014 integrity asserted at image build AND extractor warm (api/integrity.py)"
+    }
+   ]
+  },
+  {
+   "type": "machine-learning-model",
+   "name": "paddleocr-weights/PP-LCNet_x1_0_textline_ori",
+   "version": "pinned-2026-08-02",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "4a8a1c727fb64c38aa1ee0743976c011b9875e550a464d9b7e08ccb5a6dfe701"
+    }
+   ],
+   "properties": [
+    {
+     "name": "labelcheck:origin-risk",
+     "value": "Baidu (PRC) CDN download \u2014 integrity asserted at image build AND extractor warm (api/integrity.py)"
+    }
+   ]
+  }
+ ]
+}
