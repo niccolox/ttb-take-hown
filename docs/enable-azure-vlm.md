@@ -5,27 +5,17 @@ docs/plans/azure-enrichment-layers.md (the design) and
 docs/research/azure-frontier-models.md (the model-placement standard that
 governs WHERE this may be turned on).
 
-## Status: one small code change away (E1)
+## Status: IMPLEMENTED (plan milestone E1)
 
-The VLM client (`api/vlm.py`) is already provider-shaped: OpenAI
-chat-completions format, `Authorization: Bearer`, endpoint/model from env,
-crops-only budget, silent no-op without a key. Azure OpenAI's v1-compatible
-endpoint accepts exactly that auth. **Two concrete deltas block Azure
-today** (together = plan milestone E1, ~half a day):
-
-1. **Image encoding.** The client embeds the crop as an `<img src="data:…">`
-   tag inside the text content — the NVIDIA NIM dialect. Azure vision
-   models require the structured content array:
-   `[{"type":"text",…},{"type":"image_url","image_url":{"url":"data:…"}}]`.
-   Until E1 lands, an Azure endpoint would see the base64 as text and the
-   call would fail into the designed silent no-op — nothing breaks, but no
-   suggestions appear.
-2. **Config naming.** The key currently rides in `NVIDIA_API_KEY`; E1
-   introduces `LABELCHECK_VLM_PROVIDER=off|nvidia|azure` with
-   `AZURE_VLM_ENDPOINT` / `AZURE_VLM_KEY` / `AZURE_VLM_MODEL`.
-
-Everything below is written against the post-E1 surface; the last section
-covers what you can enable **today** (NVIDIA path) with zero code change.
+`api/vlm.py` carries the provider dialect: `LABELCHECK_VLM_PROVIDER=
+off|nvidia|azure` (unset ⇒ nvidia, preserving shipped behavior). The
+azure dialect sends the structured content array Azure vision models
+require and BOTH auth headers (`Authorization: Bearer` for v1-compatible
+endpoints, `api-key` for classic deployment URLs), so either endpoint
+form works. A breaker (3 consecutive failures → 30 s cooloff) keeps a
+dead endpoint from costing a timeout per crop. All pinned by
+`api/tests/test_vlm_providers.py`: dialect payload/headers, off-with-keys
+disabled, missing-endpoint silence, breaker trip and recovery.
 
 ## Prerequisites
 
@@ -39,7 +29,7 @@ covers what you can enable **today** (NVIDIA path) with zero code change.
 - An API key (local dev: `.env`; Azure: Key Vault via managed identity —
   never in the image, never in compose files).
 
-## Enable (post-E1)
+## Enable
 
 1. Add to `.env` (dev) or the environment's Key Vault-backed config:
 
@@ -100,4 +90,4 @@ NVIDIA_API_KEY=<key>             # free developer tier, rate-limited
 ```
 
 Same guardrails, same verification steps. This is the fastest way to see
-the J3 UX before the Azure subscription/E1 work lands.
+the J3 UX before an Azure subscription is available.
