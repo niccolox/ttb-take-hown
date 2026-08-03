@@ -346,23 +346,25 @@ function itemTitle(it) {
 
 function visible(it) {
   const s = itemState(it);
+  if (filter === "waiting") return s === "waiting";
   if (filter === "attention") return !reviewComplete(it) && ["done_red", "done_amber", "error"].includes(s);
   if (filter === "passed") return GREENS.includes(s);   // auto all-clear or agent PASS
   if (filter === "failed") return s === "fail_agent";   // reviewer FAIL decisions
-  if (filter === "progress") return ["waiting", "checking"].includes(s);
+  if (filter === "progress") return s === "checking";
   return true;
 }
 
 function renderList() {
   const list = $("list");
   list.innerHTML = "";
-  const counts = { attention: 0, passed: 0, progress: 0, failed: 0, all: items.length };
+  const counts = { waiting: 0, attention: 0, passed: 0, progress: 0, failed: 0, all: items.length };
   for (const it of items) {
     const s = itemState(it);
     if (!reviewComplete(it) && ["done_red", "done_amber", "error"].includes(s)) counts.attention++;
     if (GREENS.includes(s)) counts.passed++;
     if (s === "fail_agent") counts.failed++;     // decided FAILs get their own row
-    if (["waiting", "checking"].includes(s)) counts.progress++;
+    if (s === "waiting") counts.waiting++;       // queued, not yet started
+    if (s === "checking") counts.progress++;     // actively verifying/refining
   }
   for (const it of items) {                      // insertion order — never reorder
     if (!visible(it)) continue;
@@ -399,10 +401,11 @@ function renderList() {
   $("saveSession").style.display = items.length ? "inline-block" : "none";
   updateSaveButton();
   const FILTER_META = {   // literal colors — the old CSS vars left with the restyle
+    waiting: ["Waiting", "#5f5f5f", "#efefef"],
     attention: ["Needs attention", "#b3261e", "#fdecea"],
     passed: ["All clear / Passed", "#2e7d32", "#e8f5e9"],
     failed: ["Failed ·agent", "#b3261e", "#fdecea"],
-    progress: ["In progress", "#5f5f5f", "#efefef"],
+    progress: ["In progress", "#005ea2", "#e8f1f8"],
     all: ["All", "#005ea2", "#e8f1f8"],
   };
   for (const btn of $("filters").querySelectorAll("button")) {
