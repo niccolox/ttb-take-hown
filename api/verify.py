@@ -270,6 +270,12 @@ def verify(words: list[Word], application: dict, image_gray=None) -> dict:
         # §16.22(a)(2) violation the heuristic measured confidently: correct words,
         # correct caps, but no bold contrast — a red finding, not fine print
         w_status, w_code = "MISMATCH", "weight_contrast_violation"
+    elif text_o == Outcome.PASS and wr.outcomes[SubCheck.PREFIX_CAPS] == Outcome.PASS \
+            and wc_outcome == "suspect_no_contrast":
+        # measured uniform but at strokes too thin to assert a violation
+        # (700px registry images live here) — amber, never red, never a
+        # silent green pass: the agent confirms the bold heading visually
+        w_status, w_code = "NEEDS_REVIEW", "weight_contrast_suspect"
     elif text_o == Outcome.PASS and wr.outcomes[SubCheck.PREFIX_CAPS] == Outcome.PASS:
         w_status, w_code = "MATCH", None
     elif text_o == Outcome.NOT_FOUND:

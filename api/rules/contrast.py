@@ -27,7 +27,8 @@ MIN_INK_PIXELS = 150     # below this, measurement is meaningless → unknown
 
 
 def _median_stroke(gray: np.ndarray) -> tuple[float, float] | None:
-    """Median stroke width (px) and text height proxy for a text region."""
+    """Median stroke width and text height for a text region, in SOURCE px
+    (upscale used for measurement stability is divided back out)."""
     if gray.size == 0:
         return None
     # Otsu on inverted (ink = white); guard flat regions
@@ -35,7 +36,9 @@ def _median_stroke(gray: np.ndarray) -> tuple[float, float] | None:
         return None
     # Upscale small text before measuring: JPEG + Otsu quantization flattens
     # sub-2px stroke differences (observed on 17px type at quality 75).
+    scale = 1.0
     if gray.shape[0] < 220:
+        scale = 4.0
         gray = cv2.resize(gray, None, fx=4, fy=4, interpolation=cv2.INTER_CUBIC)
     _, binary = cv2.threshold(255 - gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     ink = binary > 0
@@ -53,7 +56,7 @@ def _median_stroke(gray: np.ndarray) -> tuple[float, float] | None:
     height = float(np.median(heights)) if heights else 0.0
     if width <= 0 or height <= 0:
         return None
-    return width, height
+    return width / scale, height / scale
 
 
 def weight_contrast(image_gray: np.ndarray,
@@ -78,6 +81,13 @@ def weight_contrast(image_gray: np.ndarray,
     # height differences (~25%) pass this guard.
     if ph <= 0 or bh <= 0 or max(ph, bh) / min(ph, bh) > 1.6:
         return "unknown", "Prefix and body text sizes differ too much to compare weight — confirm visually."
+    # Asymmetric resolution floor: a VIOLATION claim (no_contrast) needs
+    # measurement confidence that sub-2px source strokes cannot provide —
+    # compression flattens a real bold/regular delta to ratio ~1.0 at that
+    # scale (observed: 700px registry label with visibly bold heading
+    # measured 1.00). The 'ok' path stays available: the 4x cubic upscale
+    # recovers ratio signal from anti-aliasing when contrast IS present.
+    thin = min(pw, bw) < 2.0
     # Raw stroke-width ratio: same-size regions, so weight is the dominant signal.
     # (Height normalization was tried and rejected: caps-vs-mixed-case height
     # bias inflates the ratio ~1.3x at equal weight.)
@@ -86,5 +96,13 @@ def weight_contrast(image_gray: np.ndarray,
     if ratio >= OK_RATIO:
         return "ok", detail + " — heading reads bolder than the body."
     if ratio <= NO_CONTRAST_RATIO:
+        if thin:
+            # measured uniform, but at a stroke scale where a real bold delta
+            # can flatten to 1.0 (compression) — a SUSPECT finding for human
+            # confirmation, never a confident violation and never a silent pass
+            return "suspect_no_contrast", (
+                detail + f" at thin strokes ({pw:.1f}/{bw:.1f}px) — below the "
+                "resolution needed to call a violation; confirm the heading "
+                "is bolder than the body.")
         return "no_contrast", detail + " — no weight contrast between heading and body."
     return "unknown", detail + " — ambiguous; confirm visually."

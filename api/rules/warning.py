@@ -159,6 +159,11 @@ def validate_warning(extracted_verbatim: str | None,
         "no_contrast": (Outcome.FAIL, "No weight contrast between heading and body — either the heading "
                                        "is not bold or the body is bold; §16.22(a)(2) requires bold heading "
                                        "and non-bold body. Confirm which side visually."),
+        "suspect_no_contrast": (Outcome.UNVERIFIABLE,
+                                "Possible missing weight contrast — the text is too small "
+                                "to measure reliably at this image resolution. Confirm the "
+                                "\"GOVERNMENT WARNING:\" heading is bolder than the body "
+                                "(§16.22(a)(2))."),
         "unknown": (Outcome.UNVERIFIABLE, "Bold weight could not be measured — confirm visually."),
     }
     o, msg = wc_map.get(weight_contrast, wc_map["unknown"])
