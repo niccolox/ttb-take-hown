@@ -147,13 +147,9 @@ dialog canvas { max-width: 86vw; }
 
 .override { @apply mt-3 pt-2 border-t border-dashed border-base-300; }
 .override .btns { @apply flex gap-2 mt-1.5; }
-.override button, .fieldov button {
-  @apply btn btn-sm btn-outline font-semibold;
-  min-height: 40px;
-}
-.override button[aria-pressed="true"], .fieldov button[aria-pressed="true"] {
-  @apply btn-primary btn-active;
-}
+/* decision buttons carry their daisyui classes inline (icon + color per
+   verb: success/warning/error, outline until pressed) — only sizing here */
+.override button, .fieldov button { min-height: 40px; }
 .fieldov.btns { @apply flex gap-1; }
 
 .ov-note { @apply text-sm font-semibold mt-1 text-warning; }
