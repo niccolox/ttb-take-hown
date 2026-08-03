@@ -9,14 +9,13 @@
 @source "./index.html";
 @source "./app.js";
 @plugin "daisyui" {
-  themes: winter;
+  themes: corporate --default, winter;
 }
 /* custom theme from ttb.gov's compiled USWDS tokens (fetched 2026-08-02):
    primary #005ea2, dark blue #1a4480, header navy #162e51, gold #ffbe2e,
    error #b50909, ink #1b1b1b, greys #f0f0f0/#dfe1e2 */
 @plugin "daisyui/theme" {
   name: "ttb";
-  default: true;
   color-scheme: light;
   --color-base-100: #ffffff;
   --color-base-200: #f0f0f0;
@@ -53,29 +52,27 @@ body {
   @apply bg-base-200 text-base-content;
 }
 
-/* ttb.gov signature: navy banner (#162e51), gold keyline, light text */
-header { border-bottom: 3px solid #ffbe2e; background: #162e51; @apply px-3 py-1 text-white; }
-header h1 { @apply text-2xl font-bold m-0 text-white; }
-header p { @apply text-sm mt-0.5 mb-0; color: #dfe1e2; }
+/* corporate banner: light surface, primary keyline, theme-token text */
+header { @apply px-3 py-1 bg-base-100 border-b-[3px] border-primary text-base-content; }
+header h1 { @apply text-2xl font-bold m-0; }
+header p { @apply text-sm mt-0.5 mb-0 opacity-70; }
 /* USWDS-style primary nav (ttb.gov): white bold items on the navy banner,
    underline on hover, and the open item inverts to white-with-blue — the
    classic USWDS header dropdown behavior. Square corners throughout. */
 .ttbnav { display: flex; align-items: stretch; margin: 0; padding: 0; list-style: none; }
 .ttbnav li { position: relative; }
 .navlink {
-  @apply flex items-center font-bold cursor-pointer select-none;
-  color: #fff; font-size: 15px; padding: 14px 16px; border-radius: 0;
+  @apply flex items-center font-bold cursor-pointer select-none text-base-content;
+  font-size: 15px; padding: 14px 16px; border-radius: 0;
   list-style: none;
 }
 .navlink::-webkit-details-marker { display: none; }
 .navlink:hover { text-decoration: underline; text-underline-offset: 4px; }
 .ttbnav details[open] > .navlink {
-  background: #fff; color: #005ea2; text-decoration: none;
+  @apply bg-primary text-primary-content;
+  text-decoration: none;
 }
-/* focus on the navy banner needs the gold, not the blue */
-header button:focus, header summary:focus {
-  outline: 3px solid #ffbe2e !important; outline-offset: 2px;
-}
+
 
 /* megamenu (daisyui navbar + details dropdowns): panels carry the former
    left-column sections; wide, scrollable, above everything */
