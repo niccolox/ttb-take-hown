@@ -811,7 +811,15 @@ async function pollRefinements(it, resultId) {
     let body;
     try {
       const res = await fetch(`/api/verify/${resultId}`);
-      if (!res.ok) return;                       // expired/gone: keep last state
+      if (res.status === 404) {
+        // the server restarted (or the result expired) mid-refinement — the
+        // provisional verdict on screen will never settle. Mark it stale (⟳)
+        // so its details aren't presented as the answer; re-verify refreshes.
+        it.stale = true;
+        markSessionDirty(); renderList(); if (sel() === it) renderDetail();
+        return;
+      }
+      if (!res.ok) return;                       // transient: keep last state
       body = await res.json();
     } catch { return; }
     if ((body.revision || 0) > (it.result.revision || 0)) {
@@ -821,6 +829,13 @@ async function pollRefinements(it, resultId) {
       schedulePersist();
     }
     if (body.settled) return;
+  }
+  // 60s without settling (queue backlog, shed jobs): stop polling but never
+  // leave a provisional verdict looking final
+  if (it.state === "done" && it.result && it.result.result_id === resultId
+      && it.result.settled === false) {
+    it.stale = true;
+    markSessionDirty(); renderList(); if (sel() === it) renderDetail();
   }
 }
 
