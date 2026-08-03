@@ -487,7 +487,13 @@ function renderDetail() {
     if ((it.panels || []).length > 1) img.title = `${p.panel} panel`;
     p.thumbUrl ||= URL.createObjectURL(p.file);   // one URL per panel, reused across renders
     img.src = p.thumbUrl;
-    d.appendChild(img);
+    // daisyui hover-3d: image first, then 8 invisible hover zones that
+    // drive the tilt/shine — a physical once-over of the label artwork
+    const wrap = document.createElement("div");
+    wrap.className = "hover-3d w-full";
+    wrap.appendChild(img);
+    for (let i = 0; i < 8; i++) wrap.appendChild(document.createElement("div"));
+    d.appendChild(wrap);
     if ((it.panels || []).length > 1) {
       const cap = document.createElement("div");
       cap.className = "cite"; cap.style.marginTop = "-8px"; cap.style.marginBottom = "8px";

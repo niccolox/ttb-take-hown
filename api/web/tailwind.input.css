@@ -155,4 +155,8 @@ dialog canvas { max-width: 86vw; }
 .ov-note { @apply text-sm font-semibold mt-1 text-warning; }
 .batchbar { @apply flex gap-2 mt-2.5 flex-wrap; }
 footer { @apply px-6 py-4 opacity-60 text-[13px]; }
-img.thumb { @apply max-w-full border border-base-300 rounded-lg mb-2.5; }
+img.thumb { @apply max-w-full border border-base-300 rounded-lg; }
+/* hover-3d wrapper carries the thumb's spacing; inline-grid needs the
+   explicit width so the label image keeps its column-filling size */
+.hover-3d { @apply mb-2.5 w-full; }
+.hover-3d > img.thumb { @apply w-full; }
