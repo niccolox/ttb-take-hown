@@ -566,6 +566,18 @@ function bannerFor(fields, it = null) {
 
 function renderResult(container, it) {
   const r = it.result;
+  // N3 provisional state (AD-12 lean): a verdict with checks still running
+  // must never read as the settled answer — name the running layers.
+  if (r.settled === false) {
+    const pending = (r.pending || []).map((j) => ({
+      "second-engine-check": "cross-checking with second engine",
+      "warning-reread": "re-reading warning text at full resolution",
+    }[j.layer] || j.layer)).join("; ");
+    const prov = document.createElement("div");
+    prov.className = "timing";
+    prov.textContent = `⏳ Preliminary result — ${pending || "additional checks"} still running. Details below may upgrade in a few seconds.`;
+    container.appendChild(prov);
+  }
   if (it.elapsedMs != null) {                       // 5s target (Sarah's threshold) made visible
     const s = it.elapsedMs / 1000;
     const within = s < 5;
@@ -1061,6 +1073,10 @@ async function restoreSession({ quiet = false } = {}) {
       it.result = rec.result;
       it.state = rec.result ? "done"
         : (["error", "checking", "canceled"].includes(rec.state) ? "waiting" : rec.state);
+      // a session saved mid-refinement carries a PROVISIONAL verdict whose
+      // result_id has long expired — mark it stale (⟳) so the sub-check
+      // details aren't presented as the settled answer
+      if (rec.result && rec.result.settled === false) it.stale = true;
       if (rec.elapsed_ms != null) it.elapsedMs = rec.elapsed_ms;   // timing chip survives
       if (rec.stale) it.stale = true;          // out-of-date verdicts stay marked ⟳
       unpackOverride(it, rec.override);
