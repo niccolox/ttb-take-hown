@@ -224,8 +224,18 @@ def verify(words: list[Word], application: dict, image_gray=None) -> dict:
                                           f"ABV not found in the submitted image ({why}) — "
                                           "inspect the full label.", None))
     else:
+        # teach the rule instead of dead-ending: when the commodity's own
+        # regulation makes a printed ABV optional, say so and say what entering
+        # the value would add (band confirmation) — but never certify
+        # NOT_REQUIRED from a blank application; the declared value is the one
+        # fact that confirms the ≤14% band the designation implies
+        note = "No application value entered."
+        required, why = abv_required(bev, ct_result.label_value or application.get("class_type"))
+        if not required:
+            note += (f" A printed alcohol content may not be required here — {why} — "
+                     "enter the application's ABV to confirm.")
         fields.append(FieldResult("alcohol_content", "NOT_CHECKED", abv_loc.text or None,
-                                  None, None, "No application value entered."))
+                                  None, None, note))
 
     # label-internal consistency (proof = 2×ABV)
     ok, note = proof_consistency(label_abv)

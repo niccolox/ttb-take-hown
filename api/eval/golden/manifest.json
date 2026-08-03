@@ -9,7 +9,8 @@
       "class_type": "Kentucky Straight Bourbon Whiskey",
       "abv_line": "45% Alc./Vol. (90 Proof)",
       "net_line": "750 mL",
-      "beverage_type": "distilled_spirits"
+      "beverage_type": "distilled_spirits",
+      "app_abv": "45% Alc./Vol. (90 Proof)"
     }
   },
   {
@@ -22,7 +23,8 @@
       "class_type": "American Pale Ale",
       "abv_line": "5.2% ALC/VOL",
       "net_line": "12 FL OZ",
-      "beverage_type": "malt_beverage"
+      "beverage_type": "malt_beverage",
+      "app_abv": "5.2% ALC/VOL"
     }
   },
   {
@@ -35,7 +37,8 @@
       "class_type": "California Chardonnay \u2014 Table Wine",
       "abv_line": null,
       "net_line": "750 mL",
-      "beverage_type": "wine"
+      "beverage_type": "wine",
+      "app_abv": "12.5%"
     }
   },
   {
@@ -48,7 +51,8 @@
       "class_type": "Kentucky Straight Bourbon Whiskey",
       "abv_line": "45% Alc./Vol. (90 Proof)",
       "net_line": "750 mL",
-      "beverage_type": "distilled_spirits"
+      "beverage_type": "distilled_spirits",
+      "app_abv": "45% Alc./Vol. (90 Proof)"
     }
   },
   {
@@ -61,7 +65,8 @@
       "class_type": "Kentucky Straight Bourbon Whiskey",
       "abv_line": "45% Alc./Vol. (90 Proof)",
       "net_line": "750 mL",
-      "beverage_type": "distilled_spirits"
+      "beverage_type": "distilled_spirits",
+      "app_abv": "45% Alc./Vol. (90 Proof)"
     }
   },
   {
@@ -74,7 +79,8 @@
       "class_type": "Kentucky Straight Bourbon Whiskey",
       "abv_line": "45% Alc./Vol. (90 Proof)",
       "net_line": "750 mL",
-      "beverage_type": "distilled_spirits"
+      "beverage_type": "distilled_spirits",
+      "app_abv": "45% Alc./Vol. (90 Proof)"
     }
   },
   {
@@ -87,7 +93,8 @@
       "class_type": "Kentucky Straight Bourbon Whiskey",
       "abv_line": "45% Alc./Vol. (90 Proof)",
       "net_line": "750 mL",
-      "beverage_type": "distilled_spirits"
+      "beverage_type": "distilled_spirits",
+      "app_abv": "45% Alc./Vol. (90 Proof)"
     }
   },
   {
@@ -100,7 +107,8 @@
       "class_type": "Kentucky Straight Bourbon Whiskey",
       "abv_line": "45.2% Alc./Vol.",
       "net_line": "750 mL",
-      "beverage_type": "distilled_spirits"
+      "beverage_type": "distilled_spirits",
+      "app_abv": "45% Alc./Vol."
     }
   },
   {
@@ -113,7 +121,8 @@
       "class_type": "Kentucky Straight Bourbon Whiskey",
       "abv_line": "46% Alc./Vol. (92 Proof)",
       "net_line": "750 mL",
-      "beverage_type": "distilled_spirits"
+      "beverage_type": "distilled_spirits",
+      "app_abv": "45% Alc./Vol."
     }
   },
   {
@@ -126,7 +135,8 @@
       "class_type": "Kentucky Straight Bourbon Whiskey",
       "abv_line": "45% Alc./Vol. (90 Proof)",
       "net_line": "750 mL",
-      "beverage_type": "distilled_spirits"
+      "beverage_type": "distilled_spirits",
+      "app_abv": "45% Alc./Vol. (90 Proof)"
     }
   },
   {
@@ -139,7 +149,8 @@
       "class_type": "Kentucky Straight Bourbon Whiskey",
       "abv_line": "45% Alc./Vol. (90 Proof)",
       "net_line": "750 mL",
-      "beverage_type": "distilled_spirits"
+      "beverage_type": "distilled_spirits",
+      "app_abv": "45% Alc./Vol. (90 Proof)"
     }
   },
   {
@@ -152,7 +163,8 @@
       "class_type": "American Pale Ale",
       "abv_line": "5.2% ALC/VOL",
       "net_line": "12 FL OZ",
-      "beverage_type": "malt_beverage"
+      "beverage_type": "malt_beverage",
+      "app_abv": "5.2% ALC/VOL"
     }
   },
   {
@@ -165,7 +177,8 @@
       "class_type": "American Pale Ale",
       "abv_line": "5.2% ALC/VOL",
       "net_line": "12 FL OZ",
-      "beverage_type": "malt_beverage"
+      "beverage_type": "malt_beverage",
+      "app_abv": "5.2% ALC/VOL"
     }
   },
   {
@@ -178,7 +191,8 @@
       "class_type": "California Chardonnay \u2014 Table Wine",
       "abv_line": null,
       "net_line": "750 mL",
-      "beverage_type": "wine"
+      "beverage_type": "wine",
+      "app_abv": null
     }
   },
   {
@@ -191,7 +205,8 @@
       "class_type": "Kentucky Straight Bourbon Whiskey",
       "abv_line": "45% Alc./Vol. (90 Proof)",
       "net_line": "750 mL",
-      "beverage_type": "distilled_spirits"
+      "beverage_type": "distilled_spirits",
+      "app_abv": "45% Alc./Vol. (90 Proof)"
     }
   }
 ]

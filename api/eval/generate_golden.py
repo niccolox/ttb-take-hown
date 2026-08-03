@@ -196,16 +196,24 @@ def corpus() -> list[dict]:
         brand="SEABREEZE\nCELLARS",
         class_type="California Chardonnay — Table Wine",
         abv_line=None,  # legally omitted: table wine ≤14% (§4.36(a))
+        app_abv="12.5%",  # the COLA still declares the band even when the label omits it
         net_line="750 mL",
         producer="Vinted and bottled by Seabreeze Cellars, Napa, California — Contains Sulfites",
         beverage_type="wine",
         bg="#f0e8f0",
     )
 
+    # truth carries TWO abv facts: abv_line is what the LABEL prints (drives
+    # drawing), app_abv is what the COLA APPLICATION declares. They differ by
+    # design on the ABV traps (app 45.0 vs printed 45.2/46) and on the table
+    # wine (app 12.5%, label lawfully prints nothing — §4.36(a)); collapsing
+    # them made the eval-set loader feed the label value back as the
+    # application, which turned every trap into an exact match.
     truth = lambda s: {
         "brand": s["brand"].replace("\n", " "),
         "class_type": s["class_type"],
         "abv_line": s.get("abv_line"),
+        "app_abv": s.get("app_abv") or s.get("abv_line"),
         "net_line": s.get("net_line"),
         "beverage_type": s["beverage_type"],
     }
@@ -228,10 +236,14 @@ def corpus() -> list[dict]:
         dict(id="trap_missing_warning", spec={**old_tom, "warning": False}, degrade=None,
              expect="warning absent → finding (coverage gate permitting)", truth=truth(old_tom)),
         # ABV traps
-        dict(id="trap_abv_within_band", spec={**old_tom, "abv_line": "45.2% Alc./Vol."}, degrade=None,
-             expect="app=45.0 → WITHIN TOLERANCE amber (spirits ±0.3), never green", truth={**truth(old_tom), "abv_line": "45.2% Alc./Vol."}),
-        dict(id="trap_abv_outside_band", spec={**old_tom, "abv_line": "46% Alc./Vol. (92 Proof)"}, degrade=None,
-             expect="app=45.0 → MISMATCH (outside ±0.3)", truth={**truth(old_tom), "abv_line": "46% Alc./Vol. (92 Proof)"}),
+        dict(id="trap_abv_within_band",
+             spec={**old_tom, "abv_line": "45.2% Alc./Vol.", "app_abv": "45% Alc./Vol."}, degrade=None,
+             expect="app=45.0 → WITHIN TOLERANCE amber (spirits ±0.3), never green",
+             truth=truth({**old_tom, "abv_line": "45.2% Alc./Vol.", "app_abv": "45% Alc./Vol."})),
+        dict(id="trap_abv_outside_band",
+             spec={**old_tom, "abv_line": "46% Alc./Vol. (92 Proof)", "app_abv": "45% Alc./Vol."}, degrade=None,
+             expect="app=45.0 → MISMATCH (outside ±0.3)",
+             truth=truth({**old_tom, "abv_line": "46% Alc./Vol. (92 Proof)", "app_abv": "45% Alc./Vol."})),
         # photographic degradations
         dict(id="photo_skew", spec=old_tom, degrade="skew", expect="fields recoverable after deskew/rotation"),
         dict(id="photo_glare", spec=old_tom, degrade="glare", expect="glare region → low conf → NEEDS REVIEW on affected fields"),

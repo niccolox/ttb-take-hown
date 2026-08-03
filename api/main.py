@@ -297,10 +297,14 @@ def _corpus_items(name: str):
             note = m.get("expect") or m.get("note", "")
         else:                                      # golden truth mapping
             t = m.get("truth", {})
+            # app_abv is what the COLA declares; abv_line is what the label
+            # prints. Falling back to abv_line here fed the label's own value
+            # in as the application, which defeated the ABV traps (exact
+            # match instead of band checks) and left the table wine blank.
             app_data = {"beverage_type": t.get("beverage_type", "unspecified"),
                         "brand_name": t.get("brand", ""),
                         "class_type": t.get("class_type", ""),
-                        "alcohol_content": t.get("abv_line") or "",
+                        "alcohol_content": t.get("app_abv") or t.get("abv_line") or "",
                         "net_contents": t.get("net_line") or ""}
             note = m.get("expect", "")
         files = m.get("files") or [{"file": m["file"], "panel": "front"}]
