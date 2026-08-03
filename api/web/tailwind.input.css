@@ -153,11 +153,11 @@ button.secondary { @apply btn btn-outline btn-primary btn-sm font-semibold; min-
 .chip.red { @apply badge-error; }
 .chip.grey { @apply badge-neutral; }
 
-.filters { @apply grid grid-cols-2 gap-1.5 my-2; }
+.filters { @apply flex flex-wrap gap-1.5; }
 .filters button {
-  @apply flex justify-between items-center gap-1.5 border border-base-300
-    rounded-lg bg-base-100 w-full cursor-pointer text-[13px] text-left;
-  padding: 5px 9px; min-height: 36px;
+  @apply inline-flex justify-between items-center gap-1.5 border border-base-300
+    rounded-lg bg-base-100 cursor-pointer text-[13px] text-left whitespace-nowrap;
+  padding: 4px 9px; min-height: 30px;
 }
 .filters button[aria-pressed="true"] { border-color: var(--accent); border-width: 2px; @apply font-bold; }
 .filters .dot { @apply rounded-full flex-none; width: 10px; height: 10px; }
@@ -167,7 +167,7 @@ button.secondary { @apply btn btn-outline btn-primary btn-sm font-semibold; min-
 .status-note { @apply text-[15px] opacity-70 my-1.5; }
 #progressbar { @apply my-1; height: 0.625rem; }
 
-.banner { @apply alert font-bold text-lg mb-3 sticky top-2 z-30 shadow-sm; display: none; }
+.banner { @apply alert font-bold text-lg mb-3 sticky top-12 z-30 shadow-sm; display: none; }
 .banner.green { @apply alert-success; display: flex; }
 .banner.amber { @apply alert-warning; display: flex; }
 .banner.red { @apply alert-error; display: flex; }
@@ -203,13 +203,17 @@ dialog canvas { max-width: 86vw; }
 .timing.ok { @apply badge-success; }
 .timing.over { @apply badge-error; }
 
-/* commodity scope facet: segmented control above the status filters —
-   scope first, then state. Selected segment goes primary; empty scopes
-   disable rather than hide so the layout never jumps */
-.commodities { @apply join w-full mb-1.5; }
+/* sub-nav below the megamenu: commodity scope (segmented) + status filter
+   chips in one sticky bar — filters stay reachable while scrolling a long
+   batch list. Scope first, then state; empty scopes disable, never hide */
+.subnav {
+  @apply flex items-center gap-4 flex-wrap px-3 py-1.5 bg-base-100
+         border-b border-base-300 sticky top-0 z-40;
+}
+.commodities { @apply join; }
 .commodities button {
-  @apply join-item btn btn-xs flex-1 gap-1 font-bold text-[12px] min-h-[30px]
-         whitespace-nowrap px-1;
+  @apply join-item btn btn-xs gap-1 font-bold text-[12px] min-h-[30px]
+         whitespace-nowrap px-2;
 }
 .commodities button[aria-pressed="true"] { @apply btn-primary; }
 .commodities .ccnt { @apply opacity-70 font-normal tabular-nums; }

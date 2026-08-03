@@ -469,7 +469,7 @@ function renderList() {
     $("progress").classList.toggle("text-success", allDone);
     $("progress").classList.toggle("font-bold", allDone);
   }
-  $("commodities").style.display = items.length ? "flex" : "none";
+  $("subnav").style.display = items.length ? "flex" : "none";
   {
     const C_LABEL = { all: "All", wine: "🍷 Wine", malt_beverage: "🍺 Malt",
                       distilled_spirits: "🥃 Spirits", unspecified: "Not specified" };
@@ -482,7 +482,6 @@ function renderList() {
       btn.innerHTML = `${C_LABEL[c]} <span class="ccnt">${n}</span>`;
     }
   }
-  $("filters").style.display = items.length ? "grid" : "none";
   $("saveSession").style.display = items.length ? "inline-block" : "none";
   updateSaveButton();
   const FILTER_META = {   // literal colors — the old CSS vars left with the restyle

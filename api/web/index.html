@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Label Check — TTB label screening (prototype)</title>
-<link rel="stylesheet" href="vendor/tailwind-daisyui.css?v=18">
+<link rel="stylesheet" href="vendor/tailwind-daisyui.css?v=19">
 </head>
 <body>
 <header>
@@ -72,22 +72,15 @@
     </div>
   </nav>
 </header>
-<main>
-  <div class="inline-error" id="err" role="alert" style="grid-column:1 / -1"></div>
-
-  <section class="panel" aria-labelledby="apps-h">
-    <h2 id="apps-h">Applications</h2>
-    <div class="status-note" id="progress" role="status" aria-live="polite">No labels yet — add images, a sample, or a CSV + images.</div>
-    <progress id="progressbar" class="progress progress-primary w-full" max="100" style="display:none"></progress>
-    <div class="commodities" id="commodities" role="group" aria-label="Commodity"
-         style="display:none">
+<div class="subnav" id="subnav" style="display:none">
+    <div class="commodities" id="commodities" role="group" aria-label="Commodity">
       <button data-c="all" aria-pressed="true">All</button>
       <button data-c="wine" aria-pressed="false">🍷 Wine</button>
       <button data-c="malt_beverage" aria-pressed="false">🍺 Malt</button>
       <button data-c="distilled_spirits" aria-pressed="false">🥃 Spirits</button>
       <button data-c="unspecified" aria-pressed="false" style="display:none">Not specified</button>
     </div>
-    <div class="filters" id="filters" style="display:none">
+    <div class="filters" id="filters" role="group" aria-label="Status filter">
       <button data-f="waiting" aria-pressed="false">Received</button>
       <button data-f="attention" aria-pressed="false">Needs attention</button>
       <button data-f="mismatch" aria-pressed="false">Needs Correction</button>
@@ -97,6 +90,14 @@
       <button data-f="progress" aria-pressed="false">In Process</button>
       <button data-f="all" aria-pressed="true">All</button>
     </div>
+</div>
+<main>
+  <div class="inline-error" id="err" role="alert" style="grid-column:1 / -1"></div>
+
+  <section class="panel" aria-labelledby="apps-h">
+    <h2 id="apps-h">Applications</h2>
+    <div class="status-note" id="progress" role="status" aria-live="polite">No labels yet — add images, a sample, or a CSV + images.</div>
+    <progress id="progressbar" class="progress progress-primary w-full" max="100" style="display:none"></progress>
     <div id="list" role="group" aria-label="Uploaded labels"></div>
     <div class="batchbar">
       <button class="primary" id="verifyAll" style="display:none;margin-top:0;width:auto;padding:0 16px">Verify all</button>
@@ -161,7 +162,7 @@
        target="_blank" rel="noopener">27 CFR part 16 — health warning</a>
   </nav>
 </footer>
-<script src="app.js?v=n8.1"></script><!-- bump ?v= on app.js changes: browsers
+<script src="app.js?v=n8.2"></script><!-- bump ?v= on app.js changes: browsers
   heuristically cache un-versioned statics and can keep pre-refinement code
   running against the new API -->
 </body>
