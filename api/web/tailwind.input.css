@@ -240,7 +240,11 @@ dialog canvas { max-width: 86vw; }
 
 .ov-note { @apply text-sm font-semibold mt-1 text-warning; }
 .batchbar { @apply flex gap-2 mt-2.5 flex-wrap; }
-footer { @apply px-6 py-4 opacity-80 text-[13px]; }  /* 60% failed 4.5:1 (axe) */
+/* daisyui footer (logo-section variant): workflow/corpora links re-enter the
+   app (data-act), references cite the governing sources. No opacity on text
+   containers — 60% failed 4.5:1 (axe); base-content on base-200 passes */
+footer { @apply mt-4 text-[13px]; }
+footer .footer-title { @apply opacity-80; }  /* daisyui default 60% fails 4.5:1 (axe) */
 img.thumb { @apply max-w-full border border-base-300 rounded-lg; }
 /* cursor-tracking zoom-on-hover: frame clips the scaled image; the JS sets
    transform-origin to the pointer position */

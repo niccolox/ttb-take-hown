@@ -399,7 +399,8 @@ function renderList() {
       <p class="cite" style="margin-top:10px">Batches: Add labels → Import CSV manifest.
         Eval sets and registry pipelines live in the top navigation.</p>`;
     hero.querySelector('[data-hero="files"]').addEventListener("click", () => $("files").click());
-    hero.querySelector('[data-hero="sample"]').addEventListener("click", () => {
+    hero.querySelector('[data-hero="sample"]').addEventListener("click", (e) => {
+      e.stopPropagation();  // same: don't let the outside-click closer undo the open
       const d = document.querySelectorAll("header details")[1];
       d?.setAttribute("open", "");
       d?.querySelector("#samples button")?.focus();
@@ -547,6 +548,29 @@ $("filters").addEventListener("click", (e) => {
 $("commodities").addEventListener("click", (e) => {
   const c = e.target.closest("button")?.dataset.c;
   if (c) { commodityFilter = c; renderList(); }
+});
+
+// footer workflow/corpora links re-enter the app: file pickers fire
+// directly; menu links scroll up and open the matching megamenu
+document.querySelector("footer").addEventListener("click", (e) => {
+  const act = e.target.closest("[data-act]")?.dataset.act;
+  if (!act) return;
+  e.preventDefault();
+  e.stopPropagation();      // the outside-click menu closer must not see this click
+  const MENUS = { "menu-samples": 1, "menu-evalsets": 2, "menu-pipelines": 3 };
+  if (act in MENUS) {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    const d = document.querySelectorAll("header details")[MENUS[act]];
+    d?.setAttribute("open", "");
+    d?.querySelector("summary")?.focus();
+  } else if (act === "export") {
+    if ($("export").style.display === "none") {
+      err("No results to export yet — run a check first.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else $("export").click();
+  } else {
+    $(act).click();                 // files / pair / csv inputs
+  }
 });
 
 // ── detail pane (form + results + override) ──────────────────────────────────

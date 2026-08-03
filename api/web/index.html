@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Label Check — TTB label screening (prototype)</title>
-<link rel="stylesheet" href="vendor/tailwind-daisyui.css?v=17">
+<link rel="stylesheet" href="vendor/tailwind-daisyui.css?v=18">
 </head>
 <body>
 <header>
@@ -123,9 +123,45 @@
   <form method="dialog" style="text-align:right;margin:8px 0 0">
     <button class="secondary" style="min-height:44px;padding:0 18px">Close</button>
   </form></dialog>
-<footer>Prototype for the Treasury take-home exercise — not an official TTB system; no
-  approval authority. Type size, placement, and contrast limits are not fully checked (27 CFR §16.22; §4.36 type size/legibility).</footer>
-<script src="app.js?v=n8.0"></script><!-- bump ?v= on app.js changes: browsers
+<footer class="footer sm:footer-horizontal bg-base-200 text-base-content p-8">
+  <aside>
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="1.5" class="text-primary" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round"
+            d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z"/>
+    </svg>
+    <p><strong>Label Check</strong><br>TTB label screening — prototype.<br>
+      Screens labels; the agent decides.</p>
+    <p class="max-w-72">Prototype for the Treasury take-home exercise — not an official
+      TTB system; no approval authority. Type size, placement, and contrast limits are
+      not fully checked (27 CFR §16.22; §4.36 type size/legibility).</p>
+  </aside>
+  <nav>
+    <h6 class="footer-title">Workflow</h6>
+    <a class="link link-hover" href="#" data-act="files">Add label images</a>
+    <a class="link link-hover" href="#" data-act="pair">Front + back of one label</a>
+    <a class="link link-hover" href="#" data-act="csv">Import CSV batch</a>
+    <a class="link link-hover" href="#" data-act="export">Export results (CSV)</a>
+  </nav>
+  <nav>
+    <h6 class="footer-title">Corpora</h6>
+    <a class="link link-hover" href="#" data-act="menu-samples">Samples</a>
+    <a class="link link-hover" href="#" data-act="menu-evalsets">Eval sets</a>
+    <a class="link link-hover" href="#" data-act="menu-pipelines">Pipelines &amp; session</a>
+  </nav>
+  <nav>
+    <h6 class="footer-title">References</h6>
+    <a class="link link-hover" href="https://www.ttb.gov/regulated-commodities/beverage-alcohol/wine/labeling"
+       target="_blank" rel="noopener">TTB wine labeling guidance</a>
+    <a class="link link-hover" href="https://www.ttb.gov/regulated-commodities/beverage-alcohol/wine/anatomy-of-a-label"
+       target="_blank" rel="noopener">Anatomy of a wine label (TTB)</a>
+    <a class="link link-hover" href="https://www.ecfr.gov/current/title-27/chapter-I/subchapter-A/part-4"
+       target="_blank" rel="noopener">27 CFR part 4 — wine</a>
+    <a class="link link-hover" href="https://www.ecfr.gov/current/title-27/chapter-I/subchapter-A/part-16"
+       target="_blank" rel="noopener">27 CFR part 16 — health warning</a>
+  </nav>
+</footer>
+<script src="app.js?v=n8.1"></script><!-- bump ?v= on app.js changes: browsers
   heuristically cache un-versioned statics and can keep pre-refinement code
   running against the new API -->
 </body>
