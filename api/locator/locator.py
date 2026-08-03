@@ -81,7 +81,22 @@ class Locator:
     def _group_lines(words: list[Word]) -> list[Line]:
         if not words:
             return []
-        remaining = sorted(words, key=lambda w: ((w.box[1] + w.box[3]) / 2, w.box[0]))
+        # rotated/vertical text (barcode digits, spine text) must not join
+        # horizontal lines: a 5×67px word makes the y-tolerance its own
+        # height and chain-absorbs every neighboring row — TTB's anatomy
+        # reference label (UPC column beside the warning) collapsed five
+        # warning lines into one scrambled mega-line. Isolate them as
+        # single-word lines instead.
+        heights = sorted(w.box[3] - w.box[1] for w in words)
+        med_h = heights[len(heights) // 2]
+
+        def _vertical(w: Word) -> bool:
+            bw, bh = w.box[2] - w.box[0], w.box[3] - w.box[1]
+            return bh > 3 * bw and bh > 1.8 * med_h
+
+        verticals = [w for w in words if _vertical(w)]
+        remaining = sorted((w for w in words if not _vertical(w)),
+                           key=lambda w: ((w.box[1] + w.box[3]) / 2, w.box[0]))
         lines: list[list[Word]] = []
         for w in remaining:
             cy = (w.box[1] + w.box[3]) / 2
@@ -96,6 +111,7 @@ class Locator:
                     break
             if not placed:
                 lines.append([w])
+        lines.extend([w] for w in verticals)     # isolated, after clustering
         for line in lines:
             line.sort(key=lambda w: w.box[0])
         lines.sort(key=lambda l: sum((w.box[1] + w.box[3]) / 2 for w in l) / len(l))
@@ -197,15 +213,49 @@ class Locator:
         self._warning_block: list[Line] = []
         if anchor_idx is None:
             return LocatedField(found=False)
-        block = [self.lines[anchor_idx]]
+        # column discipline (TTB anatomy layout: UPC strip beside the block).
+        # Words on the same visual ROW as warning text can belong to another
+        # column — a barcode digit y-aligned with the anchor joins its line
+        # legitimately by geometry. Split each line into gap-separated word
+        # runs and keep only runs overlapping the anchor's own column span;
+        # skipped side-columns must not break row adjacency either.
+        anchor_line = self.lines[anchor_idx]
+
+        def _runs(line: Line) -> list[list[Word]]:
+            runs, cur = [], [line.words[0]]
+            for w in line.words[1:]:
+                if w.box[0] - cur[-1].box[2] > max(line.height, 8.0) * 3:
+                    runs.append(cur); cur = [w]
+                else:
+                    cur.append(w)
+            runs.append(cur)
+            return runs
+
+        aruns = _runs(anchor_line)
+        main = next((r for r in aruns
+                     if WARNING_ANCHOR_RE.search(" ".join(w.text for w in r))),
+                    aruns[0])
+        ax1, ax2 = main[0].box[0], main[-1].box[2]
+
+        def _column_words(line: Line) -> list[Word]:
+            kept: list[Word] = []
+            for run in _runs(line):
+                if run[0].box[0] <= ax2 and run[-1].box[2] >= ax1:
+                    kept.extend(run)
+            return kept
+
+        block = [Line(_column_words(anchor_line) or anchor_line.words)]
         tokens = len(block[0].text.split())
-        prev = self.lines[anchor_idx]
+        prev: Line = anchor_line
         for line in self.lines[anchor_idx + 1:]:
+            kept = _column_words(line)
+            if not kept:
+                continue                                # side column, not block text
             gap = line.y_center - prev.y_center
             if gap > max(prev.height, line.height) * 2.5:
                 break                                   # block ended (big vertical gap)
-            block.append(line)
-            tokens += len(line.text.split())
+            block.append(Line(kept))
+            tokens += len(kept)
             prev = line
             if tokens >= expected_tokens:
                 break
