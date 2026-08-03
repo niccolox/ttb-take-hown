@@ -251,6 +251,22 @@ const OV_STATE = { "PASS": "pass_agent", "NEEDS REVIEW": "done_amber", "FAIL": "
 const GREENS = ["done_green", "pass_agent"];
 const OV_FIELD_STATUS = { "PASS": "MATCH", "NEEDS REVIEW": "NEEDS_REVIEW", "FAIL": "MISMATCH" };
 
+// whole-label PASS is EARNED, not asserted: every field check must pass —
+// machine-green, or resolved by a per-field agent decision (effStatus folds
+// those in). Anything amber/red/refining blocks it; NEEDS REVIEW and FAIL
+// stay always available.
+const PASSING_STATUSES = new Set(["MATCH", "NOT_REQUIRED", "NOT_CHECKED"]);
+function passBlockers(it) {
+  if (!it.result) return ["no check has run yet"];
+  const out = [];
+  for (const f of it.result.fields) {
+    const name = FIELD_LABELS[f.field] || f.field;
+    if (isRefining(it, f)) { out.push(`${name} (still cross-checking)`); continue; }
+    if (!PASSING_STATUSES.has(effStatus(it, f))) out.push(name);
+  }
+  return out;
+}
+
 // daisyui button-with-icon treatment for the three decision verbs
 const OV_ICONS = {
   "PASS": '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="size-[1.1em]" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>',
@@ -801,7 +817,7 @@ function bannerFor(fields, it = null) {
   const mis = names("MISMATCH"), rev = names("NEEDS_REVIEW"),
         amber = [...names("WITHIN_TOLERANCE"), ...names("LIKELY_MATCH")];
   if (mis.length) return ["red", `${mis.length} field${mis.length > 1 ? "s don't" : " doesn't"} match the application — see ${mis.join(", ")} below${rev.length ? `; ${rev.length} more need${rev.length > 1 ? "" : "s"} your eyes` : ""}`];
-  if (rev.length) return ["amber", `${rev.length} field${rev.length > 1 ? "s" : ""} need your eyes — see ${rev.join(", ")} below`];
+  if (rev.length) return ["amber", `${rev.length} field${rev.length > 1 ? "s need" : " needs"} your eyes — see ${rev.join(", ")} below`];
   if (amber.length) return ["amber", `Everything matches, ${amber.length} small difference${amber.length > 1 ? "s" : ""} to confirm`];
   return ["green", "All checks matched — ready for agent sign-off"];
 }
@@ -994,17 +1010,26 @@ function renderResult(container, it) {
   ovBox.className = "override";
   const auto = screeningLabel(it);
   const cur = ovValue(it);
+  const blockers = passBlockers(it);
+  const passLocked = blockers.length > 0 && cur !== "PASS";   // saved PASS stays retractable
   ovBox.innerHTML = `<strong>Agent decision — whole label (all fields)</strong>
     <div class="note">Screening result: ${esc(auto)}. Your decision becomes the status and is
       saved; per-field decisions live on each row above.</div>
     <div class="btns">
-      ${["PASS", "NEEDS REVIEW", "FAIL"].map((v) =>
-        `<button type="button" data-ov="${v}" class="${ovBtnClass(v, cur === v)}"
-           aria-pressed="${String(cur === v)}">${OV_ICONS[v]}${v}</button>`).join("")}
-    </div>`;
+      ${["PASS", "NEEDS REVIEW", "FAIL"].map((v) => {
+        const locked = v === "PASS" && passLocked;
+        return `<button type="button" data-ov="${v}" class="${ovBtnClass(v, cur === v)}"
+           aria-pressed="${String(cur === v)}" ${locked ? 'disabled aria-disabled="true"' : ""}
+           ${locked ? `title="Every field check must pass first — resolve: ${esc(blockers.join(", "))}"` : ""}
+           >${OV_ICONS[v]}${v}</button>`; }).join("")}
+    </div>
+    ${passLocked ? `<div class="note ov-lock">🔒 PASS unlocks when every field check passes —
+      resolve ${esc(blockers.join(", "))} on the row${blockers.length > 1 ? "s" : ""} above
+      (or decide NEEDS REVIEW / FAIL now).</div>` : ""}`;
   ovBox.addEventListener("click", (e) => {
     const v = e.target.closest("button")?.dataset.ov;
     if (!v) return;
+    if (v === "PASS" && passLocked) return;        // belt + suspenders with disabled
     if (ovValue(it) === v) {
       it.override = null;                            // click again to retract
     } else {

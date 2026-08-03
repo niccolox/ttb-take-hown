@@ -237,6 +237,8 @@ dialog canvas { max-width: 86vw; }
    verb: success/warning/error, outline until pressed) — sizing + breathing
    room here: roomier hit areas and clear separation between the icons */
 .override button { min-height: 44px; padding-inline: 14px; }
+.override button:disabled { @apply opacity-40 cursor-not-allowed; }
+.ov-lock { @apply text-[13px] bg-warning/15 border border-warning/40 rounded px-2 py-1.5 mt-2; }
 .fieldov button { min-height: 44px; min-width: 48px; }
 .fieldov.btns { gap: 10px; padding: 6px 2px; flex-wrap: wrap; max-width: 100%; }
 .override .btns { gap: 12px; }
