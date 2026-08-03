@@ -229,6 +229,13 @@ let persistTimer = null;
 function schedulePersist() {
   // one save shortly after the last verdict lands (a batch saves once, not per label)
   clearTimeout(persistTimer);
+  // load-test batches exceed the 200-label session cap — skip auto-save
+  // quietly instead of erroring on every settle during a physics run
+  if (items.length > 200) {
+    $("progress").textContent =
+      `${items.length} labels — over the 200-label session cap; results stay in this tab only.`;
+    return;
+  }
   persistTimer = setTimeout(() => {
     persistSession().catch(() =>
       err("Results kept in this tab — saving to the server failed."));
@@ -992,6 +999,7 @@ async function loadCorpora() {
   const GROUPS = [
     ["golden", "Golden images (synthetic, controlled truth)"],
     ["cola", "COLA Cloud pipelines (real registry labels)"],
+    ["batch", "Load-test batches (300 labels each)"],
   ];
   const host = $("corpora");
   for (const [gid, heading] of GROUPS) {

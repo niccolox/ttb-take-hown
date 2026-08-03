@@ -277,6 +277,13 @@ def get_corpora() -> dict[str, Path]:
         for d in sorted(cc.iterdir()):
             if (d / "manifest.json").exists():
                 out[f"colacloud_{d.name}"] = d
+    # load-test batches (gitignored; generate_batches.py) — registered when
+    # present so the UI can one-click a 300-label physics run
+    bt = _EVAL / "batches"
+    if bt.exists():
+        for d in sorted(bt.iterdir()):
+            if (d / "manifest.json").exists():
+                out[f"batch_{d.name}"] = d
     return out
 
 
@@ -346,6 +353,18 @@ def corpora():
                      "label": f"COLA Cloud — {t} ({n} approved registry labels)",
                      "shows": "Real approved COLAs pulled from the public registry; "
                               "the registry record is the application ground truth."})
+    shown = 0
+    for cid, path in get_corpora().items():
+        if not cid.startswith("batch_") or shown >= 3:
+            continue
+        m = json.loads((path / "manifest.json").read_text())
+        traps = sum(1 for x in m if str(x.get("expect", "")).startswith("MISMATCH"))
+        pairs = sum(1 for x in m if len(x.get("files", [])) == 2)
+        base.append({"id": cid, "group": "batch",
+                     "label": f"Load test — {cid.split('_', 1)[1]} ({len(m)} labels)",
+                     "shows": f"Batch physics: {traps} planted reds, {pairs} front+back "
+                              f"pairs, degraded mix. Sessions don't save over 200 labels."})
+        shown += 1
     return base
 
 
