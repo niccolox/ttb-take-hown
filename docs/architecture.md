@@ -1,10 +1,16 @@
 # Label Check — Systems Architecture
 
-As built, 2026-08-03. One process, two tiers: a fast synchronous screening
-path that answers inside the 5-second promise, and a background enrichment
-tier that cross-checks, upgrades, and annotates without ever reopening a
-settled verdict. Every external integration is opt-in and fails silent-
-closed; the default runtime makes zero network calls (proven in CI).
+As built, 2026-08-03 (nemotron-default). One process, two tiers: a fast
+synchronous screening path that answers inside the 5-second promise, and a
+background enrichment tier that cross-checks, upgrades, and annotates
+without ever reopening a settled verdict. Every external integration is
+opt-in and fails silent-closed; the default runtime makes zero calls to
+anything outside its own compose network (proven in CI).
+
+**Engine default:** the primary OCR is the Nemotron OCR v2 GPU sidecar
+(`LABELCHECK_EXTRACTOR=nemotron`, set in `.env` and pinned in the GPU
+compose); PaddleOCR remains in-process as the J1 QA shadow and the AD-1
+fallback. Rationale in “Why Nemotron as the default” below.
 
 ## System context
 
@@ -21,9 +27,9 @@ flowchart LR
         STORE["ResultStore<br/>revisions · TTL · tombstones"]
     end
 
-    subgraph Engines["OCR engines"]
-        PADDLE["PaddleOCR (CPU, in-proc)<br/>default + J1 QA engine"]
-        NEMO["Nemotron OCR v2 sidecar<br/>GPU container :8200 (opt-in)"]
+    subgraph Engines["OCR engines (dual-engine warm, AD-24)"]
+        NEMO["Nemotron OCR v2 sidecar<br/>GPU container :8200<br/>PRIMARY (env default)"]
+        PADDLE["PaddleOCR (CPU, in-proc)<br/>J1 QA shadow + AD-1 fallback"]
     end
 
     subgraph Persist["Local persistence (api/data)"]
@@ -38,8 +44,9 @@ flowchart LR
     end
 
     UI -->|multipart images + application JSON| API
-    API --> FAST --> PADDLE
-    FAST -.->|GPU profile| NEMO
+    API --> FAST --> NEMO
+    FAST -.->|"AD-1 fallback<br/>(breaker after 3 failures)"| PADDLE
+    JOBQ -->|J1 shadow read| PADDLE
     API --> JOBQ --> STORE
     API --> STORE
     API --> DUCK
@@ -59,8 +66,8 @@ D3, enforced by the no-egress CI check).
 |---|---|---|
 | UI | Vanilla JS + Tailwind v4 + DaisyUI 5, compiled offline and vendored | no-CDN/no-egress applies to the browser too; corporate theme, 508 focus rings, axe 0 violations in CI |
 | API | FastAPI + uvicorn, single process, workers=1 | AD-25: in-proc stores require one worker; TrustedHost, per-IP token bucket |
-| OCR (default) | PaddleOCR 3.2 (CPU), pins load-bearing | version + hash + weight-digest triple-locked (models.sha256, asserted at build and warm) |
-| OCR (GPU profile) | Nemotron OCR v2 in an NGC sidecar, HTTP adapter | engine swap is an env var (`LABELCHECK_EXTRACTOR`); AD-1 paddle fallback + circuit breaker |
+| OCR (primary) | Nemotron OCR v2 in an NGC sidecar, HTTP adapter (stdlib client) | default via `LABELCHECK_EXTRACTOR=nemotron`; single-lock inference on 4 GB VRAM; 12 MB cap + PIL transcode at its boundary |
+| OCR (QA + fallback) | PaddleOCR 3.2 (CPU, in-proc), pins load-bearing | J1 shadow on every guard field; AD-1 circuit-breaker fallback (healthz `degraded_paddle`); version + hash + weight-digest triple-locked |
 | Rules | Pure-Python modules: `warning` `abv` `net_contents` `wine` `malt` `contrast` `normalize` | CFR-cited, commodity-aware; statutory text is exact-match only, no model in the verdict path |
 | Location | `locator` — line grouping, fuzzy field search, warning block reconstruction | vertical-word isolation + column discipline (BAM/anatomy audit fixes) |
 | Jobs | stdlib ThreadPool + custom JobQueue/ResultStore | bounded, watchdogged, revision-monotonic polling |
@@ -76,20 +83,21 @@ sequenceDiagram
     actor Agent
     participant UI as Browser UI
     participant API as FastAPI
-    participant OCR as Primary OCR
+    participant OCR as Nemotron (primary)
     participant Q as JobQueue (J1/J2/J3)
     participant S as ResultStore
 
     Agent->>UI: add label images + application values
     UI->>API: POST /api/verify (images, application)
     API->>OCR: extract words (panels)
+    Note over API,OCR: sidecar down → breaker trips →<br/>paddle fallback (AD-1), healthz "degraded_paddle"
     API->>API: locate fields → rules engine → verdicts
     API->>S: store result rev 1 (settled=false, pending=[J1,J2])
     API-->>UI: provisional verdict (~0.2–0.9 s, 5 s promise)
     Note over UI: guard fields show "CHECKING" —<br/>never a red first-read verdict (AD-12)
 
     par background refinement
-        Q->>Q: J1 second-engine shadow read
+        Q->>Q: J1 paddle shadow read (second engine)
         Q->>S: merge: agree→confirm · disagree→lock amber with both reads
         Q->>Q: J2 warning-band crop re-OCR (dropout fix)
         Q->>S: merge: refresh/upgrade per AD-20
@@ -135,6 +143,43 @@ Rules that hold at every boundary: full label images never leave the
 process (crops only, and only to the VLM path); assistive output never
 mutates a status; secrets live in `.env`/Key Vault and are never logged;
 absence of any key produces byte-identical behavior.
+
+## Why Nemotron as the default
+
+The engine swap is an env var by design (PLAN.md posture) — what makes
+flipping it the RIGHT default is that every known weakness of the primary
+is somebody else's job in this architecture:
+
+- **Known failure mode, designed counter.** Nemotron's single-scale
+  `infer_length=1024` drops characters on dense statutory small print —
+  its provisional Government Warning read is routinely wrong. That is
+  precisely what J2 (warning-band crop re-OCR) exists to correct, and
+  AD-12 keeps guard fields showing “CHECKING” instead of a red first
+  read. The rollup fix (screening_result recomputed on every read) closed
+  the last place the provisional read could leak into a settled payload.
+- **Nothing settles on one engine's word.** J1 shadows every guard field
+  with paddle; agreement confirms, disagreement locks the field amber
+  with both reads shown (AD-20). The green + no-read rule and shadow
+  recovery handle the asymmetric-read cases. Determinism holds: same
+  image → same settled verdict, 3/3, re-proven on the nemotron path.
+- **Failure degrades, never blocks.** Circuit breaker (3 consecutive
+  sidecar failures → 30 s cooloff) flips the fast path to the warmed
+  paddle fallback; `/healthz` reports `degraded_paddle` while verdicts
+  keep flowing (AD-24 dual-warm makes the fallback instant).
+- **Where it wins:** measured per-engine error profiles
+  (docs/research/removing-paddle-nemotron-only.md) — stronger on brand
+  display faces and layout-odd text; confidence from recognizer token
+  probabilities with a per-engine floor (ContextVar: paddle 0.60,
+  nemotron 0.70) so “confident” means the same thing on both engines.
+- **Supply-chain angle:** primary inference moves to US-lineage
+  weights; the PRC-origin paddle stack remains (QA/fallback) but is
+  triple-locked and no longer the deciding voice on a clean run — the
+  incremental-derisking path the supply-chain research recommends.
+
+Config surface: `.env` (`LABELCHECK_EXTRACTOR=nemotron`,
+`NEMOTRON_OCR_URL=http://localhost:8200` for native runs) and the GPU
+compose pins the same in-service (`http://nemotron-ocr:8000`). Unsetting
+the variable reverts to paddle-primary with zero code change.
 
 ## Evaluation & evidence plane
 
