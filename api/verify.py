@@ -18,7 +18,8 @@ from dataclasses import asdict, dataclass
 from .locator import Locator, Word
 from .rules.abv import (AbvVerdict, BevType, abv_format_legality, abv_required,
                         compare_abv, parse_abv, proof_consistency, PCT_RE, PROOF_RE)
-from .rules.net_contents import NET_RE, compare_net
+from .rules.net_contents import NET_RE, compare_net, parse_net_ml
+from .rules.wine import NAME_ADDRESS_RE, SULFITE_RE, wine_fill_authorized
 from .rules.normalize import loose, whitespace_only
 from .rules.warning import STATUTORY_WARNING, Outcome, SubCheck, validate_warning
 
@@ -185,6 +186,20 @@ def verify(words: list[Word], application: dict, image_gray=None) -> dict:
         if val:
             fields.append(_text_field(opt, val, locator))
 
+    # W-4 (wine audit): a vintage date or varietal designation REQUIRES an
+    # appellation of origin — a relationship between fields, checkable from
+    # the application alone
+    if bev == BevType.WINE:
+        triggers = [k for k in ("vintage", "grape_varietals")
+                    if (application.get(k) or "").strip()]
+        if triggers and not (application.get("appellation") or "").strip():
+            fields.append(FieldResult(
+                "appellation", "NEEDS_REVIEW", None, None, "appellation_required",
+                f"The application uses {' and '.join(t.replace('_', ' ') for t in triggers)} "
+                "but no appellation of origin — an appellation is required whenever a "
+                "vintage date or varietal designation appears (§4.27, §4.23(a)).",
+                None, "27 CFR §4.25 / §4.27 / §4.23(a)"))
+
     # ABV — commodity-aware (Rev 2.1)
     app_abv_text = application.get("alcohol_content")
     abv_loc = locator.find_regex(PCT_RE)
@@ -243,6 +258,13 @@ def verify(words: list[Word], application: dict, image_gray=None) -> dict:
                                           app_abv_text, "not_found",
                                           f"ABV not found in the submitted image ({why}) — "
                                           "inspect the full label.", None))
+        # W-6 (wine audit): under 7% the FAA Act doesn't govern — FDA labeling
+        # rules apply and part 4 checks are advisory (the §16.21 health
+        # warning still applies at 0.5%+)
+        if bev == BevType.WINE and app_abv is not None and app_abv < 7.0:
+            fields[-1].note += (" Note: below 7% alcohol this product is labeled under "
+                                "FDA rules, not the FAA Act — part 4 requirements may "
+                                "not apply (the health warning still does).")
     else:
         # teach the rule instead of dead-ending: when the commodity's own
         # regulation makes a printed ABV optional, say so and say what entering
@@ -269,16 +291,62 @@ def verify(words: list[Word], application: dict, image_gray=None) -> dict:
     net_loc = locator.find_regex(NET_RE)
     verdict, note = compare_net(application.get("net_contents"),
                                 net_loc.text if net_loc.found else None)
-    if verdict == "NEEDS_REVIEW" and not net_loc.found and bev in (BevType.SPIRITS, BevType.MALT):
+    if verdict == "NEEDS_REVIEW" and not net_loc.found and bev in (
+            BevType.SPIRITS, BevType.MALT, BevType.WINE):
+        # wine allows blown/branded-in-glass net contents too (§4.37) — the
+        # carve-out used to name only spirits/malt (audit W-5)
         note = ("Net contents not visible in the submitted image — it may be molded "
-                "into the container (§5.70/§7.70). Check the bottle itself.")
+                "into the container (§4.37/§5.70/§7.70). Check the bottle itself.")
         code = "not_visible_in_image"
     else:
         code = {"MISMATCH": "value_differs", "NEEDS_REVIEW": "unreadable"}.get(verdict)
+    net_citation = None
+    # W-3: label == application is not enough for wine — the size itself must
+    # be an authorized standard of fill; off-list goes amber (saké exempt,
+    # invisible to us), never red
+    if bev == BevType.WINE and verdict == "MATCH" and net_loc.found:
+        ml = parse_net_ml(net_loc.text)
+        if ml is not None:
+            fill_ok, fill_why = wine_fill_authorized(ml)
+            if not fill_ok:
+                verdict, code = "NEEDS_REVIEW", "nonstandard_fill"
+                note += f" — but {fill_why} — confirm"
+                net_citation = "27 CFR §4.72"
     fields.append(FieldResult("net_contents", verdict,
                               net_loc.text if net_loc.found else None,
                               application.get("net_contents"), code, note,
-                              _evidence(net_loc)))
+                              _evidence(net_loc), net_citation))
+
+    # W-1/W-2 (wine audit): presence checks for the two mandatory statements
+    # the tool never looked at — never red: the sulfite waiver and permit
+    # records are invisible to a photo
+    if bev == BevType.WINE:
+        sul_loc = locator.find_regex(SULFITE_RE)
+        if sul_loc.found:
+            fields.append(FieldResult(
+                "sulfite_declaration", "MATCH", sul_loc.text, None, None,
+                "Sulfite declaration present.", _evidence(sul_loc),
+                "27 CFR §4.32(e)"))
+        else:
+            fields.append(FieldResult(
+                "sulfite_declaration", "NEEDS_REVIEW", None, None,
+                "sulfite_declaration_not_found",
+                "No sulfite declaration found — mandatory at ≥10 ppm total sulfur "
+                "dioxide, and TTB approves a label without one only against a TTB-lab "
+                "sulfite waiver — confirm a waiver is on file or check the other panel.",
+                None, "27 CFR §4.32(e)"))
+        na_loc = locator.find_regex(NAME_ADDRESS_RE)
+        if na_loc.found:
+            fields.append(FieldResult(
+                "name_address", "MATCH", na_loc.text, None, None,
+                "Name and address statement present.", _evidence(na_loc),
+                "27 CFR §4.35"))
+        else:
+            fields.append(FieldResult(
+                "name_address", "NEEDS_REVIEW", None, None, "name_address_not_found",
+                "No 'Bottled by' / 'Packed by' / 'Imported by' statement found — "
+                "mandatory on every wine label — check the other panel.",
+                None, "27 CFR §4.35"))
 
     # government warning — always-on
     warn_loc = locator.find_warning()

@@ -284,6 +284,95 @@ def test_abv_format_defect_escalates_match_to_amber():
     f2 = next(x for x in verify(words, app_sp)["fields"] if x["field"] == "alcohol_content")
     assert f2["sub_results"] is None
 
+
+# ── part 4 wine audit (docs/research/wine-labeling-audit-ttb.md, W-1..W-6) ───
+
+_WINE_APP_FULL = {"beverage_type": "wine", "brand_name": "SEABREEZE CELLARS",
+                  "class_type": "California Chardonnay — Table Wine",
+                  "alcohol_content": "12.5%", "net_contents": "750 mL"}
+_WINE_LINES_FULL = ["SEABREEZE CELLARS", "California Chardonnay — Table Wine",
+                    "12.5% alc. by vol.", "750 mL", "Contains Sulfites",
+                    "Vinted and bottled by Seabreeze Cellars, Napa, California"]
+
+
+def _wine_fields(lines, app):
+    from api.verify import verify
+    return {f["field"]: f for f in verify(_label_words(lines), app)["fields"]}
+
+
+def test_wine_fill_standards():
+    from api.rules.wine import wine_fill_authorized
+    assert wine_fill_authorized(750.0)[0] is True
+    assert wine_fill_authorized(355.0)[0] is True
+    assert wine_fill_authorized(723.0)[0] is False
+    assert wine_fill_authorized(5000.0)[0] is True           # 4–17 L in even liters
+    assert wine_fill_authorized(4500.0)[0] is False          # 4–17 L, not even liters
+    assert wine_fill_authorized(18000.0)[0] is True          # ≥18 L exempt
+
+
+def test_wine_nonstandard_fill_escalates_matching_values():
+    """Label and application AGREE on 723 mL — agreement is not authorization:
+    723 mL is not a §4.72 standard of fill → amber, never green. Spirits have
+    no such list — same values stay green."""
+    fs = _wine_fields([*_WINE_LINES_FULL[:3], "723 mL", *_WINE_LINES_FULL[4:]],
+                      {**_WINE_APP_FULL, "net_contents": "723 mL"})
+    assert fs["net_contents"]["status"] == "NEEDS_REVIEW"
+    assert fs["net_contents"]["reason_code"] == "nonstandard_fill"
+    fs2 = _wine_fields(["OLD TOM DISTILLERY", "Kentucky Straight Bourbon Whiskey",
+                        "45% Alc./Vol.", "723 mL"],
+                       {"beverage_type": "distilled_spirits", "brand_name": "OLD TOM DISTILLERY",
+                        "class_type": "Kentucky Straight Bourbon Whiskey",
+                        "alcohol_content": "45%", "net_contents": "723 mL"})
+    assert fs2["net_contents"]["status"] == "MATCH"
+
+
+def test_sulfite_and_name_address_presence():
+    fs = _wine_fields(_WINE_LINES_FULL, _WINE_APP_FULL)
+    assert fs["sulfite_declaration"]["status"] == "MATCH"
+    assert fs["name_address"]["status"] == "MATCH"
+    bare = _wine_fields(_WINE_LINES_FULL[:4], _WINE_APP_FULL)   # no sulfite/bottler lines
+    assert bare["sulfite_declaration"]["status"] == "NEEDS_REVIEW"
+    assert bare["sulfite_declaration"]["reason_code"] == "sulfite_declaration_not_found"
+    assert bare["name_address"]["status"] == "NEEDS_REVIEW"
+    # wine-only fields: spirits verifies without them
+    sp = _wine_fields(["OLD TOM DISTILLERY", "Kentucky Straight Bourbon Whiskey",
+                       "45% Alc./Vol.", "750 mL"],
+                      {"beverage_type": "distilled_spirits", "brand_name": "OLD TOM DISTILLERY",
+                       "class_type": "Kentucky Straight Bourbon Whiskey",
+                       "alcohol_content": "45%", "net_contents": "750 mL"})
+    assert "sulfite_declaration" not in sp and "name_address" not in sp
+
+
+def test_sulphites_spelling_accepted():
+    fs = _wine_fields([*_WINE_LINES_FULL[:4], "Contains Sulphites",
+                       _WINE_LINES_FULL[5]], _WINE_APP_FULL)
+    assert fs["sulfite_declaration"]["status"] == "MATCH"
+
+
+def test_appellation_required_with_vintage_or_varietal():
+    fs = _wine_fields(_WINE_LINES_FULL, {**_WINE_APP_FULL, "vintage": "2023"})
+    assert fs["appellation"]["status"] == "NEEDS_REVIEW"
+    assert fs["appellation"]["reason_code"] == "appellation_required"
+    # supplying the appellation satisfies the condition (normal text-match row)
+    fs2 = _wine_fields([*_WINE_LINES_FULL, "2023 Napa Valley"],
+                       {**_WINE_APP_FULL, "vintage": "2023", "appellation": "Napa Valley"})
+    assert fs2["appellation"]["reason_code"] != "appellation_required"
+
+
+def test_wine_under_7_percent_notes_fda():
+    fs = _wine_fields([*_WINE_LINES_FULL[:2], "6% alc. by vol.", *_WINE_LINES_FULL[3:]],
+                      {**_WINE_APP_FULL, "alcohol_content": "6%"})
+    assert "FDA" in fs["alcohol_content"]["note"]
+
+
+def test_wine_net_molded_carveout():
+    """Wine may blow/brand net contents into the glass (§4.37) — the
+    not-visible note used to fire only for spirits/malt."""
+    fs = _wine_fields([l for l in _WINE_LINES_FULL if l != "750 mL"], _WINE_APP_FULL)
+    assert fs["net_contents"]["status"] == "NEEDS_REVIEW"
+    assert fs["net_contents"]["reason_code"] == "not_visible_in_image"
+    assert "molded" in fs["net_contents"]["note"]
+
 def test_proof_consistency():
     ok, _ = proof_consistency(parse_abv("45% Alc./Vol. (90 Proof)"))
     assert ok is True
