@@ -15,14 +15,16 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, UploadFile
+from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .extractor import build_extractor
 from .intake import deskew
 from .jobs import JobQueue, ResultStore
+from .ratelimit import InflightGate, RateLimiter, allowed_hosts
 from .verify import verify_multi
 
 MAX_BYTES = 8 * 1024 * 1024
@@ -32,6 +34,10 @@ WEB = Path(__file__).parent / "web"
 
 app = FastAPI(title="TTB Label Screening Assistant",
               description="Screening, never approval — the agent decides.")
+app.add_middleware(TrustedHostMiddleware,          # AD-31 Host validation
+                   allowed_hosts=allowed_hosts())
+rate_limiter = RateLimiter()
+inflight_gate = InflightGate()
 extractor = build_extractor()
 pool = ThreadPoolExecutor(max_workers=2)          # fast path ONLY (AD-23)
 store = ResultStore()                             # single-process (AD-25)
@@ -420,7 +426,8 @@ def run_pipeline(tname: str, per_type: int = 4, query: str | None = None):
 
 
 @app.post("/api/verify")
-def api_verify(image: UploadFile = File(None),
+def api_verify(request: Request,
+               image: UploadFile = File(None),
                images: list[UploadFile] = File(None),
                application: str = Form("{}")):
     """Single `image` (back-compat) or multiple `images` (front/back panels).
@@ -431,6 +438,24 @@ def api_verify(image: UploadFile = File(None),
     `status`/`settled`/`revision`/`pending[]` — in N1 every result settles
     immediately (no background layers yet), so `status` is always
     "settled" and old consumers keep their semantics byte-identical."""
+    ip = request.client.host if request.client else "unknown"
+    ok, retry_after = rate_limiter.allow(ip)
+    if not ok:
+        return JSONResponse({"error": "Too many checks too quickly — wait a "
+                                       "moment and retry.", "code": "rate_limited"},
+                            status_code=429,
+                            headers={"Retry-After": str(max(1, int(retry_after)))})
+    if not inflight_gate.acquire():
+        return JSONResponse({"error": "The screener is at capacity — retry in a "
+                                       "few seconds.", "code": "busy"},
+                            status_code=429, headers={"Retry-After": "3"})
+    try:
+        return _verify_impl(image, images, application)
+    finally:
+        inflight_gate.release()
+
+
+def _verify_impl(image, images, application):
     if not extractor.ready():
         return JSONResponse({"error": "Still loading OCR models — try again in a few "
                                        "seconds.", "code": "warming_up"}, status_code=503)
