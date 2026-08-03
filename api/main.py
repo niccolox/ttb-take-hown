@@ -138,7 +138,7 @@ SAMPLES = {
 # bad-photo conditions agents actually submit, with measured dispositions
 _WINE_APP = {"beverage_type": "wine", "brand_name": "SEACLIFF ESTATE",
              "class_type": "California Chardonnay — Table Wine",
-             "alcohol_content": "", "net_contents": "750 mL"}
+             "alcohol_content": "12.5%", "net_contents": "750 mL"}
 SAMPLES.update({
     "wine_blur": {
         "label": "Blurry wine photo (front + back)",

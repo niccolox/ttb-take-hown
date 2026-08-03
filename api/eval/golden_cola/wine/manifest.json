@@ -16,10 +16,10 @@
    "beverage_type": "wine",
    "brand_name": "SEACLIFF ESTATE",
    "class_type": "California Chardonnay \u2014 Table Wine",
-   "alcohol_content": "",
+   "alcohol_content": "12.5%",
    "net_contents": "750 mL"
   },
-  "note": "Synthetic golden patterned on the wine corpus structure; ground truth by construction. Expected: table wine, no ABV printed \u2192 NOT_REQUIRED; all else green",
+  "note": "Synthetic golden patterned on the wine corpus structure; ground truth by construction. Expected: all green; table wine with ABV printed and matching (12.5%)",
   "provenance": {
    "source": "generate_golden_cola.py (synthetic; fictional brand, controlled truth)"
   }
@@ -41,7 +41,7 @@
    "beverage_type": "wine",
    "brand_name": "SEACLIFF ESTATE",
    "class_type": "California Chardonnay \u2014 Table Wine",
-   "alcohol_content": "",
+   "alcohol_content": "12.5%",
    "net_contents": "750 mL"
   },
   "note": "Synthetic golden patterned on the wine corpus structure; ground truth by construction. Expected: blurry phone photo \u2014 recoverable checks stay green; unrecoverable ones degrade to honest NEEDS_REVIEW, never a false MISMATCH",
@@ -66,7 +66,7 @@
    "beverage_type": "wine",
    "brand_name": "SEACLIFF ESTATE",
    "class_type": "California Chardonnay \u2014 Table Wine",
-   "alcohol_content": "",
+   "alcohol_content": "12.5%",
    "net_contents": "750 mL"
   },
   "note": "Synthetic golden patterned on the wine corpus structure; ground truth by construction. Expected: photographed at an angle (7\u00b0) \u2014 recoverable checks stay green; unrecoverable ones degrade to honest NEEDS_REVIEW, never a false MISMATCH",
@@ -91,7 +91,7 @@
    "beverage_type": "wine",
    "brand_name": "SEACLIFF ESTATE",
    "class_type": "California Chardonnay \u2014 Table Wine",
-   "alcohol_content": "",
+   "alcohol_content": "12.5%",
    "net_contents": "750 mL"
   },
   "note": "Synthetic golden patterned on the wine corpus structure; ground truth by construction. Expected: poor lighting (underexposed) \u2014 recoverable checks stay green; unrecoverable ones degrade to honest NEEDS_REVIEW, never a false MISMATCH",
@@ -116,7 +116,7 @@
    "beverage_type": "wine",
    "brand_name": "SEACLIFF ESTATE",
    "class_type": "California Chardonnay \u2014 Table Wine",
-   "alcohol_content": "",
+   "alcohol_content": "12.5%",
    "net_contents": "750 mL"
   },
   "note": "Synthetic golden patterned on the wine corpus structure; ground truth by construction. Expected: flash glare across the upper label \u2014 recoverable checks stay green; unrecoverable ones degrade to honest NEEDS_REVIEW, never a false MISMATCH",
