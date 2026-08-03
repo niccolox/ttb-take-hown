@@ -22,6 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from . import layers as _layers_mod
 from .extractor import build_extractor
 from .intake import deskew
 from .jobs import JobQueue, ResultStore
@@ -228,7 +229,10 @@ def healthz():
                                              else "loading models"),
             "ready": ready, "state": state,
             "queue": {"depth": jobq.depth(), "oldest_age_s": jobq.oldest_age_s()},
-            "rss_mb": _rss_mb()}
+            "rss_mb": _rss_mb(),
+            # R2: nonzero means calibration/usage telemetry is being dropped
+            # (permissions, disk) — silent-by-design at write time, loud here
+            "telemetry_drops": _layers_mod.telemetry_drops}
 
 
 @app.get("/api/samples")
@@ -254,7 +258,16 @@ _UI_EVENTS = {"tour_started", "tour_completed", "first_decision"}
 async def ui_telemetry(request: Request):
     """Train-before-pilot T5: local-only usage signals (time-to-first-
     decision, walkthrough completion) into the E4 stream — strict allowlist,
-    no free text, never breaks anything."""
+    no free text, never breaks anything. Re-audit R1: metered by the same
+    per-IP bucket as /api/verify and body-capped — an unmetered write
+    endpoint could churn the telemetry rotation and dilute calibration data."""
+    ip = request.client.host if request.client else "unknown"
+    ok, retry_after = rate_limiter.allow(ip)
+    if not ok:
+        return JSONResponse({"ok": False}, status_code=429,
+                            headers={"Retry-After": str(max(1, int(retry_after)))})
+    if int(request.headers.get("content-length") or 0) > 1024:
+        return JSONResponse({"ok": False}, status_code=413)
     try:
         body = await request.json()
     except Exception:

@@ -44,7 +44,14 @@ TELEMETRY_MAX_BYTES = 20 * 1024 * 1024   # audit F6: bounded, rotated once —
 _telemetry_lock = threading.Lock()
 
 
+# re-audit R2: swallowed telemetry failures once hid HOURS of dropped
+# calibration data (a root-owned file from a docker run). The guard stays —
+# telemetry never breaks a verdict — but the drop COUNT is a health signal.
+telemetry_drops = 0
+
+
 def _telemetry(row: dict) -> None:
+    global telemetry_drops
     try:
         TELEMETRY_PATH.parent.mkdir(parents=True, exist_ok=True)
         with _telemetry_lock:
@@ -54,6 +61,7 @@ def _telemetry(row: dict) -> None:
             with open(TELEMETRY_PATH, "a") as f:
                 f.write(json.dumps(row) + "\n")
     except OSError:                       # telemetry never breaks a verdict
+        telemetry_drops += 1
         log.warning("e4 telemetry write failed", exc_info=True)
 
 

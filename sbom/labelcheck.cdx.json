@@ -3,16 +3,16 @@
  "specVersion": "1.5",
  "version": 1,
  "metadata": {
-  "timestamp": "2026-08-03T16:17:18+00:00",
+  "timestamp": "2026-08-03T22:01:23+00:00",
   "component": {
    "type": "application",
    "name": "labelcheck",
-   "version": "a763b85169e5"
+   "version": "d3976e28f405"
   },
   "properties": [
    {
     "name": "labelcheck:generation-context",
-    "value": "scripts/gen_sbom.py from api/requirements.lock (hash-locked install source) + api/models.sha256 at commit a763b85169e5"
+    "value": "scripts/gen_sbom.py from api/requirements.lock (hash-locked install source) + api/models.sha256 at commit d3976e28f405"
    }
   ]
  },

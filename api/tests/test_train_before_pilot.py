@@ -42,3 +42,21 @@ def test_ui_telemetry_allowlist(tmp_path, monkeypatch):
     ok2 = client.post("/api/telemetry", json={"event": "tour_started", "ms": -5})
     assert ok2.status_code == 200
     assert '"ms"' not in (tmp_path / "e4.jsonl").read_text().splitlines()[-1]
+
+
+def test_ui_telemetry_body_cap_and_drop_counter(tmp_path, monkeypatch):
+    """Re-audit R1/R2: oversized bodies are rejected before parsing, and
+    swallowed write failures surface as a healthz drop counter."""
+    from api import layers
+    client = TestClient(main.app)
+    big = client.post("/api/telemetry",
+                      content=b'{"event":"tour_started","pad":"' + b"x" * 2000 + b'"}',
+                      headers={"Content-Type": "application/json"})
+    assert big.status_code == 413
+    # unwritable telemetry path → drop counted, request still ok (guard holds)
+    monkeypatch.setattr(layers, "TELEMETRY_PATH", tmp_path / "no" / "such.jsonl")
+    monkeypatch.setattr(layers.Path, "mkdir", lambda *a, **k: (_ for _ in ()).throw(OSError()))
+    before = layers.telemetry_drops
+    assert client.post("/api/telemetry", json={"event": "tour_started"}).status_code == 200
+    assert layers.telemetry_drops == before + 1
+    assert client.get("/healthz").json()["telemetry_drops"] >= before + 1

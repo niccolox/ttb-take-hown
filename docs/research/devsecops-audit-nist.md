@@ -1,5 +1,11 @@
 # DevSecOps Audit — Treasury/Federal + NIST Standards Mapping
 
+> **Re-audited 2026-08-03 (evening)** against the post-remediation tree —
+> all ten findings verified CLOSED and the surface added since (telemetry
+> endpoint, guided tour, runbook, ingested reference assets, new rules
+> modules) assessed. See **“Re-audit — current implementation”** at the end;
+> the body below is preserved as the original audit record.
+
 Audit date: 2026-08-03, main @ bcc17df. Scope: this repository as built —
 code, containers, dependencies, data flows, UI — assessed against the
 frameworks a Treasury/TTB deployment would face. Every finding cites the
@@ -172,3 +178,99 @@ Availability LOW (batch tool, retry-tolerant) → the 800-53 moderate
 baseline is the right control target for any deployed instance; the
 FedRAMP-High/IL5 discussion applies only to the Gov-cloud escalation tier
 already scoped in PLAN-us-stack.
+
+---
+
+## Re-audit — current implementation (2026-08-03 evening, suite 208 passed)
+
+### Original findings: all ten verified CLOSED
+
+| Finding | Status | Evidence in-tree |
+|---|---|---|
+| F1 CI pipeline | CLOSED | `.github/workflows/ci.yml` — hash-locked install, pytest, no-egress proof, pip-audit; weekly image job (build + non-root assert + no-data assert + trivy); axe job. First hosted run still awaits the user's push. |
+| F2 root container | CLOSED | Dockerfile `USER app` (uid 1000); CI asserts `id -u` = 1000 |
+| F3 data baked in images | CLOSED | `.dockerignore` (api/data, colacloud, batches, .env); CI asserts no-data paths absent in image |
+| F4 SBOM/attestation | CLOSED | `scripts/gen_sbom.py` → `sbom/labelcheck.cdx.json` (71 components, licenses, PRC-origin annotations); regenerated this re-audit (R5) |
+| F5 deploy security design | CLOSED | `docs/deploy-security.md` (TLS at edge, authn options, pre-flight checklist; DECIDE items remain the user's) |
+| F6 log retention | CLOSED | E4 rotation at 20 MB (one generation); retention split documented (session store = system of record) |
+| F7 dependency currency | CLOSED | monthly ritual documented; pip-audit advisory in CI; weekly image scan |
+| F8 sidecar bounds | CLOSED | `nemotron_server.py` 12 MB cap + PIL transcode; documented inside-boundary |
+| F9 AI risk statement | CLOSED | `docs/ai-risk-statement.md` (RMF GOVERN/MAP/MEASURE/MANAGE, residual risks owned) |
+| F10 508 | CLOSED (process open) | axe in CI at 0 violations (re-verified after footer/subnav/tour changes); manual screen-reader session still a pre-deploy TODO |
+
+### New surface since the audit, and findings
+
+The tree gained: a UI telemetry endpoint, the guided walk-through +
+runbook, a sticky filter sub-nav, commodity/status facets, three ingested
+TTB anatomy reference sets + BAM fixtures, four new rules modules
+(wine/malt additions), the earned-PASS gate, and ~50 commits of UI work.
+
+**R1 · /api/telemetry shipped unmetered with an unbounded body. FIXED
+same-day.** The endpoint (added for train-before-pilot T5) had the strict
+event allowlist and numeric bounds from birth, but the per-IP token
+bucket guarded only `/api/verify`, and `request.json()` would buffer an
+arbitrarily large body. Fixed: same rate limiter + 429/Retry-After
+contract, 1 KB content-length cap (413), tests pin both. Damage ceiling
+even pre-fix was bounded by the 20 MB rotation and loopback-only posture
+— but calibration-data dilution was a real risk. *Lesson recorded: every
+new POST route must opt INTO the limiter explicitly; a middleware-level
+default would fail safer (candidate for the deploy hardening pass).*
+
+**R2 · Silent telemetry drops hid an hours-long data loss. FIXED
+(detection), ops rule reaffirmed.** The E4 file was root-owned (written
+by an early docker-compose run before the non-root fix); every native-
+process write since morning was swallowed by the telemetry-never-breaks-
+a-verdict guard — hours of J1 agreement rows (the N7 calibration input)
+silently lost. The guard is correct and stays; what was missing is a
+signal: `layers.telemetry_drops` now counts swallowed writes and
+`/healthz` exposes it (`telemetry_drops`), tested. The root-owned file
+was moved aside (`e4-telemetry.root-owned.bak`, local, gitignored —
+harvest then delete). This is the standing DuckDB single-writer rule in
+a new costume: **docker and native runs must not share api/data.**
+
+**R3 · Committed third-party page snapshots. ACCEPTED with note.** Three
+TTB tool pages (`api/eval/anatomy*/page.html`) are committed for
+provenance. They are U.S. government works (public domain), live OUTSIDE
+the `api/web` static mount (never served), and their external script/CSS
+references are inert bytes in the repo. No action.
+
+**R4 · Footer external links + runbook page. ACCEPTED.** All reference
+anchors are user-initiated navigation with `rel="noopener"`; nothing
+loads at page-load time; runbook.html uses only the vendored stylesheet.
+The no-egress runtime claim is unchanged and the CI no-egress proof
+still passes.
+
+**R5 · SBOM metadata staleness. FIXED.** `requirements.lock` is unchanged
+since generation, so component contents were accurate, but the embedded
+commit hash was stale. Regenerated at the current tree (71 components,
+68 licensed, 8 origin-annotated). The release ritual (F7) covers this
+going forward.
+
+**R6 · Client-side-only enforcement of the earned-PASS gate. NOTED,
+deploy-gated.** The whole-label PASS lock (`passBlockers`) is a UI
+control; decisions live client-side until session save, so this is
+consistent today. If the deployed-URL work adds a server decision
+endpoint, the same predicate must be mirrored server-side (AD-27
+server-side-terminality) — added to the deploy checklist expectations.
+
+Reviewed with no findings: tour engine (innerHTML paths escape via
+`esc()`; no user-controlled strings reach the tooltip), training-set
+metadata (server-controlled), locator changes (parsing only), new rules
+modules (pure functions, no I/O), commodity/status facets (no input
+surface), footer `data-act` handlers (allowlisted actions).
+
+### Scorecard (refreshed)
+
+| Area | Was | Now | Basis |
+|---|---|---|---|
+| Supply chain (800-161, EO 14028) | B+ | **A-** | SBOM shipped + regenerated; locks + weight pins; CI proves the lock per-push |
+| Secure development (SSDF 800-218) | C+ | **B+** | CI gates on every push (pending first hosted run); tests 208 |
+| Container security (800-190) | C- | **B** | non-root asserted in CI; no-data asserted; base tags still mutable (accepted for a prototype) |
+| Access control / network (AC/SC) | B- | **B-** | unchanged by design — deploy-gated (docs/deploy-security.md) |
+| Audit & accountability (AU) | B | **B+** | provenance + rotation + drop-counter health signal |
+| AI risk (AI RMF 1.0) | B+ | **A-** | risk statement artifact; decision friction now ENFORCED (earned-PASS); tour teaches the no-authority posture |
+| Accessibility (508) | B | **B+** | axe 0 violations in CI, re-verified after every UI change; manual session still open |
+
+Standing user-action items unchanged: push to origin (gives CI its first
+run), deploy-security DECIDE items, one manual screen-reader session,
+harvest-and-delete the root-owned telemetry backup.
