@@ -205,7 +205,7 @@ dialog canvas { max-width: 86vw; }
 
 /* two-stage stepper (Screened → Cross-checked): daisyui steps, compacted —
    the default component is sized for wizards, not a status line */
-.timing-steps { @apply mb-1; }
+.timing-steps { @apply mb-1 w-full grid; grid-auto-columns: 1fr; }
 .timing-steps .step { @apply text-[12.5px] font-bold min-h-0 gap-y-1; }
 .timing-steps .step:after { @apply w-6 h-6 text-[12px]; }
 .timing-steps .step:before { @apply h-1; }

@@ -551,6 +551,7 @@ function renderDetail() {
     head.append(t, sub);
     d.appendChild(head);
   }
+  renderJourney(d, it);
   for (const p of (it.panels || []).filter((p) => p.bitmap)) {
     const img = document.createElement("img");
     img.className = "thumb";
@@ -744,6 +745,61 @@ function bannerFor(fields, it = null) {
   return ["green", "All checks matched — ready for agent sign-off"];
 }
 
+/** The application's full journey as a stepper — every lifecycle step, not
+ *  just the two machine stages. Renders for any selected item so an agent
+ *  always sees where the case stands and what happens next. The last step
+ *  belongs to the AGENT: a machine all-clear never fills it (human primacy,
+ *  docs/ai-risk-statement.md). */
+function renderJourney(container, it) {
+  const st = itemState(it);
+  const r = it.result;
+  const steps = document.createElement("ul");
+  steps.className = "steps timing-steps";
+  steps.setAttribute("aria-label", "Application progress");
+  const add = (marker, label, cls) => {
+    const li = document.createElement("li");
+    li.className = "step" + (cls ? " " + cls : "");
+    li.dataset.content = marker;
+    li.textContent = label;
+    steps.appendChild(li);
+  };
+  // 1 · Received — it's in the list, so this step has happened
+  add("✓", "Received", "step-primary");
+  // 2 · Screened (first read — what the 5s promise covers)
+  const s = it.elapsedMs != null ? it.elapsedMs / 1000 : null;
+  const within = s != null && s < 5;
+  if (st === "error") add("!", "Couldn't finish", "step-error");
+  else if (r && s != null) add(within ? "✓" : "!",
+    within ? `Screened ${s.toFixed(1)}s` : `Screened ${s.toFixed(1)}s — over 5s target`,
+    within ? "step-primary" : "step-error");
+  else if (r) add("✓", "Screened", "step-primary");
+  else if (st === "checking") add("●", "Screening…", "step-running");
+  else add("○", "Screening", "");
+  // 3 · Cross-checked (background QA: second engine, warning re-read)
+  const twoStage = r && (r.settled === false || it.settleMs != null
+    || (r.jobs || []).length > 0);
+  if (r && r.settled === false) add("●", "Cross-checking…", "step-running");
+  else if (twoStage) add("✓", it.settleMs != null
+    ? `Cross-checked ${(it.settleMs / 1000).toFixed(1)}s` : "Cross-checked",
+    "step-primary");
+  else if (r) add("○", "Cross-check — single engine", "");
+  else add("○", "Cross-check", "");
+  // 4 · Disposition — only an agent decision fills this step
+  const ov = ovValue(it);
+  if (ov === "PASS" || ov === "FAIL") add("✓", `Decided — ${ov}`, "step-success");
+  else if (ov === "NEEDS REVIEW") add("👁", "Flagged — needs review", "step-warning");
+  else add("○", "Your decision", "");
+  container.appendChild(steps);
+  if (r && s != null) {     // 5s target (Sarah's threshold) + OCR split, small print
+    const sub = document.createElement("p");
+    sub.className = "cite timing-sub";
+    const ocrNote = r.timing_ms?.ocr != null
+      ? `reading the label: ${(r.timing_ms.ocr / 1000).toFixed(1)}s — ` : "";
+    sub.textContent = `${ocrNote}first answer ${within ? "within" : "OVER"} the 5-second target`;
+    container.appendChild(sub);
+  }
+}
+
 function renderResult(container, it) {
   const r = it.result;
   // N3 provisional state (AD-12 lean): a verdict with checks still running
@@ -758,54 +814,8 @@ function renderResult(container, it) {
     prov.textContent = `⏳ Preliminary result — ${pending || "additional checks"} still running. Details below may upgrade in a few seconds.`;
     container.appendChild(prov);
   }
-  if (it.elapsedMs != null) {                       // 5s target (Sarah's threshold) made visible
-    const s = it.elapsedMs / 1000;
-    const within = s < 5;
-    const ocr = r.timing_ms?.ocr != null ? ` (reading the label: ${(r.timing_ms.ocr / 1000).toFixed(1)}s)` : "";
-    // Two-stage pipeline (N3): the first answer is what the 5s promise
-    // covers; the background cross-check follows. Rendered as a stepper in
-    // agent language ("Screened" / "Cross-checked" — no pipeline stage
-    // numbers). Single-engine results keep the original one-line form.
-    const twoStage = r.settled === false || it.settleMs != null
-      || (r.jobs || []).length > 0;
-    if (twoStage) {
-      const steps = document.createElement("ul");
-      steps.className = "steps timing-steps";
-      steps.setAttribute("aria-label", "Check progress");
-      const s1 = document.createElement("li");
-      s1.className = "step " + (within ? "step-primary" : "step-error");
-      s1.dataset.content = within ? "✓" : "!";
-      s1.textContent = within ? `Screened ${s.toFixed(1)}s`
-                              : `Screened ${s.toFixed(1)}s — over 5s target`;
-      const s2 = document.createElement("li");
-      if (r.settled === false) {
-        s2.className = "step step-running";
-        s2.dataset.content = "●";
-        s2.textContent = "Cross-checking…";
-      } else {
-        s2.className = "step step-primary";
-        s2.dataset.content = "✓";
-        s2.textContent = it.settleMs != null
-          ? `Cross-checked ${(it.settleMs / 1000).toFixed(1)}s`
-          : "Cross-checked";
-      }
-      steps.append(s1, s2);
-      container.appendChild(steps);
-      const sub = document.createElement("p");
-      sub.className = "cite timing-sub";
-      const ocrNote = r.timing_ms?.ocr != null
-        ? `reading the label: ${(r.timing_ms.ocr / 1000).toFixed(1)}s — ` : "";
-      sub.textContent = `${ocrNote}first answer ${within ? "within" : "OVER"} the 5-second target`;
-      container.appendChild(sub);
-    } else {
-      const timing = document.createElement("div");
-      timing.className = "timing " + (within ? "ok" : "over");
-      timing.textContent = within
-        ? `⏱ Checked in ${s.toFixed(1)}s — within the 5-second target${ocr}`
-        : `⏱ Checked in ${s.toFixed(1)}s — OVER the 5-second target${ocr}`;
-      container.appendChild(timing);
-    }
-  }
+  // timing/stage display lives in the journey stepper (renderJourney),
+  // which renders above the label image for every selected item
   let [cls, text] = bannerFor(r.fields.filter((f) => !isRefining(it, f)), it);
   const ov = ovValue(it);
   if (ov) {
