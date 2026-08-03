@@ -156,7 +156,15 @@ dialog canvas { max-width: 86vw; }
 .batchbar { @apply flex gap-2 mt-2.5 flex-wrap; }
 footer { @apply px-6 py-4 opacity-60 text-[13px]; }
 img.thumb { @apply max-w-full border border-base-300 rounded-lg; }
-/* hover-3d wrapper carries the thumb's spacing; inline-grid needs the
-   explicit width so the label image keeps its column-filling size */
-.hover-3d { @apply mb-2.5 w-full; }
-.hover-3d > img.thumb { @apply w-full; }
+/* cursor-tracking zoom-on-hover: frame clips the scaled image; the JS sets
+   transform-origin to the pointer position */
+.zoomable {
+  @apply mb-2.5 w-full overflow-hidden rounded-lg border border-base-300;
+  cursor: zoom-in;
+}
+.zoomable > img.thumb {
+  @apply w-full border-0 rounded-none;
+  display: block; margin: 0;
+  transition: transform 0.25s ease-out;
+}
+.zoomable:hover > img.thumb { transform: scale(2.2); }

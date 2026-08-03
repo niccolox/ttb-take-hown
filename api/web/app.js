@@ -487,12 +487,18 @@ function renderDetail() {
     if ((it.panels || []).length > 1) img.title = `${p.panel} panel`;
     p.thumbUrl ||= URL.createObjectURL(p.file);   // one URL per panel, reused across renders
     img.src = p.thumbUrl;
-    // daisyui hover-3d: image first, then 8 invisible hover zones that
-    // drive the tilt/shine — a physical once-over of the label artwork
+    // zoom-on-hover magnifier: the image scales up inside its frame with the
+    // transform origin tracking the cursor — inspect small print (the
+    // warning block) by just pointing at it
     const wrap = document.createElement("div");
-    wrap.className = "hover-3d w-full";
+    wrap.className = "zoomable";
     wrap.appendChild(img);
-    for (let i = 0; i < 8; i++) wrap.appendChild(document.createElement("div"));
+    wrap.addEventListener("mousemove", (e) => {
+      const r = wrap.getBoundingClientRect();
+      img.style.transformOrigin =
+        `${(((e.clientX - r.left) / r.width) * 100).toFixed(1)}% ` +
+        `${(((e.clientY - r.top) / r.height) * 100).toFixed(1)}%`;
+    });
     d.appendChild(wrap);
     if ((it.panels || []).length > 1) {
       const cap = document.createElement("div");
