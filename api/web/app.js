@@ -597,9 +597,26 @@ function renderResult(container, it) {
     const timing = document.createElement("div");
     timing.className = "timing " + (within ? "ok" : "over");
     const ocr = r.timing_ms?.ocr != null ? ` (reading the label: ${(r.timing_ms.ocr / 1000).toFixed(1)}s)` : "";
-    timing.textContent = within
-      ? `⏱ Checked in ${s.toFixed(1)}s — within the 5-second target${ocr}`
-      : `⏱ Checked in ${s.toFixed(1)}s — OVER the 5-second target${ocr}`;
+    // Two-stage pipeline (N3): stage 1 is the answer the 5s promise covers;
+    // stage 2 is the background cross-check. Single-engine results (no
+    // background jobs) keep the original one-stage line.
+    const twoStage = r.settled === false || it.settleMs != null
+      || (r.jobs || []).length > 0;
+    if (twoStage) {
+      const s1 = within
+        ? `⏱ Stage 1 — answer in ${s.toFixed(1)}s, within the 5-second target${ocr}`
+        : `⏱ Stage 1 — answer in ${s.toFixed(1)}s, OVER the 5-second target${ocr}`;
+      const s2 = r.settled === false
+        ? "Stage 2 — cross-checks running…"
+        : (it.settleMs != null
+          ? `Stage 2 — cross-checks settled at ${(it.settleMs / 1000).toFixed(1)}s total`
+          : "Stage 2 — cross-checks settled");
+      timing.textContent = `${s1} · ${s2}`;
+    } else {
+      timing.textContent = within
+        ? `⏱ Checked in ${s.toFixed(1)}s — within the 5-second target${ocr}`
+        : `⏱ Checked in ${s.toFixed(1)}s — OVER the 5-second target${ocr}`;
+    }
     container.appendChild(timing);
   }
   let [cls, text] = bannerFor(r.fields.filter((f) => !isRefining(it, f)), it);
@@ -821,6 +838,7 @@ async function runOne(it) {
 // overridden field (precedence rule AD-18 is enforced server-side; here we
 // only swap in newer machine results and re-render).
 async function pollRefinements(it, resultId) {
+  const pollStart = performance.now();      // stage-2 clock starts at handoff
   let delay = 1000; const deadline = Date.now() + 60000;
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, delay));
@@ -843,6 +861,9 @@ async function pollRefinements(it, resultId) {
     if ((body.revision || 0) > (it.result.revision || 0)) {
       body.cancel_token = it.result.cancel_token; // token only arrives on POST
       it.result = body;
+      if (body.settled) {                    // total = stage 1 + cross-check wait
+        it.settleMs = (it.elapsedMs || 0) + (performance.now() - pollStart);
+      }
       markSessionDirty(); renderList(); if (sel() === it) renderDetail();
       schedulePersist();
     }
@@ -1049,7 +1070,8 @@ async function persistSession(showProgress = false) {
                 verification_status: autoState(it),      // machine verdict
                 final_status: itemState(it),             // after agent decisions
                 review_complete: reviewComplete(it),
-                elapsed_ms: it.elapsedMs != null ? Math.round(it.elapsedMs) : null });
+                elapsed_ms: it.elapsedMs != null ? Math.round(it.elapsedMs) : null,
+                settle_ms: it.settleMs != null ? Math.round(it.settleMs) : null });
     for (const p of it.panels || []) fd.append("images", p.file);
   }
   fd.append("meta", JSON.stringify(meta));
@@ -1112,6 +1134,7 @@ async function restoreSession({ quiet = false } = {}) {
       // details aren't presented as the settled answer
       if (rec.result && rec.result.settled === false) it.stale = true;
       if (rec.elapsed_ms != null) it.elapsedMs = rec.elapsed_ms;   // timing chip survives
+      if (rec.settle_ms != null) it.settleMs = rec.settle_ms;      // both stages survive
       if (rec.stale) it.stale = true;          // out-of-date verdicts stay marked ⟳
       unpackOverride(it, rec.override);
     }
