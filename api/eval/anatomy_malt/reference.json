@@ -1,0 +1,293 @@
+{
+  "source": "https://www.ttb.gov/regulated-commodities/beverage-alcohol/beer/labeling/anatomy-of-a-malt-beverage-label-tool",
+  "fetched": "2026-08-03",
+  "license": "U.S. government work (public domain)",
+  "note": "TTB's interactive Anatomy of a Malt Beverage Label: slice geometry is the page's image map; nameAddress spans two hotspots (name and city/state on separate lines, \u00a77.66).",
+  "panels": {
+    "front": {
+      "width": 325,
+      "height": 400
+    },
+    "back": {
+      "width": 325,
+      "height": 400
+    }
+  },
+  "slices": [
+    {
+      "file": "images/a1.png",
+      "panel": "front",
+      "x": 0,
+      "y": 0,
+      "w": 325,
+      "h": 29,
+      "element": null
+    },
+    {
+      "file": "images/f0.png",
+      "panel": "front",
+      "x": 0,
+      "y": 29,
+      "w": 325,
+      "h": 107,
+      "element": "nameAddress"
+    },
+    {
+      "file": "images/f1.png",
+      "panel": "front",
+      "x": 0,
+      "y": 136,
+      "w": 325,
+      "h": 37,
+      "element": "brandName"
+    },
+    {
+      "file": "images/f2.png",
+      "panel": "front",
+      "x": 0,
+      "y": 173,
+      "w": 325,
+      "h": 55,
+      "element": "fancifulName"
+    },
+    {
+      "file": "images/f6.png",
+      "panel": "front",
+      "x": 0,
+      "y": 228,
+      "w": 325,
+      "h": 62,
+      "element": "classType"
+    },
+    {
+      "file": "images/a3_1.png",
+      "panel": "front",
+      "x": 0,
+      "y": 290,
+      "w": 69,
+      "h": 43,
+      "element": null
+    },
+    {
+      "file": "images/f3.png",
+      "panel": "front",
+      "x": 69,
+      "y": 290,
+      "w": 89,
+      "h": 43,
+      "element": "alcoholContent"
+    },
+    {
+      "file": "images/a3_2.png",
+      "panel": "front",
+      "x": 158,
+      "y": 290,
+      "w": 6,
+      "h": 43,
+      "element": null
+    },
+    {
+      "file": "images/f4.png",
+      "panel": "front",
+      "x": 164,
+      "y": 290,
+      "w": 88,
+      "h": 43,
+      "element": "netContent"
+    },
+    {
+      "file": "images/a3_3.png",
+      "panel": "front",
+      "x": 252,
+      "y": 290,
+      "w": 73,
+      "h": 43,
+      "element": null
+    },
+    {
+      "file": "images/a4.png",
+      "panel": "front",
+      "x": 0,
+      "y": 333,
+      "w": 325,
+      "h": 11,
+      "element": null
+    },
+    {
+      "file": "images/f5.png",
+      "panel": "front",
+      "x": 0,
+      "y": 344,
+      "w": 325,
+      "h": 24,
+      "element": "nameAddress"
+    },
+    {
+      "file": "images/a5.png",
+      "panel": "front",
+      "x": 0,
+      "y": 368,
+      "w": 325,
+      "h": 32,
+      "element": null
+    },
+    {
+      "file": "images/b0.png",
+      "panel": "back",
+      "x": 0,
+      "y": 0,
+      "w": 325,
+      "h": 62,
+      "element": null
+    },
+    {
+      "file": "images/b1.png",
+      "panel": "back",
+      "x": 0,
+      "y": 62,
+      "w": 54,
+      "h": 179,
+      "element": "GPI"
+    },
+    {
+      "file": "images/b2.png",
+      "panel": "back",
+      "x": 54,
+      "y": 62,
+      "w": 210,
+      "h": 179,
+      "element": "addInfo"
+    },
+    {
+      "file": "images/b3.png",
+      "panel": "back",
+      "x": 264,
+      "y": 62,
+      "w": 61,
+      "h": 179,
+      "element": "GPI"
+    },
+    {
+      "file": "images/b4.png",
+      "panel": "back",
+      "x": 0,
+      "y": 241,
+      "w": 325,
+      "h": 31,
+      "element": "webAdd"
+    },
+    {
+      "file": "images/b6.png",
+      "panel": "back",
+      "x": 0,
+      "y": 272,
+      "w": 34,
+      "h": 97,
+      "element": "addInfo"
+    },
+    {
+      "file": "images/b7.png",
+      "panel": "back",
+      "x": 34,
+      "y": 272,
+      "w": 225,
+      "h": 97,
+      "element": "healthWarning"
+    },
+    {
+      "file": "images/b8.png",
+      "panel": "back",
+      "x": 259,
+      "y": 272,
+      "w": 35,
+      "h": 97,
+      "element": "upcBar"
+    },
+    {
+      "file": "images/b9.png",
+      "panel": "back",
+      "x": 294,
+      "y": 272,
+      "w": 31,
+      "h": 97,
+      "element": null
+    },
+    {
+      "file": "images/b10.png",
+      "panel": "back",
+      "x": 0,
+      "y": 369,
+      "w": 325,
+      "h": 31,
+      "element": null
+    }
+  ],
+  "elements": {
+    "GPI": {
+      "field": null,
+      "mandatory": "no",
+      "placement": "any label",
+      "ttb_text": "GRAPHICS/PICTORIAL IMAGES Mandatory? Placement Requirement? No May appear on any label. Description Images appearing on malt beverage labels are also subject to TTB labeling regulations. Images may not create a misleading impression. See 27 CFR 7.102 and 7.122 for more information. TIPS Non-mandatory information, including graphics and images, may be deleted or repositioned without applying for a new COLA. TTB requires a new COLA when adding or changing graphics, pictures, or representations from a previously approved COLA. See Allowable Revisions for complete requirements."
+    },
+    "brandName": {
+      "field": "brand_name",
+      "mandatory": "yes \u2014 bottler/importer name serves if none",
+      "placement": "any label",
+      "ttb_text": "BRAND NAME Mandatory? Placement Requirement? Yes May appear on any label. Description The brand name is the name under which a malt beverage or line of malt beverages is marketed. See Brand Name for complete requirements. Also see 27 CFR 7.64 . TIPS The brand name may appear on any label . The brand name may not mislead the consumer about the age, origin, identity, or other characteristics of the malt beverage. The brand name entered on the application must appear exactly as indicated on the label. A class/type designation (e.g., \u201cale,\u201d \u201dstout,\u201d etc.) standing alone, may not be used as the brand name. The name of the bottler or importer may also be used as the brand name (e.g. Malt & Hop Brewery)."
+    },
+    "fancifulName": {
+      "field": "fanciful_name",
+      "mandatory": "conditional \u2014 required with a statement of composition (specialty products, \u00a77.147)",
+      "placement": "any label",
+      "ttb_text": "DISTINCTIVE OR FANCIFUL NAME Mandatory? Placement Requirement? No May appear on any label. Yes* May appear on any label. *Required if the product is not known to the trade under a particular class and type, and requires an approved formula. Description For a malt beverage , a distinctive or fanciful name is a descriptive name or phrase used in addition to the brand name to further identify a product. Oftentimes, several distinctive or fanciful names are associated with a single brand of malt beverages, for example, highlighting products with different flavors. See Brand Name and Class and Type Designations for complete requirements. TIPS The distinctive or fanciful name may not mislead the consumer about the age, origin, identity, or other characteristics of the malt beverage. A class/type designation (e.g., \u201cale,\u201d \u201dstout,\u201d etc.) standing alone, may not be used as the distinctive or fanciful name. Whenever a fanciful name is required, a statement of the composition of the product is required to appear as well. See 27 CFR 7.141(b)(2) ."
+    },
+    "classType": {
+      "field": "class_type",
+      "mandatory": "yes",
+      "placement": "any label",
+      "ttb_text": "CLASS, TYPE, OR OTHER DESIGNATION Mandatory? Placement Requirement? Yes May appear on any label. Description The class and type designation identifies the labeled malt beverage for consumers. While a class designation is mandatory, type designations are optional. The class and type designation is based on trade understanding of the characteristics generally attributed to the particular class and type of malt beverage. Ale, lager, beer, malt liquor, stout, porter, and malt beverage are all acceptable class designations. Malt beverages that do not have the characteristics of the above designations must be labeled with a distinctive or fanciful name and a statement of composition. See Class and Type Designations for complete requirements. TIPS The class and type must appear together and must be separate and apart from additional information. See 27 CFR 7.52 and 141 . If a class/type designation appears on more than one label, ensure that the designation is consistent on all labels. Malt beverages not known to the trade under a particular class and type require both a distinctive or fanciful name and statement of composition (see 27 CFR 7.141 ). Check the Beer/Malt Beverage Formula Tool if you are unsure whether your malt beverage needs a formula approved by TTB. Malt beverages containing less than 0.5% alcohol by volume must include one of the class designations \u201cmalt beverage,\u201d \u201ccereal beverage,\u201d or \u201cnear beer.\u201d If the designation \u201cnear beer\u201d is used, both words must appear in the same size and style of type, in the same color of ink, and on the same background. No product containing less than 0.5% alcohol by volume may be labeled as \u201cbeer,\u201d \u201clager beer,\u201d \u201clager,\u201d \u201cale,\u201d \u201cporter,\u201d or \u201cstout,\u201d or any other class or type designation commonly applied to malt beverages containing 0.5% or more alcohol by volume. See 27 CFR 7.145 ."
+    },
+    "alcoholContent": {
+      "field": "alcohol_content",
+      "mandatory": "conditional \u2014 mandatory when alcohol derives from added flavors/nonbeverage ingredients (\u00a77.63(a)(3)); otherwise optional",
+      "placement": "any label",
+      "ttb_text": "ALCOHOL CONTENT Mandatory? Placement Requirement? No May appear on any label. Yes* May appear on any label. *Required if the malt beverage contains alcohol derived from added flavors or other added non-beverage ingredients (other than hops extract) containing alcohol. Description The alcohol content is a numerical statement on a malt beverage label that indicates the alcohol content of the product. TTB requires alcohol content to be stated, in terms of alcohol by volume, for malt beverages that contain alcohol derived from added flavors or other added non-beverage ingredients (other than hops extract) containing alcohol. Otherwise, an alcohol content statement is optional (unless required or prohibited by State law). See Alcohol Content Statement for complete requirements. TIPS Ensure the format is acceptable, such as: \u201cAlcohol ___% by volume\u201d; or \u201c___% Alc. By Vol.\u201d Only alc. and vol. may be used to abbreviate the words alcohol and volume. They may be used with or without periods. ABV is not allowed as an abbreviation of alcohol by volume in any mandatory or optional alcohol content statement. TTB permits other truthful, accurate, and specific factual representations of alcohol content, including alcohol by weight, as long as they appear together with, and as part of, a statement of alcohol by volume. See 27 CFR 7.65(b)(1) . The mandatory or optional statement of alcohol content indicated on the label may be changed without submitting a new COLA application, as long as the change is consistent with the labeled class and type designation and all other labeling statements. See Allowable Revisions for complete requirements."
+    },
+    "netContent": {
+      "field": "net_contents",
+      "mandatory": "yes",
+      "placement": "any label, or blown/embossed/molded into the container",
+      "ttb_text": "NET CONTENTS Mandatory? Placement Requirement? Yes May appear on any label, or may be blown, embossed, or molded into the container as part of the process of manufacturing the container. Description The net contents statement indicates how much malt beverage is in the container. See Net Contents for complete requirements. TIPS The net contents must be stated in standard United States units of measure (e.g., pints, fluid ounces). Metric units may be used in addition to, but not in lieu of the standard U.S. units. See 27 CFR 7.70 . If the net contents statement is blown, embossed, or molded into the container, the measurements must be provided in Step 3 of COLAs Online . The net contents indicated on a label may be changed without applying for a new COLA. See Allowable Revisions for complete requirements."
+    },
+    "nameAddress": {
+      "field": "name_address",
+      "mandatory": "yes \u2014 name + city/state; explanatory phrase optional (\u00a77.66)",
+      "placement": "any label, or blown/embossed/molded into the container",
+      "ttb_text": "NAME AND ADDRESS (Domestic) Mandatory? Placement Requirement? Yes May appear on any label, or may be blown, embossed, or molded into the container as part of the process of manufacturing the container. Description The name and address of the bottler must appear on the label, except when blown, embossed, or molded into the container (see 27 CFR 7.63(a)(4) . On labels of containers of domestic malt beverages, the name of the bottler and the place where bottled must appear on the label (see 27 CFR 7.66 ). The name and address statement may contain the words: \u201cBrewed and Bottled/Packed by\u201d \u201cBottled/Packed by\u201d See Name and Address (Domestic) and Name and Address (Imports) for complete requirements. Tips The street address and zip code may be omitted. The city cannot be abbreviated in the name and address statement. The name and address do not need to appear together on the label. An authorized trade name/DBA may be used in place of the official operating name, as long as it is listed on the brewer's notice. The name (operating name or trade name/DBA) and address (city and State) on the label must be identical to the name and address that appear on the brewer's notice. You may not add words within the name and address statement as it is required to appear, except to use additional, optional phrases authorized in the regulations. 27 CFR 7.66(d) ."
+    },
+    "addInfo": {
+      "field": null,
+      "mandatory": "no",
+      "placement": "any label",
+      "ttb_text": "ADDITIONAL (OPTIONAL) INFORMATION Mandatory? Placement Requirement? No May appear on any label. Description Malt beverage labels frequently contain additional (optional) information that describes or provides information about the product. In general, additional information should be truthful, accurate, and specific, and it may not be misleading. See 27 CFR 7.56 . Industry members should be prepared to substantiate labeling statements upon request. Tips Additional (optional) information may not conflict with, modify, qualify, or restrict mandatory information in any manner. Additional (optional) information may be deleted without applying for a new COLA. Adding or changing additional information does require that a new COLA be obtained. See Allowable Revisions for complete requirements."
+    },
+    "webAdd": {
+      "field": null,
+      "mandatory": "no",
+      "placement": "any label",
+      "ttb_text": "WEBSITE ADDRESS and OTHER DIGITAL CONTENT LINKS Mandatory? Placement Requirement? No May appear on any label Description These are common elements found on labels. The pages that web addresses and other digital content link to are subject to TTB's advertising regulations . See Alcohol Beverage Advertising for more information. Tips Digital content links can be added, deleted, or changed on product labels without applying for a new COLA. See Allowable Revisions for complete requirements. Any information retrieved from the digital content links must be in compliance with all applicable advertising regulations. Also see TTB Industry Circular 2013\u20131, Use of Social Media in the Advertising of Alcohol Beverages ."
+    },
+    "healthWarning": {
+      "field": "government_warning",
+      "mandatory": "yes (0.5%+ ABV)",
+      "placement": "any label",
+      "ttb_text": "HEALTH WARNING STATEMENT Mandatory? Placement Requirement? Yes May appear on any label Description By law, the health warning statement must appear on all alcohol beverages bottled or imported for sale or distribution in the United States that contain not less than one-half of one percent (0.5%) of alcohol by volume. The statement must appear exactly as it appears in the TTB regulations. See 27 CFR part 16 . See Health Warning Statement for complete requirements. TIPS Ensure all words are spelled correctly. Ensure the punctuation matches the example. Ensure capitalization and bold type words match the example. Statement must be separate and apart from surrounding text. Warnings required by other countries about the health effects of alcohol consumption (statements or pictorial references) may not appear on the label."
+    },
+    "upcBar": {
+      "field": null,
+      "mandatory": "no",
+      "placement": "any label",
+      "ttb_text": "UPC and BOTTLE RETURN INFORMATION Mandatory? Placement Requirement? No May appear on any label. Description These common label elements are not regulated by TTB. Tips UPC and bottle return information can be added, deleted, or changed on product labels without applying for a new COLA. See Allowable Revisions for complete requirements. If white space appears on the label, you may want to note in the \u201cNotes to Specialist\u201d field of the COLA application what will appear there (such as a UPC)."
+    }
+  }
+}

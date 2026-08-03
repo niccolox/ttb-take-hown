@@ -295,7 +295,7 @@ def verify(words: list[Word], application: dict, image_gray=None,
                                   note, _evidence(abv_loc), "27 CFR §5.65(b) (proof = 2×ABV)"))
 
     # net contents — molded-glass caveat is commodity-aware
-    net_loc = locator.find_regex(NET_RE)
+    net_loc = locator.find_regex_run(NET_RE, max_lines=2)
     verdict, note = compare_net(application.get("net_contents"),
                                 net_loc.text if net_loc.found else None)
     if verdict == "NEEDS_REVIEW" and not net_loc.found and bev in (

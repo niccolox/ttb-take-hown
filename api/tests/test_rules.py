@@ -527,6 +527,29 @@ def test_malt_aspartame_declaration_form():
     assert "aspartame_declaration" not in none       # absence proves nothing
 
 
+def test_compound_net_contents_across_stacked_lines():
+    """TTB's malt reference label prints '1 PINT' over '0.9 FL. OZ.' — a
+    single-line read drops the fraction and false-REDs the §7.70 example
+    format (473 vs 499.8 mL). Adjacent NET_RE lines must join."""
+    fs = _wine_fields([*_MALT_LINES[:3], "1 PINT", "0.9 FL. OZ.", *_MALT_LINES[4:]],
+                      {**_MALT_APP, "net_contents": "1 Pint 0.9 fl oz"})
+    assert fs["net_contents"]["status"] == "MATCH"
+    # non-adjacent second quantity (far down the label) does NOT join
+    from api.locator import Word
+    from api.rules.net_contents import NET_RE
+    from api.locator import Locator
+    words = _label_words(["12 FL OZ"], start_y=10) + _label_words(["1 QUART"], start_y=600)
+    joined = Locator(words).find_regex_run(NET_RE, max_lines=2)
+    assert joined.text == "12 FL OZ"
+
+
+def test_sole_agent_import_phrase_matches():
+    from api.rules.wine import NAME_ADDRESS_RE
+    assert NAME_ADDRESS_RE.search("SOLE U.S. AGENT: HARBORGATE IMPORTS, PROVIDENCE RI")
+    assert NAME_ADDRESS_RE.search("Sole Agent — Oz Imports, City, State")
+    assert not NAME_ADDRESS_RE.search("SOLELY RESPONSIBLE FOR QUALITY")
+
+
 def test_malt_net_contents_form():
     from api.rules.malt import malt_net_form
     from api.rules.net_contents import parse_net_ml

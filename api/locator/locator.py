@@ -206,6 +206,31 @@ class Locator:
                     first = lf
         return first or LocatedField(found=False)
 
+    def find_regex_run(self, pattern: re.Pattern, max_lines: int = 2,
+                       gap_factor: float = 2.5) -> LocatedField:
+        """Like find_regex, but joins CONSECUTIVE adjacent lines that also
+        match — compound quantities stack on real labels ('1 PINT' over
+        '0.9 FL. OZ.', §7.70's own example format on TTB's malt reference
+        label) and a single-line read drops the fractional part."""
+        for idx, line in enumerate(self.lines):
+            if not pattern.search(line.text):
+                continue
+            block = [line]
+            prev = line
+            for nxt in self.lines[idx + 1:]:
+                if len(block) >= max_lines or not pattern.search(nxt.text):
+                    break
+                if nxt.y_center - prev.y_center > max(prev.height, nxt.height) * gap_factor:
+                    break
+                block.append(nxt)
+                prev = nxt
+            return LocatedField(found=True,
+                                text=" ".join(l.text for l in block),
+                                box=union([l.box for l in block]),
+                                score=100.0,
+                                min_conf=min(l.min_conf for l in block))
+        return LocatedField(found=False)
+
     # ── warning block reconstruction (anchor → grow by line adjacency) ──────
     def find_warning(self, expected_tokens: int = 60) -> LocatedField:
         anchor_idx = next((i for i, l in enumerate(self.lines)

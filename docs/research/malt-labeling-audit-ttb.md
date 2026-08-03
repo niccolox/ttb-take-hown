@@ -87,6 +87,29 @@ Absence proves nothing about the product and stays silent.
 - Color additive disclosures, country of origin (imports), alcohol-by-
   weight state formats: unknowable from our application data.
 
+## Second pass (same day): remaining subpages + the anatomy tool
+
+Brand Name (§7.64) and Name and Address (Imports) (§7.68) subpages
+confirmed behaviors already shipped (bottler-name-as-brand rescue with
+the §7.64 citation; IMPORTED BY in the phrase family) and yielded one
+delta — **M-10: "SOLE AGENT" / "SOLE U.S. AGENT" added to the
+name-address phrase family** (valid importer phrases per §7.68; the wine
+guidance names "Sole U.S. Agent" too), plus FILLED BY from the
+bottled-in-US rules.
+
+The **Anatomy of a Malt Beverage Label tool** ingested as the third
+reference eval (api/eval/anatomy_malt/ — "MALT & HOP BREWERY / Farm to
+Table Series #1 / Honey Huckleberry Pie", a specialty with a statement
+of composition, i.e. the flavored case where malt ABV is mandatory;
+nameAddress spans two hotspots per §7.66's name-and-city-need-not-be-
+together rule). Its e2e run found **M-11: compound net contents stacked
+across lines** — the label prints '1 PINT' over '0.9 FL. OZ.' (§7.70's
+own example format) and the single-line locator read 473 mL against the
+application's 499.8 mL → false MISMATCH on TTB's reference label. Fixed
+with `find_regex_run` (adjacent NET_RE lines join, gap-gated); the
+warning lands the same honest weight-contrast amber as the spirits
+reference (325px body below the measurement floor, text_exact passes).
+
 ## Verification
 
 Suite 199 passed (+7 malt tests: range prohibition, format legality incl.

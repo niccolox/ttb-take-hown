@@ -237,9 +237,107 @@ def build_spirits() -> None:
           f"{covered}/{len(elements)} elements mapped to fields")
 
 
+# ── malt beverage tool ───────────────────────────────────────────────────────
+
+MB_ROOT = Path(__file__).parent / "anatomy_malt"
+MB_IMAGES = MB_ROOT / "images"
+
+MB_FIELD_MAP = {
+    "GPI": None, "brandName": "brand_name", "fancifulName": "fanciful_name",
+    "classType": "class_type", "alcoholContent": "alcohol_content",
+    "netContent": "net_contents", "nameAddress": "name_address",
+    "addInfo": None, "webAdd": None, "healthWarning": "government_warning",
+    "upcBar": None,
+}
+
+MB_REQUIREDNESS = {
+    "GPI": ("no", "any label"),
+    "brandName": ("yes — bottler/importer name serves if none", "any label"),
+    "fancifulName": ("conditional — required with a statement of composition "
+                     "(specialty products, §7.147)", "any label"),
+    "classType": ("yes", "any label"),
+    "alcoholContent": ("conditional — mandatory when alcohol derives from added "
+                       "flavors/nonbeverage ingredients (§7.63(a)(3)); otherwise "
+                       "optional", "any label"),
+    "netContent": ("yes", "any label, or blown/embossed/molded into the container"),
+    "nameAddress": ("yes — name + city/state; explanatory phrase optional (§7.66)",
+                    "any label, or blown/embossed/molded into the container"),
+    "addInfo": ("no", "any label"),
+    "webAdd": ("no", "any label"),
+    "healthWarning": ("yes (0.5%+ ABV)", "any label"),
+    "upcBar": ("no", "any label"),
+}
+
+# from the page markup: nameAddress deliberately has TWO hotspots — the
+# bottler name up top (f0) and the city/state line lower down (f5): §7.66's
+# "the name and address does not need to appear together" drawn literally.
+# Several slices are GIFs served as .png — actual dims (read from the
+# files) tile the 325px rows exactly where the HTML attributes are off-by-few.
+MB_FRONT_ROWS = [["a1"], ["f0"], ["f1"], ["f2"], ["f6"],
+                 ["a3_1", "f3", "a3_2", "f4", "a3_3"], ["a4"], ["f5"], ["a5"]]
+MB_BACK_ROWS = [["b0"], ["b1", "b2", "b3"], ["b4"], ["b6", "b7", "b8", "b9"], ["b10"]]
+
+
+def build_malt() -> None:
+    page = (MB_ROOT / "page.html").read_text(encoding="utf-8")
+    dims = {p.stem: Image.open(p).size for p in MB_IMAGES.glob("*.png")}
+
+    slices = []
+
+    def stack(rows: list[list[str]], panel: str) -> int:
+        y = 0
+        for row in rows:
+            x, row_h = 0, 0
+            for name in row:
+                w, h = dims[name]
+                slices.append({"file": f"images/{name}.png", "panel": panel,
+                               "x": x, "y": y, "w": w, "h": h,
+                               "element": _element_of(page, name)})
+                x += w
+                row_h = max(row_h, h)
+            y += row_h
+        return y
+
+    front_h = stack(MB_FRONT_ROWS, "front")
+    back_h = stack(MB_BACK_ROWS, "back")
+
+    for panel, height in (("front", front_h), ("back", back_h)):
+        canvas = Image.new("RGB", (325, height), "#ffffff")
+        for s in slices:
+            if s["panel"] == panel:
+                canvas.paste(Image.open(MB_ROOT / s["file"]).convert("RGB"),
+                             (s["x"], s["y"]))          # GIF slices are palette-mode
+        canvas.save(MB_ROOT / f"{panel}.png")
+
+    elements = {}
+    for key, field in MB_FIELD_MAP.items():
+        mandatory, placement = MB_REQUIREDNESS[key]
+        elements[key] = {"field": field, "mandatory": mandatory,
+                         "placement": placement, "ttb_text": _info_text(page, key)}
+
+    ref = {
+        "source": "https://www.ttb.gov/regulated-commodities/beverage-alcohol/"
+                  "beer/labeling/anatomy-of-a-malt-beverage-label-tool",
+        "fetched": "2026-08-03",
+        "license": "U.S. government work (public domain)",
+        "note": "TTB's interactive Anatomy of a Malt Beverage Label: slice "
+                "geometry is the page's image map; nameAddress spans two "
+                "hotspots (name and city/state on separate lines, §7.66).",
+        "panels": {"front": {"width": 325, "height": front_h},
+                   "back": {"width": 325, "height": back_h}},
+        "slices": slices,
+        "elements": elements,
+    }
+    (MB_ROOT / "reference.json").write_text(json.dumps(ref, indent=2) + "\n")
+    covered = sum(1 for e in elements.values() if e["field"])
+    print(f"anatomy_malt: {len(slices)} slices, front {front_h}px, back {back_h}px, "
+          f"{covered}/{len(elements)} elements mapped to fields")
+
+
 def main() -> int:
     build_wine()
     build_spirits()
+    build_malt()
     return 0
 
 

@@ -17,7 +17,9 @@ SULFITE_RE = re.compile(r"\bSUL(?:F|PH)ITES?\b", re.I)
 # still contain the mandatory verb, so matching the core phrase suffices.
 # BREWED/CANNED cover malt's optional phrases (§7.66 — where the phrase
 # itself is optional, so callers treat absence differently per commodity).
-NAME_ADDRESS_RE = re.compile(r"\b(?:BOTTLED|PACKED|IMPORTED|BREWED|CANNED)\s+BY\b", re.I)
+NAME_ADDRESS_RE = re.compile(
+    r"\b(?:BOTTLED|PACKED|IMPORTED|BREWED|CANNED|FILLED)\s+BY\b"
+    r"|\bSOLE\s+(?:U\.?\s?S\.?\s+)?AGENT\b", re.I)   # §7.68/§4.35 import phrases
 
 # §4.72 authorized standards of fill (mL). 4–17 L must be even liters;
 # ≥18 L (and saké) are exempt from the standards entirely.

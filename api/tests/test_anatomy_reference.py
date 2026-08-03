@@ -140,6 +140,67 @@ def test_ds_hotspots_and_field_mapping():
         assert e["ttb_text"], key
 
 
+# ── malt beverage (api/eval/anatomy_malt/) ───────────────────────────────────
+
+MB_ROOT = Path(__file__).parents[1] / "eval" / "anatomy_malt"
+MB_REF = json.loads((MB_ROOT / "reference.json").read_text())
+
+# TTB's malt reference: a specialty (fanciful + statement of composition) —
+# the flavored case where malt ABV is MANDATORY (§7.63(a)(3)) — with §7.70's
+# compound net contents stacked on two lines
+MB_APPLICATION = {"beverage_type": "malt_beverage",
+                  "brand_name": "Farm to Table Series #1",
+                  "fanciful_name": "Honey Huckleberry Pie",
+                  "class_type": "Ale with Honey and Huckleberry Flavor",
+                  "alcohol_content": "5%", "net_contents": "1 Pint 0.9 fl oz"}
+
+
+def test_mb_slices_match_reference_geometry():
+    for s in MB_REF["slices"]:
+        p = MB_ROOT / s["file"]
+        assert p.exists() and Image.open(p).size == (s["w"], s["h"]), s["file"]
+    for panel in ("front", "back"):
+        area = sum(s["w"] * s["h"] for s in MB_REF["slices"] if s["panel"] == panel)
+        pw, ph = MB_REF["panels"][panel]["width"], MB_REF["panels"][panel]["height"]
+        assert area == pw * ph                       # actual dims tile exactly
+        assert Image.open(MB_ROOT / f"{panel}.png").size == (pw, ph)
+
+
+def test_mb_hotspots_and_field_mapping():
+    keys = {s["element"] for s in MB_REF["slices"] if s["element"]}
+    assert keys == set(MB_REF["elements"])
+    # nameAddress deliberately has TWO hotspots (§7.66: name and city/state
+    # need not appear together)
+    na = [s for s in MB_REF["slices"] if s["element"] == "nameAddress"]
+    assert len(na) == 2
+    mapped = {e["field"] for e in MB_REF["elements"].values() if e["field"]}
+    assert mapped == {"brand_name", "fanciful_name", "class_type",
+                      "alcohol_content", "net_contents", "government_warning",
+                      "name_address"}
+    for key, e in MB_REF["elements"].items():
+        assert e["ttb_text"], key
+
+
+@pytest.mark.skipif(not os.environ.get("LABELCHECK_OCR_EVAL"),
+                    reason="set LABELCHECK_OCR_EVAL=1 for the slow OCR e2e")
+def test_mb_reference_label_screens_clean_end_to_end():
+    import numpy as np
+    from api.extractor import PaddleExtractor
+    from api.verify import verify_multi
+
+    ex = PaddleExtractor()
+    ex.warm(str(MB_ROOT / "front.png"))
+    panels = []
+    for panel in ("front", "back"):
+        img = Image.open(MB_ROOT / f"{panel}.png").convert("RGB")
+        panels.append((ex.extract(np.asarray(img)), np.asarray(img.convert("L"))))
+    r = verify_multi(panels, MB_APPLICATION)
+    assert r["screening_result"] != "mismatch_found"
+    warn = next(f for f in r["fields"] if f["field"] == "government_warning")
+    subs = {s["check"]: s["outcome"] for s in (warn.get("sub_results") or [])}
+    assert subs.get("text_exact") == "pass"          # contrast may honestly decline
+
+
 @pytest.mark.skipif(not os.environ.get("LABELCHECK_OCR_EVAL"),
                     reason="set LABELCHECK_OCR_EVAL=1 for the slow OCR e2e")
 def test_ds_reference_label_screens_clean_end_to_end():
