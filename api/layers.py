@@ -38,6 +38,9 @@ GUARD_FIELDS = ("government_warning", "alcohol_content", "net_contents")
 J2_RETRY_CODES = {"statutory_text_differs", "ocr_confusable_punctuation",
                   "unreadable"}
 TELEMETRY_PATH = Path(__file__).parent / "data" / "e4-telemetry.jsonl"
+TELEMETRY_MAX_BYTES = 20 * 1024 * 1024   # audit F6: bounded, rotated once —
+                                         # the N7 calibration set is ample at
+                                         # 20MB; older halves age out as .1
 _telemetry_lock = threading.Lock()
 
 
@@ -45,6 +48,9 @@ def _telemetry(row: dict) -> None:
     try:
         TELEMETRY_PATH.parent.mkdir(parents=True, exist_ok=True)
         with _telemetry_lock:
+            if TELEMETRY_PATH.exists() \
+                    and TELEMETRY_PATH.stat().st_size > TELEMETRY_MAX_BYTES:
+                TELEMETRY_PATH.replace(TELEMETRY_PATH.with_suffix(".jsonl.1"))
             with open(TELEMETRY_PATH, "a") as f:
                 f.write(json.dumps(row) + "\n")
     except OSError:                       # telemetry never breaks a verdict
