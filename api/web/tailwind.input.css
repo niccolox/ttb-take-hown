@@ -101,7 +101,8 @@ button.secondary { @apply btn btn-outline btn-primary btn-sm font-semibold; min-
 .filters .flabel { @apply flex-1; }
 .filters .cnt { @apply font-bold tabular-nums; }
 
-.progress { @apply text-[15px] opacity-70 my-1.5; height: auto; width: auto; }
+.status-note { @apply text-[15px] opacity-70 my-1.5; }
+#progressbar { @apply my-1; height: 0.625rem; }
 
 .banner { @apply alert font-bold text-lg mb-3; display: none; }
 .banner.green { @apply alert-success; display: flex; }

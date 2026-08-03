@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Label Check — TTB label screening (prototype)</title>
-<link rel="stylesheet" href="vendor/tailwind-daisyui.css?v=1">
+<link rel="stylesheet" href="vendor/tailwind-daisyui.css?v=2">
 </head>
 <body>
 <header>
@@ -47,7 +47,8 @@
 
   <section class="panel" aria-labelledby="apps-h">
     <h2 id="apps-h">Applications</h2>
-    <div class="progress" id="progress">No labels yet — add images, a sample, or a CSV + images.</div>
+    <div class="status-note" id="progress">No labels yet — add images, a sample, or a CSV + images.</div>
+    <progress id="progressbar" class="progress progress-primary w-full" max="100" style="display:none"></progress>
     <div class="filters" id="filters" style="display:none">
       <button data-f="attention" aria-pressed="false">Needs attention</button>
       <button data-f="passed" aria-pressed="false">All clear / Passed</button>
@@ -76,7 +77,7 @@
   </form></dialog>
 <footer>Prototype for the Treasury take-home exercise — not an official TTB system; no
   approval authority. Type size, placement, and contrast limits are not fully checked (27 CFR §16.22).</footer>
-<script src="app.js?v=n5.8"></script><!-- bump ?v= on app.js changes: browsers
+<script src="app.js?v=n5.9"></script><!-- bump ?v= on app.js changes: browsers
   heuristically cache un-versioned statics and can keep pre-refinement code
   running against the new API -->
 </body>

@@ -46,6 +46,16 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const err = (m) => { const e = $("err"); e.textContent = m || ""; e.style.display = m ? "block" : "none"; };
 
+/** DaisyUI progress bar under the status line: numbers → determinate,
+ *  done=null with a total → indeterminate stripe, total=null → hidden. */
+function progressBar(done, total) {
+  const p = $("progressbar");
+  if (total == null) { p.style.display = "none"; p.removeAttribute("value"); return; }
+  p.style.display = "block"; p.max = total;
+  if (done == null) p.removeAttribute("value");
+  else p.value = done;
+}
+
 // ── intake ───────────────────────────────────────────────────────────────────
 async function addFiles(files, app = {}) {
   let skipped = 0;
@@ -357,10 +367,10 @@ function renderList() {
       : done === items.length && done > 0
         ? completionText()
         : `${items.length} label(s) ready — ${done} checked`;
+    progressBar(running ? done : null, running ? items.length : null);
     const allDone = !running && items.length > 0 && items.every(reviewComplete);
-    $("progress").style.cssText = allDone
-      ? "color:var(--green);font-weight:700"
-      : "";
+    $("progress").classList.toggle("text-success", allDone);
+    $("progress").classList.toggle("font-bold", allDone);
   }
   $("filters").style.display = items.length ? "flex" : "none";
   $("saveSession").style.display = items.length ? "inline-block" : "none";
@@ -1026,8 +1036,9 @@ function appendCorpusButton(c) {
       b.disabled = true;
       try {
         const items0 = await (await fetch(`/api/corpus/${c.id}`)).json();
-        let skipped = 0;
+        let skipped = 0, loaded = 0;
         $("progress").textContent = `Loading ${items0.length} labels…`;
+        progressBar(0, items0.length);
         for (const it of items0) {
           const sources = it.images?.length ? it.images
             : [{ panel: "front", url: it.image }];
@@ -1039,7 +1050,9 @@ function appendCorpusButton(c) {
                              panel: s.panel });
           }
           if (!(await addItem(panelFiles, it.application, it.registry || null))) skipped++;
+          progressBar(++loaded, items0.length);
         }
+        progressBar(null, null);
         if (items.length && selectedId === null) select(items[0].id);
         $("progress").textContent = `${c.label} loaded` +
           (skipped ? ` — ${skipped} already imported, skipped` : "") + ` — press "Verify all".`;
