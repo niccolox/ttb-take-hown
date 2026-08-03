@@ -4,46 +4,76 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Label Check — TTB label screening (prototype)</title>
-<link rel="stylesheet" href="vendor/tailwind-daisyui.css?v=2">
+<link rel="stylesheet" href="vendor/tailwind-daisyui.css?v=3">
 </head>
 <body>
 <header>
-  <h1>Label Check</h1>
-  <p>TTB label screening — prototype. Screens labels; the agent decides.</p>
+  <nav class="navbar bg-base-100 px-2 gap-1" aria-label="Main">
+    <div class="navbar-start w-auto mr-4">
+      <div>
+        <h1>Label Check</h1>
+        <p>TTB label screening — prototype. Screens labels; the agent decides.</p>
+      </div>
+    </div>
+    <div class="navbar-center flex-1 justify-start">
+      <ul class="menu menu-horizontal px-1 gap-1">
+        <li>
+          <details class="dropdown">
+            <summary class="btn btn-ghost font-bold">Start a check</summary>
+            <div class="dropdown-content megapanel w-96">
+              <label for="files" class="filebtn" id="filebtn">Choose label image(s)</label>
+              <input type="file" id="files" accept="image/png,image/jpeg" multiple
+                     style="position:absolute;left:-9999px">
+              <label for="pair" class="filebtn" style="margin-top:8px">Front + back of one label</label>
+              <input type="file" id="pair" accept="image/png,image/jpeg" multiple
+                     style="position:absolute;left:-9999px">
+              <p class="note" style="margin:4px 0 0">Pick 2 images (front first) — scanned together
+                as one label; the Government Warning is usually on the back.</p>
+              <label for="csv" class="filebtn" style="margin-top:8px">Import CSV manifest (batch)</label>
+              <input type="file" id="csv" accept=".csv,text/csv" style="position:absolute;left:-9999px">
+              <button class="secondary" id="tpl" type="button" style="width:100%;margin-top:8px">Download CSV template</button>
+            </div>
+          </details>
+        </li>
+        <li>
+          <details class="dropdown">
+            <summary class="btn btn-ghost font-bold">Samples</summary>
+            <div class="dropdown-content megapanel w-[26rem]">
+              <div class="samples" id="samples"></div>
+            </div>
+          </details>
+        </li>
+        <li>
+          <details class="dropdown">
+            <summary class="btn btn-ghost font-bold">Eval sets</summary>
+            <div class="dropdown-content megapanel w-[46rem]">
+              <div class="samples megacols" id="corpora"></div>
+            </div>
+          </details>
+        </li>
+        <li>
+          <details class="dropdown">
+            <summary class="btn btn-ghost font-bold">Pipelines &amp; session</summary>
+            <div class="dropdown-content megapanel w-[26rem]">
+              <div class="samples" id="pipelines">
+                <p class="note" id="pipelines-note">Pull real approved COLAs per commodity; the
+                  registry record is the ground truth.</p>
+              </div>
+              <div class="samples" id="restore" style="display:none">
+                <h2 style="margin-top:16px;font-size:17px">Saved session</h2>
+                <button type="button" id="restoreBtn"></button>
+              </div>
+              <p class="storage-note" id="storageNote">Results live in this tab — "Save session"
+                persists them (with images) to the server's DuckDB store.</p>
+            </div>
+          </details>
+        </li>
+      </ul>
+    </div>
+  </nav>
 </header>
 <main>
-  <section class="panel" aria-labelledby="start-h">
-    <h2 id="start-h">Start a check</h2>
-    <label for="files" class="filebtn" id="filebtn">Choose label image(s)</label>
-    <input type="file" id="files" accept="image/png,image/jpeg" multiple
-           style="position:absolute;left:-9999px">
-    <label for="pair" class="filebtn" style="margin-top:8px">Front + back of one label</label>
-    <input type="file" id="pair" accept="image/png,image/jpeg" multiple
-           style="position:absolute;left:-9999px">
-    <p class="note" style="margin:4px 0 0">Pick 2 images (front first) — scanned together
-      as one label; the Government Warning is usually on the back.</p>
-    <label for="csv" class="filebtn" style="margin-top:8px">Import CSV manifest (batch)</label>
-    <input type="file" id="csv" accept=".csv,text/csv" style="position:absolute;left:-9999px">
-    <button class="secondary" id="tpl" type="button" style="width:100%;margin-top:8px">Download CSV template</button>
-    <div class="samples" id="samples">
-      <h2 style="margin-top:16px;font-size:17px">Try a sample</h2>
-    </div>
-    <div class="samples" id="corpora">
-      <h2 style="margin-top:16px;font-size:17px">Load an eval set</h2>
-    </div>
-    <div class="samples" id="pipelines">
-      <h2 style="margin-top:16px;font-size:17px">Registry pipelines (COLA Cloud)</h2>
-      <p class="note" id="pipelines-note">Pull real approved COLAs per commodity; the
-        registry record is the ground truth.</p>
-    </div>
-    <div class="samples" id="restore" style="display:none">
-      <h2 style="margin-top:16px;font-size:17px">Saved session</h2>
-      <button type="button" id="restoreBtn"></button>
-    </div>
-    <div class="inline-error" id="err" role="alert"></div>
-    <p class="storage-note" id="storageNote">Results live in this tab — "Save session"
-      persists them (with images) to the server's DuckDB store.</p>
-  </section>
+  <div class="inline-error" id="err" role="alert" style="grid-column:1 / -1"></div>
 
   <section class="panel" aria-labelledby="apps-h">
     <h2 id="apps-h">Applications</h2>
@@ -78,7 +108,7 @@
   </form></dialog>
 <footer>Prototype for the Treasury take-home exercise — not an official TTB system; no
   approval authority. Type size, placement, and contrast limits are not fully checked (27 CFR §16.22).</footer>
-<script src="app.js?v=n6.0"></script><!-- bump ?v= on app.js changes: browsers
+<script src="app.js?v=n6.1"></script><!-- bump ?v= on app.js changes: browsers
   heuristically cache un-versioned statics and can keep pre-refinement code
   running against the new API -->
 </body>

@@ -57,6 +57,15 @@ function progressBar(done, total) {
   else p.value = done;
 }
 
+// megamenu dropdowns (details-based) don't close on outside click natively —
+// close any open panel when clicking elsewhere, but never while clicking
+// inside a panel (loading several eval sets in a row stays one gesture)
+document.addEventListener("click", (e) => {
+  for (const d of document.querySelectorAll("header details.dropdown[open]")) {
+    if (!d.contains(e.target)) d.removeAttribute("open");
+  }
+});
+
 // ── intake ───────────────────────────────────────────────────────────────────
 async function addFiles(files, app = {}) {
   let skipped = 0;
