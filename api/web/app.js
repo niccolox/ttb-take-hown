@@ -451,8 +451,13 @@ function markStale(it) { if (it.state === "done") { it.stale = true; } }
 function renderDetail() {
   const it = sel();
   const d = $("detail");
-  if (!it) { d.innerHTML = '<p class="note">Select a label from the Applications list.</p>'; return; }
-  d.innerHTML = "";
+  const fp = $("appform");                     // application form column (side by side with the image)
+  if (!it) {
+    d.innerHTML = '<p class="note">Select a label from the Applications list.</p>';
+    fp.innerHTML = '<p class="note">The application values appear here.</p>';
+    return;
+  }
+  d.innerHTML = ""; fp.innerHTML = "";
   {
     const head = document.createElement("div");
     head.style.marginBottom = "8px";
@@ -550,7 +555,7 @@ function renderDetail() {
       dl.appendChild(row);
     }
     reg.appendChild(dl);
-    d.appendChild(reg);
+    fp.appendChild(reg);
   }
   const form = document.createElement("div");
   form.innerHTML = `
@@ -576,7 +581,7 @@ function renderDetail() {
     if (k) { it.app[k] = e.target.value.trim(); markStale(it); markSessionDirty(); renderList();
              if (it.stale) staleNote.style.display = "block"; }
   });
-  d.appendChild(form);
+  fp.appendChild(form);
 
   if (items.length > 1) {
     const applyAll = document.createElement("button");
@@ -595,25 +600,25 @@ function renderDetail() {
         renderList();
       }
     });
-    d.appendChild(applyAll);
+    fp.appendChild(applyAll);
   }
 
   const staleNote = document.createElement("p");
   staleNote.className = "ov-note";
   staleNote.textContent = "Values changed since the last check — re-check to refresh this result.";
   staleNote.style.display = it.stale ? "block" : "none";
-  d.appendChild(staleNote);
+  fp.appendChild(staleNote);
 
   const verifyBtn = document.createElement("button");
   verifyBtn.className = "primary"; verifyBtn.type = "button";
   verifyBtn.textContent = it.state === "done" ? "Re-check this label" : "Verify this label";
   verifyBtn.addEventListener("click", () => runOne(it));
-  d.appendChild(verifyBtn);
+  fp.appendChild(verifyBtn);
 
   if (it.state === "error") {
     const p = document.createElement("p"); p.className = "inline-error";
     p.style.display = "block"; p.textContent = it.errorMsg || "This check didn't finish — retry.";
-    d.appendChild(p);
+    fp.appendChild(p);
   }
   if (it.result) renderResult(d, it);
 }

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Label Check — TTB label screening (prototype)</title>
-<link rel="stylesheet" href="vendor/tailwind-daisyui.css?v=3">
+<link rel="stylesheet" href="vendor/tailwind-daisyui.css?v=4">
 </head>
 <body>
 <header>
@@ -96,6 +96,11 @@
     </div>
   </section>
 
+  <section class="panel" aria-labelledby="appform-h">
+    <h2 id="appform-h">Application</h2>
+    <div id="appform"><p class="note">The application values appear here.</p></div>
+  </section>
+
   <section class="panel" aria-labelledby="sel-h">
     <h2 id="sel-h">Selected label</h2>
     <div id="detail"><p class="note">Select a label from the Applications list.</p></div>
@@ -108,7 +113,7 @@
   </form></dialog>
 <footer>Prototype for the Treasury take-home exercise — not an official TTB system; no
   approval authority. Type size, placement, and contrast limits are not fully checked (27 CFR §16.22).</footer>
-<script src="app.js?v=n6.1"></script><!-- bump ?v= on app.js changes: browsers
+<script src="app.js?v=n6.2"></script><!-- bump ?v= on app.js changes: browsers
   heuristically cache un-versioned statics and can keep pre-refinement code
   running against the new API -->
 </body>
