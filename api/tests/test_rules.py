@@ -718,3 +718,47 @@ def test_cross_line_proof_consistency():
     by = {f["field"]: f for f in r["fields"]}
     assert "internal_consistency" in by
     assert by["internal_consistency"]["status"] == "MISMATCH"   # 45% vs 80 proof
+
+
+# ── European diacritics (Château Le Coteau case, 2026-08-02) ─────────────────
+
+def test_fold_diacritics():
+    from api.rules.normalize import ascii_loose, fold_diacritics
+    assert fold_diacritics("Château") == "Chateau"
+    assert fold_diacritics("Pélopée") == "Pelopee"
+    assert fold_diacritics("Contrôlée") == "Controlee"
+    assert ascii_loose("Château le Coteau") == ascii_loose("Chateau Le Coteau")
+
+
+def test_brand_diacritics_is_special_warning():
+    from api.locator.locator import Locator, Word
+    from api.verify import _text_field_one
+    words = [Word("Château", (0, 0, 90, 20), 0.95),
+             Word("le", (95, 0, 115, 20), 0.95),
+             Word("Coteau", (120, 0, 200, 20), 0.95)]
+    r = _text_field_one("brand_name", "Chateau Le Coteau", Locator(words))
+    assert r.status == "LIKELY_MATCH"
+    assert r.reason_code == "diacritics_differ"
+    assert "Château le Coteau" in (r.label_value or "")
+    assert "accent" in r.note.lower()
+
+
+def test_multi_panel_tie_prefers_located_text():
+    from api.locator.locator import Word
+    from api.verify import verify_multi
+    # front: unrelated words (brand not found); back: the accented brand
+    front = [Word("MARGAUX", (0, 0, 100, 20), 0.95),
+             Word("RED", (0, 30, 40, 50), 0.95),
+             Word("WINE", (45, 30, 100, 50), 0.95),
+             Word("FRANCE", (0, 60, 100, 80), 0.95)]
+    back = [Word("Château", (0, 0, 90, 20), 0.95),
+            Word("le", (95, 0, 115, 20), 0.95),
+            Word("Coteau", (120, 0, 200, 20), 0.95),
+            Word("RED", (0, 30, 40, 50), 0.95),
+            Word("WINE", (45, 30, 100, 50), 0.95)]
+    r = verify_multi([(front, None), (back, None)],
+                     {"beverage_type": "wine", "brand_name": "Chateau Le Coteau"})
+    bn = next(f for f in r["fields"] if f["field"] == "brand_name")
+    assert bn["status"] == "LIKELY_MATCH"
+    assert bn["reason_code"] == "diacritics_differ"
+    assert bn["label_value"] == "Château le Coteau"

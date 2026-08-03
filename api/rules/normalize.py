@@ -34,3 +34,17 @@ def loose(s: str) -> str:
     """Brand/class-type normalization: NFC, quote unification, whitespace collapse,
     casefold. Used for LIKELY MATCH determination — never for the warning."""
     return collapse_ws(unify_quotes(nfc(s))).casefold()
+
+
+def fold_diacritics(s: str) -> str:
+    """Strip combining marks: "Château" → "Chateau". European labels print
+    accents that COLA applications routinely ASCII-fold — comparison must
+    bridge them. NEVER used for the statutory warning (§16.21 is exact)."""
+    decomposed = unicodedata.normalize("NFD", s)
+    return unicodedata.normalize(
+        "NFC", "".join(c for c in decomposed if unicodedata.category(c) != "Mn"))
+
+
+def ascii_loose(s: str) -> str:
+    """loose() + accent folding — the diacritic-insensitive comparison form."""
+    return fold_diacritics(loose(s))

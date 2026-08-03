@@ -123,6 +123,19 @@ def _text_field_one(name: str, expected: str | None, locator: Locator) -> FieldR
                            "case_punctuation_differs",
                            "Punctuation differs — compare both values.",
                            _evidence(loc))
+    from .rules.normalize import ascii_loose
+    if ascii_loose(loc.text) == ascii_loose(expected):
+        # European diacritics: 'Château le Coteau' on the label vs the
+        # application's ASCII 'Chateau Le Coteau' — same name once accents
+        # fold. Amber, never silent green: the agent confirms the accented
+        # spelling matches the approved COLA.
+        return FieldResult(name, "LIKELY_MATCH", loc.text, expected,
+                           "diacritics_differ",
+                           f'European accented characters: the label prints '
+                           f'"{loc.text}" where the application reads '
+                           f'"{expected}" — the same name with accents folded. '
+                           f'Confirm the accented spelling against the COLA.',
+                           _evidence(loc))
     if loc.score >= 85:
         # High fuzzy but not normalized-equal is MISMATCH, never LIKELY (T1 rule) —
         # with a char-level carve-out (Rev 2.1 confusable doctrine): a single-glyph
@@ -374,6 +387,11 @@ def verify_multi(panels: list[tuple[list[Word], "object"]], application: dict,
                 if _MERGE_RANK.get(f["status"], 0) < _MERGE_RANK.get(merged[name]["status"], 0):
                     merged[name] = f
             elif _MERGE_RANK.get(f["status"], 0) > _MERGE_RANK.get(merged[name]["status"], 0):
+                merged[name] = f
+            elif _MERGE_RANK.get(f["status"], 0) == _MERGE_RANK.get(merged[name]["status"], 0) \
+                    and not merged[name].get("label_value") and f.get("label_value"):
+                # rank tie: a panel that LOCATED text beats one that found
+                # nothing (front not-found must not shadow the back's read)
                 merged[name] = f
     fields = [merged[n] for n in order]
     out = _envelope_dicts(fields, t0)

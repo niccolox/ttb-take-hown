@@ -131,12 +131,17 @@ class Locator:
         near-tie pick is never allowed)."""
         if not expected or not self.words:
             return LocatedField(found=False)
+        from ..rules.normalize import ascii_loose
         want = loose(expected)
+        want_folded = ascii_loose(expected)
         span = max_tokens or (len(expected.split()) + 2)
         best = LocatedField(found=False)
         candidates: list[tuple[float, tuple, str]] = []  # (score, box, loose text)
         for text, boxes, conf in self._windows(span):
-            s = fuzz.token_sort_ratio(want, loose(text))
+            # score both raw and accent-folded forms — European labels print
+            # diacritics the application ASCII-folds ("Château" vs "Chateau")
+            s = max(fuzz.token_sort_ratio(want, loose(text)),
+                    fuzz.token_sort_ratio(want_folded, ascii_loose(text)))
             candidates.append((s, union(boxes), loose(text)))
             if s > best.score:
                 best = LocatedField(found=s >= threshold, text=text, box=union(boxes),

@@ -90,13 +90,16 @@ _waiting_lock = threading.Lock()
 
 
 def _ocr_sync(body: bytes) -> dict:
+    import io as _io
+
     from PIL import Image
 
     with tempfile.NamedTemporaryFile(suffix=".png") as tmp:
-        tmp.write(body)
-        tmp.flush()
-        with Image.open(tmp.name) as im:
+        # transcode via PIL: the pipeline reads the file with torchvision,
+        # which is built without libwebp here — registry CDN images are WebP
+        with Image.open(_io.BytesIO(body)) as im:
             w, h = im.size
+            im.convert("RGB").save(tmp.name, "PNG")
         with _lock:
             preds = _predict(_ocr, tmp.name)
     return {"width": w, "height": h,
