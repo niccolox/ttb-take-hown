@@ -1,0 +1,27 @@
+[
+ {
+  "id": "gw_beer_01",
+  "file": "gw_beer_01_front.jpg",
+  "files": [
+   {
+    "file": "gw_beer_01_front.jpg",
+    "panel": "front"
+   },
+   {
+    "file": "gw_beer_01_back.jpg",
+    "panel": "back"
+   }
+  ],
+  "application": {
+   "beverage_type": "malt_beverage",
+   "brand_name": "IRON HARBOR BREWING CO.",
+   "class_type": "American Pale Ale",
+   "alcohol_content": "5.6%",
+   "net_contents": "12 FL OZ"
+  },
+  "note": "Synthetic golden patterned on the beer corpus structure; ground truth by construction. Expected: all green; malt ABV optional but printed and matching",
+  "provenance": {
+   "source": "generate_golden_cola.py (synthetic; fictional brand, controlled truth)"
+  }
+ }
+]

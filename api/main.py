@@ -214,6 +214,13 @@ _EVAL = Path(__file__).parent / "eval"
 def get_corpora() -> dict[str, Path]:
     """Resolved at request time so freshly pulled COLA Cloud sets register live."""
     out = {"golden": _EVAL / "golden", "napa": _EVAL / "napa"}
+    # synthetic per-pipeline goldens (full-res, controlled truth) sit beside
+    # their real-corpus counterparts: golden_<pipeline> vs colacloud_<pipeline>
+    gc = _EVAL / "golden_cola"
+    if gc.exists():
+        for d in sorted(gc.iterdir()):
+            if (d / "manifest.json").exists():
+                out[f"golden_{d.name}"] = d
     cc = _EVAL / "colacloud"
     if cc.exists():
         for d in sorted(cc.iterdir()):

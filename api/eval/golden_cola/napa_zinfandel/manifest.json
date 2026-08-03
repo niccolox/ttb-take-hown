@@ -1,0 +1,27 @@
+[
+ {
+  "id": "gw_napa_01",
+  "file": "gw_napa_01_front.jpg",
+  "files": [
+   {
+    "file": "gw_napa_01_front.jpg",
+    "panel": "front"
+   },
+   {
+    "file": "gw_napa_01_back.jpg",
+    "panel": "back"
+   }
+  ],
+  "application": {
+   "beverage_type": "wine",
+   "brand_name": "RIDGELINE VINEYARDS",
+   "class_type": "Napa Valley Zinfandel",
+   "alcohol_content": "14.8%",
+   "net_contents": "750 mL"
+  },
+  "note": "Synthetic golden patterned on the napa_zinfandel corpus structure; ground truth by construction. Expected: all green; >14% wine so ABV mandatory and printed",
+  "provenance": {
+   "source": "generate_golden_cola.py (synthetic; fictional brand, controlled truth)"
+  }
+ }
+]

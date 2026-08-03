@@ -1,0 +1,27 @@
+[
+ {
+  "id": "gw_spirits_01",
+  "file": "gw_spirits_01_front.jpg",
+  "files": [
+   {
+    "file": "gw_spirits_01_front.jpg",
+    "panel": "front"
+   },
+   {
+    "file": "gw_spirits_01_back.jpg",
+    "panel": "back"
+   }
+  ],
+  "application": {
+   "beverage_type": "distilled_spirits",
+   "brand_name": "SILVER MERIDIAN",
+   "class_type": "Straight Rye Whiskey",
+   "alcohol_content": "45% Alc./Vol.",
+   "net_contents": "750 mL"
+  },
+  "note": "Synthetic golden patterned on the spirits corpus structure; ground truth by construction. Expected: all green incl. proof consistency (90 = 2\u00d745)",
+  "provenance": {
+   "source": "generate_golden_cola.py (synthetic; fictional brand, controlled truth)"
+  }
+ }
+]

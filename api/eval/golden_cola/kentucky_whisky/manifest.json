@@ -1,0 +1,27 @@
+[
+ {
+  "id": "gw_kentucky_01",
+  "file": "gw_kentucky_01_front.jpg",
+  "files": [
+   {
+    "file": "gw_kentucky_01_front.jpg",
+    "panel": "front"
+   },
+   {
+    "file": "gw_kentucky_01_back.jpg",
+    "panel": "back"
+   }
+  ],
+  "application": {
+   "beverage_type": "distilled_spirits",
+   "brand_name": "CUMBERLAND OAK",
+   "class_type": "Kentucky Straight Bourbon Whiskey",
+   "alcohol_content": "50% Alc./Vol.",
+   "net_contents": "750 mL"
+  },
+  "note": "Synthetic golden patterned on the kentucky_whisky corpus structure; ground truth by construction. Expected: all green incl. proof consistency (100 = 2\u00d750)",
+  "provenance": {
+   "source": "generate_golden_cola.py (synthetic; fictional brand, controlled truth)"
+  }
+ }
+]

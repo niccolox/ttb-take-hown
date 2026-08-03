@@ -1,0 +1,27 @@
+[
+ {
+  "id": "gw_champagne_01",
+  "file": "gw_champagne_01_front.jpg",
+  "files": [
+   {
+    "file": "gw_champagne_01_front.jpg",
+    "panel": "front"
+   },
+   {
+    "file": "gw_champagne_01_back.jpg",
+    "panel": "back"
+   }
+  ],
+  "application": {
+   "beverage_type": "wine",
+   "brand_name": "MAISON VERLET",
+   "class_type": "Champagne Blanc de Blancs \u2014 Sparkling Wine",
+   "alcohol_content": "12%",
+   "net_contents": "750 mL"
+  },
+  "note": "Synthetic golden patterned on the champagne corpus structure; ground truth by construction. Expected: green except net_contents may go amber (engine_disagreement): the corpus-faithful glued '750ML' format reads differently across engines \u2014 an intended hard case the QA guard surfaces",
+  "provenance": {
+   "source": "generate_golden_cola.py (synthetic; fictional brand, controlled truth)"
+  }
+ }
+]

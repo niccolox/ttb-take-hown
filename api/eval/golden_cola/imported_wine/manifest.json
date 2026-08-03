@@ -1,0 +1,27 @@
+[
+ {
+  "id": "gw_imported_01",
+  "file": "gw_imported_01_front.jpg",
+  "files": [
+   {
+    "file": "gw_imported_01_front.jpg",
+    "panel": "front"
+   },
+   {
+    "file": "gw_imported_01_back.jpg",
+    "panel": "back"
+   }
+  ],
+  "application": {
+   "beverage_type": "wine",
+   "brand_name": "Chateau Bellerive",
+   "class_type": "Red Bordeaux Wine",
+   "alcohol_content": "13.5%",
+   "net_contents": "750 mL"
+  },
+  "note": "Synthetic golden patterned on the imported_wine corpus structure; ground truth by construction. Expected: brand LIKELY_MATCH/diacritics_differ (intended amber); rest green",
+  "provenance": {
+   "source": "generate_golden_cola.py (synthetic; fictional brand, controlled truth)"
+  }
+ }
+]

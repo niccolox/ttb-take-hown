@@ -1,0 +1,27 @@
+[
+ {
+  "id": "gw_wine_01",
+  "file": "gw_wine_01_front.jpg",
+  "files": [
+   {
+    "file": "gw_wine_01_front.jpg",
+    "panel": "front"
+   },
+   {
+    "file": "gw_wine_01_back.jpg",
+    "panel": "back"
+   }
+  ],
+  "application": {
+   "beverage_type": "wine",
+   "brand_name": "SEACLIFF ESTATE",
+   "class_type": "California Chardonnay \u2014 Table Wine",
+   "alcohol_content": "",
+   "net_contents": "750 mL"
+  },
+  "note": "Synthetic golden patterned on the wine corpus structure; ground truth by construction. Expected: table wine, no ABV printed \u2192 NOT_REQUIRED; all else green",
+  "provenance": {
+   "source": "generate_golden_cola.py (synthetic; fictional brand, controlled truth)"
+  }
+ }
+]
