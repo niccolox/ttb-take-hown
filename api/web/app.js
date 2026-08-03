@@ -25,11 +25,13 @@ const FAMILY = {
   MISMATCH: ["red", "✗ MISMATCH"], NOT_CHECKED: ["grey", "— NOT CHECKED"],
   NOT_REQUIRED: ["grey", "○ NOT REQUIRED"],
 };
-const ITEM_STATES = {   // item lifecycle (UI spec: named states)
-  waiting: ["grey", "Waiting"], checking: ["amber", "Checking…"],
+const ITEM_STATES = {   // item lifecycle — status words follow COLAs Online
+  // (Received / In Process / Needs Correction); verdict words stay the
+  // screening tool's own (never Approved/Rejected — no approval authority)
+  waiting: ["grey", "Received"], checking: ["amber", "In Process…"],
   done_green: ["green", "All clear"], pass_agent: ["green", "Pass ·agent"],
   done_amber: ["amber", "Review"],
-  done_red: ["red", "Mismatch"], fail_agent: ["red", "Fail ·agent"],
+  done_red: ["red", "Needs Correction"], fail_agent: ["red", "Fail ·agent"],
   error: ["red", "Couldn't finish"],
   canceled: ["grey", "Canceled"],
 };
@@ -390,7 +392,7 @@ function renderList() {
         application — start with your own images or a built-in sample.</p>
       <button type="button" class="btn btn-primary btn-block" data-hero="files">Choose label image(s)</button>
       <button type="button" class="btn btn-outline btn-primary btn-block mt-2" data-hero="sample">Try a sample</button>
-      <p class="cite" style="margin-top:10px">Batches: Start a check → Import CSV manifest.
+      <p class="cite" style="margin-top:10px">Batches: Add labels → Import CSV manifest.
         Eval sets and registry pipelines live in the top navigation.</p>`;
     hero.querySelector('[data-hero="files"]').addEventListener("click", () => $("files").click());
     hero.querySelector('[data-hero="sample"]').addEventListener("click", () => {
@@ -443,7 +445,7 @@ function renderList() {
       ? `${done} of ${items.length} checked`
       : done === items.length && done > 0
         ? completionText()
-        : `${items.length} label(s) ready — ${done} checked`;
+        : `${items.length} received — ${done} checked`;
     progressBar(running ? done : null, running ? items.length : null);
     const allDone = !running && items.length > 0 && items.every(reviewComplete);
     $("progress").classList.toggle("text-success", allDone);
@@ -453,13 +455,13 @@ function renderList() {
   $("saveSession").style.display = items.length ? "inline-block" : "none";
   updateSaveButton();
   const FILTER_META = {   // literal colors — the old CSS vars left with the restyle
-    waiting: ["Waiting", "#5f5f5f", "#efefef"],
+    waiting: ["Received", "#5f5f5f", "#efefef"],
     attention: ["Needs attention", "#b3261e", "#fdecea"],
-    mismatch: ["Mismatch", "#b3261e", "#fdecea"],
+    mismatch: ["Needs Correction", "#b3261e", "#fdecea"],
     review: ["Needs review", "#8a6d00", "#fff7d6"],
     passed: ["All clear / Passed", "#2e7d32", "#e8f5e9"],
     failed: ["Failed ·agent", "#b3261e", "#fdecea"],
-    progress: ["In progress", "#005ea2", "#e8f1f8"],
+    progress: ["In Process", "#005ea2", "#e8f1f8"],
     all: ["All", "#005ea2", "#e8f1f8"],
   };
   for (const btn of $("filters").querySelectorAll("button")) {
@@ -503,7 +505,7 @@ function completionText() {
     const s = itemState(it);
     if (GREENS.includes(s)) g++; else if (s === "done_amber") a++; else if (["done_red", "fail_agent", "error"].includes(s)) r++;
   }
-  return `Checked: ${g} matched, ${a} need review, ${r} mismatched/failed — ` +
+  return `Checked: ${g} matched, ${a} need review, ${r} need correction/failed — ` +
          `${complete} of ${total} reviews complete`;
 }
 
@@ -927,8 +929,8 @@ function screeningLabel(it) {
   const s = autoState(it);
   return { done_green: "All clear", pass_agent: "Passed by agent decision",
            fail_agent: "Failed by agent decision",
-           done_amber: "Needs review", done_red: "Mismatch found",
-           error: "Couldn't finish" }[s] || "Not checked";
+           done_amber: "Needs review", done_red: "Needs correction",
+           error: "Couldn't finish" }[s] || "Received";
 }
 
 // ── crops ────────────────────────────────────────────────────────────────────
