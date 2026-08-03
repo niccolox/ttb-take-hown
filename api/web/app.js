@@ -29,7 +29,8 @@ const ITEM_STATES = {   // item lifecycle (UI spec: named states)
   waiting: ["grey", "Waiting"], checking: ["amber", "Checking…"],
   done_green: ["green", "All clear"], pass_agent: ["green", "Pass ·agent"],
   done_amber: ["amber", "Review"],
-  done_red: ["red", "Mismatch"], error: ["red", "Couldn't finish"],
+  done_red: ["red", "Mismatch"], fail_agent: ["red", "Fail ·agent"],
+  error: ["red", "Couldn't finish"],
   canceled: ["grey", "Canceled"],
 };
 
@@ -213,7 +214,7 @@ async function loadSamples() {
 // ── list pane (stable order, filters, progress) ──────────────────────────────
 // PASS renders its own chip: green must say "Pass ·agent" when the state is
 // the reviewer's decision rather than the machine's all-clear
-const OV_STATE = { "PASS": "pass_agent", "NEEDS REVIEW": "done_amber", "FAIL": "done_red" };
+const OV_STATE = { "PASS": "pass_agent", "NEEDS REVIEW": "done_amber", "FAIL": "fail_agent" };
 const GREENS = ["done_green", "pass_agent"];
 const OV_FIELD_STATUS = { "PASS": "MATCH", "NEEDS REVIEW": "NEEDS_REVIEW", "FAIL": "MISMATCH" };
 
@@ -327,6 +328,7 @@ function visible(it) {
   const s = itemState(it);
   if (filter === "attention") return !reviewComplete(it) && ["done_red", "done_amber", "error"].includes(s);
   if (filter === "passed") return GREENS.includes(s);   // auto all-clear or agent PASS
+  if (filter === "failed") return s === "fail_agent";   // reviewer FAIL decisions
   if (filter === "progress") return ["waiting", "checking"].includes(s);
   return true;
 }
@@ -334,11 +336,12 @@ function visible(it) {
 function renderList() {
   const list = $("list");
   list.innerHTML = "";
-  const counts = { attention: 0, passed: 0, progress: 0, all: items.length };
+  const counts = { attention: 0, passed: 0, progress: 0, failed: 0, all: items.length };
   for (const it of items) {
     const s = itemState(it);
     if (!reviewComplete(it) && ["done_red", "done_amber", "error"].includes(s)) counts.attention++;
     if (GREENS.includes(s)) counts.passed++;
+    if (s === "fail_agent") counts.failed++;     // decided FAILs get their own row
     if (["waiting", "checking"].includes(s)) counts.progress++;
   }
   for (const it of items) {                      // insertion order — never reorder
@@ -375,11 +378,12 @@ function renderList() {
   $("filters").style.display = items.length ? "flex" : "none";
   $("saveSession").style.display = items.length ? "inline-block" : "none";
   updateSaveButton();
-  const FILTER_META = {
-    attention: ["Needs attention", "var(--red)", "var(--red-bg)"],
-    passed: ["All clear / Passed", "var(--green)", "var(--green-bg)"],
-    progress: ["In progress", "var(--grey)", "var(--grey-bg)"],
-    all: ["All", "var(--accent)", "#e8f1f8"],
+  const FILTER_META = {   // literal colors — the old CSS vars left with the restyle
+    attention: ["Needs attention", "#b3261e", "#fdecea"],
+    passed: ["All clear / Passed", "#2e7d32", "#e8f5e9"],
+    failed: ["Failed ·agent", "#b3261e", "#fdecea"],
+    progress: ["In progress", "#5f5f5f", "#efefef"],
+    all: ["All", "#005ea2", "#e8f1f8"],
   };
   for (const btn of $("filters").querySelectorAll("button")) {
     btn.setAttribute("aria-pressed", String(btn.dataset.f === filter));
@@ -419,7 +423,7 @@ function completionText() {
   let g = 0, a = 0, r = 0;
   for (const it of items) {
     const s = itemState(it);
-    if (GREENS.includes(s)) g++; else if (s === "done_amber") a++; else if (s === "done_red" || s === "error") r++;
+    if (GREENS.includes(s)) g++; else if (s === "done_amber") a++; else if (["done_red", "fail_agent", "error"].includes(s)) r++;
   }
   return `Checked: ${g} matched, ${a} need review, ${r} mismatched/failed — ` +
          `${complete} of ${total} reviews complete`;
@@ -796,6 +800,7 @@ function renderResult(container, it) {
 function screeningLabel(it) {
   const s = autoState(it);
   return { done_green: "All clear", pass_agent: "Passed by agent decision",
+           fail_agent: "Failed by agent decision",
            done_amber: "Needs review", done_red: "Mismatch found",
            error: "Couldn't finish" }[s] || "Not checked";
 }
