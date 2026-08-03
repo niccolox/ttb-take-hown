@@ -198,6 +198,16 @@ function effStatus(it, f) {
   return ov ? OV_FIELD_STATUS[ov.value] || f.status : f.status;
 }
 
+// AD-12: guard-scoped fields lead with PROCESS, not verdict, while the
+// second-engine cross-check is pending — the fast engine's raw read of the
+// statutory small print is exactly the read the refinement layers exist to
+// correct, so it must never render as a (red) verdict.
+const GUARD_FIELDS = new Set(["government_warning", "alcohol_content", "net_contents"]);
+function isRefining(it, f) {
+  return !!(it.result && it.result.settled === false && !it.stale
+            && GUARD_FIELDS.has(f.field) && !fieldOv(it, f.field));
+}
+
 let persistTimer = null;
 function schedulePersist() {
   // one save shortly after the last verdict lands (a batch saves once, not per label)
@@ -237,7 +247,10 @@ function ovValue(it) {          // override may be a legacy string or {value, at
 
 function autoState(it) {
   if (it.state !== "done") return it.state;
-  const st = it.result.fields.map((f) => effStatus(it, f));
+  // refining guard fields are excluded from the rollup (AD-11: a batch row
+  // must not flash red on a provisional read, then silently flip)
+  const st = it.result.fields.filter((f) => !isRefining(it, f))
+    .map((f) => effStatus(it, f));
   if (st.includes("MISMATCH")) return "done_red";
   if (st.some((s) => ["NEEDS_REVIEW", "WITHIN_TOLERANCE", "LIKELY_MATCH"].includes(s))) return "done_amber";
   return "done_green";
@@ -589,7 +602,7 @@ function renderResult(container, it) {
       : `⏱ Checked in ${s.toFixed(1)}s — OVER the 5-second target${ocr}`;
     container.appendChild(timing);
   }
-  let [cls, text] = bannerFor(r.fields, it);
+  let [cls, text] = bannerFor(r.fields.filter((f) => !isRefining(it, f)), it);
   const ov = ovValue(it);
   if (ov) {
     cls = { "PASS": "green", "NEEDS REVIEW": "amber", "FAIL": "red" }[ov] || cls;
@@ -631,8 +644,11 @@ function renderResult(container, it) {
     FIELD_ORDER.indexOf(a.field) - FIELD_ORDER.indexOf(b.field));
   for (const f of sorted) {
     const fov = fieldOv(it, f.field);
+    const refining = isRefining(it, f);
     const shown = effStatus(it, f);
-    const [fam, chipText] = FAMILY[shown] || ["grey", shown];
+    const [fam, chipText] = refining
+      ? ["grey", "⏳ CHECKING"]
+      : (FAMILY[shown] || ["grey", shown]);
     const origChip = (FAMILY[f.status] || ["grey", f.status])[1];
     const row = document.createElement("div");
     row.className = "row";
@@ -652,12 +668,14 @@ function renderResult(container, it) {
         </div>
       </div>
       <div>
-        ${f.label_value ? `<div class="vals"><span class="lbl">Label says:</span> ${esc(f.label_value)}</div>` : ""}
+        ${refining
+          ? `<div class="note">Verifying with second engine — the preliminary read is withheld until the cross-check settles (a few seconds).</div>`
+          : `${f.label_value ? `<div class="vals"><span class="lbl">Label says:</span> ${esc(f.label_value)}</div>` : ""}
         ${f.application_value ? `<div class="vals"><span class="lbl">Application says:</span> ${esc(f.application_value)}</div>` : ""}
         <div class="note">${esc(f.note || "")}</div>
         ${f.citation ? `<div class="cite">${esc(f.citation)}</div>` : ""}
         ${(f.sub_results || []).map((s) => `<div class="sub"><strong>${esc(s.check.replace(/_/g, " "))}:</strong> ${esc(s.outcome.toUpperCase())} — ${esc(s.detail)}</div>`).join("")}
-        ${f.vlm ? `<div class="sub" style="border-left:3px solid #b58900;padding-left:6px;margin-top:4px"><strong>Vision model suggests:</strong> ${esc(f.vlm.suggestion)}<div class="cite">${esc(f.vlm.disclaimer)} · ${esc(f.vlm.engine)}</div></div>` : ""}
+        ${f.vlm ? `<div class="sub" style="border-left:3px solid #b58900;padding-left:6px;margin-top:4px"><strong>Vision model suggests:</strong> ${esc(f.vlm.suggestion)}<div class="cite">${esc(f.vlm.disclaimer)} · ${esc(f.vlm.engine)}</div></div>` : ""}`}
       </div>
       <div class="cropcell"></div>`;
     rowsHost.appendChild(row);
