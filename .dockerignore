@@ -1,0 +1,14 @@
+# Data and secrets must NEVER ride into an image (audit F3):
+# api/data holds the review session store INCLUDING label images.
+api/data/
+api/eval/colacloud/
+api/eval/batches/
+.env
+.venv/
+vendor/
+api/web/node_modules
+comparisons/
+__pycache__/
+*.pyc
+.git/
+docs/

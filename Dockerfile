@@ -13,12 +13,18 @@ WORKDIR /app
 COPY api/requirements.lock api/requirements.lock
 RUN pip install --no-cache-dir --require-hashes -r api/requirements.lock
 
+# Non-root runtime (audit F2, 800-190): uid 1000 matches the host bind-mount
+# owner in the dev composes, so ./api/data stays writable in both worlds.
+RUN useradd -m -u 1000 app
+
 COPY api/ api/
 COPY scripts/ scripts/
 COPY Makefile .
 
-# Bake OCR models into the image: trigger the official-model download once at
-# build time so container start needs zero egress and warmup is fast.
+# Bake OCR models into the image AS THE APP USER (they land under
+# /home/app/.paddlex): trigger the official-model download once at build
+# time so container start needs zero egress and warmup is fast.
+USER app
 RUN python - <<'EOF'
 from paddleocr import PaddleOCR
 ocr = PaddleOCR(use_doc_orientation_classify=False, use_doc_unwarping=False,
@@ -30,9 +36,9 @@ EOF
 # Supply-chain gate (TODOS P1): the bake above downloads weights from Baidu's
 # CDN with no integrity guarantee — assert them against the committed
 # known-good manifest; a drifted upstream fails the BUILD, not production.
-RUN python -m api.integrity check --models-dir /root/.paddlex/official_models
+RUN python -m api.integrity check --models-dir /home/app/.paddlex/official_models
 
-ENV PORT=8123 PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True LABELCHECK_MODELS_DIR=/root/.paddlex/official_models
+ENV PORT=8123 PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True LABELCHECK_MODELS_DIR=/home/app/.paddlex/official_models
 EXPOSE 8123
 HEALTHCHECK --interval=10s --timeout=3s --start-period=60s --retries=6 \
     CMD curl -sf http://localhost:8123/healthz | grep -q '"ready":true' || exit 1

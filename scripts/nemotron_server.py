@@ -107,12 +107,20 @@ def _ocr_sync(body: bytes) -> dict:
                        "box": _box(p, w, h)} for p in preds]}
 
 
+MAX_BODY = 12 * 1024 * 1024   # audit F8: bound OUR boundary too — the app
+                              # caps uploads at 8MB, but direct callers
+                              # must not be able to feed unbounded bytes
+
+
 @app.post("/v1/ocr")
 async def ocr_endpoint(request: Request, response: Response):
     global _waiting
     if _ocr is None:
         response.status_code = 503
         return {"error": "model still loading"}
+    if int(request.headers.get("content-length") or 0) > MAX_BODY:
+        response.status_code = 413
+        return {"error": f"body exceeds {MAX_BODY} bytes"}
     with _waiting_lock:
         if _waiting >= _MAX_WAITING:
             response.status_code = 503
@@ -120,6 +128,9 @@ async def ocr_endpoint(request: Request, response: Response):
         _waiting += 1
     try:
         body = await request.body()
+        if len(body) > MAX_BODY:              # content-length can lie
+            response.status_code = 413
+            return {"error": f"body exceeds {MAX_BODY} bytes"}
         import anyio
         return await anyio.to_thread.run_sync(_ocr_sync, body)
     finally:

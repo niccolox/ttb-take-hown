@@ -53,7 +53,11 @@ services:
         WORKDIR /workspace
       args:
         TORCH_CUDA_ARCH_LIST: "8.6"
+    # non-root (audit F2): uid 1000 owns the host-mounted /workspace clone;
+    # HOME points at /tmp so torch/inductor caches never need root paths
+    user: "1000:1000"
     environment:
+      - HOME=/tmp
       # v2_english weights from the mounted clone: no runtime hub download,
       # and the 4 GB VRAM choice (multilingual needs 2.7-3.2 GiB).
       - NEMOTRON_MODEL_DIR=/workspace/v2_english
