@@ -21,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps
 
 from .extractor import build_extractor
+from .intake import deskew
 from .jobs import JobQueue, ResultStore
 from .verify import verify_multi
 
@@ -450,6 +451,7 @@ def api_verify(image: UploadFile = File(None),
     import numpy as np
     panels = []
     scales = []                                  # OCR-space → original-bitmap factor per panel
+    skew_tfs = []                                # S0 deskew inverse transforms (N2)
     t0 = time.perf_counter()
     for up in uploads:
         raw = up.file.read()
@@ -473,6 +475,10 @@ def api_verify(image: UploadFile = File(None),
                 pre_w = img.width
                 img = img.resize((int(img.width * r), int(img.height * r)), Image.LANCZOS)
                 scale_back = pre_w / img.width   # evidence boxes map back to the client's bitmap
+            # S0 deskew (N2): both engines read straightened text; evidence
+            # boxes come back in the rotated frame and are mapped to the
+            # client's bitmap via box_to_pre + scale_back below
+            img, skew_tf = deskew(img)
         except Exception:
             return JSONResponse({"error": "Couldn't read this image — the file may be "
                                            "corrupt.", "code": "decode_failed"}, status_code=422)
@@ -492,6 +498,7 @@ def api_verify(image: UploadFile = File(None),
                                      "code": "system_error"}, status_code=500)
         panels.append((words, np.array(img.convert("L"))))
         scales.append(scale_back)
+        skew_tfs.append(skew_tf)
 
     result = verify_multi(panels, app_data)
     # OCR ran on ≤2000px downscales; the browser draws crops on the ORIGINAL
@@ -500,12 +507,18 @@ def api_verify(image: UploadFile = File(None),
         ev = f.get("evidence")
         if not ev:
             continue
-        s = scales[ev.get("panel") or 0] if (ev.get("panel") or 0) < len(scales) else 1.0
-        if s != 1.0:
+        p = ev.get("panel") or 0
+        s = scales[p] if p < len(scales) else 1.0
+        tf = skew_tfs[p] if p < len(skew_tfs) else None
+        if s != 1.0 or tf is not None:
+            def _map(box):
+                if tf is not None:
+                    box = tf.box_to_pre(box)      # rotated → pre-rotation frame
+                return [round(v * s, 1) for v in box]
             if ev.get("bbox"):
-                ev["bbox"] = [round(v * s, 1) for v in ev["bbox"]]
+                ev["bbox"] = _map(ev["bbox"])
             for d in ev.get("diff_boxes") or []:
-                d["box"] = [round(v * s, 1) for v in d["box"]]
+                d["box"] = _map(d["box"])
     result["timing_ms"]["ocr"] = round((time.perf_counter() - t0) * 1000)
     entry = store.put(result)                 # result_id == request_id (AD-36)
     body = entry.public()
