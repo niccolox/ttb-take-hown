@@ -952,7 +952,28 @@ function download(name, content) {
 
 async function loadCorpora() {
   const list = await (await fetch("/api/corpora")).json();
-  for (const c of list) {
+  // two groups (left panel): synthetic golden sets vs real registry pulls
+  const GROUPS = [
+    ["golden", "Golden images (synthetic, controlled truth)"],
+    ["cola", "COLA Cloud pipelines (real registry labels)"],
+  ];
+  const host = $("corpora");
+  for (const [gid, heading] of GROUPS) {
+    const members = list.filter((c) => (c.group || "golden") === gid);
+    if (!members.length) continue;
+    const h = document.createElement("div");
+    h.className = "cite";
+    h.dataset.corpusGroup = gid;
+    h.style.cssText = "font-weight:700;font-style:normal;margin:10px 0 2px;" +
+      "text-transform:uppercase;letter-spacing:.04em";
+    h.textContent = heading;
+    host.appendChild(h);
+    for (const c of members) appendCorpusButton(c);
+  }
+}
+
+function appendCorpusButton(c) {
+  {
     const b = document.createElement("button");
     b.type = "button";
     b.innerHTML = `<strong>${esc(c.label)}</strong><span class="shows">${esc(c.shows)}</span>`;
@@ -999,7 +1020,8 @@ const PIPE_LABELS = { wine: "Wine pipeline", beer: "Beer pipeline",
 let pipePoll = null;
 
 async function refreshCorpora() {
-  $("corpora").querySelectorAll("button").forEach((b) => b.remove());
+  $("corpora").querySelectorAll("button, [data-corpus-group]")
+    .forEach((b) => b.remove());
   await loadCorpora();
 }
 

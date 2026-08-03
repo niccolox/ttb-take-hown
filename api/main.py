@@ -268,18 +268,30 @@ def _corpus_items(name: str):
 
 @app.get("/api/corpora")
 def corpora():
+    """Eval sets, grouped for the UI: `group` is "golden" (synthetic,
+    controlled truth) or "cola" (real registry pulls)."""
     base = [
-        {"id": "golden", "label": "Golden set — 15 synthetic labels",
+        {"id": "golden", "group": "golden",
+         "label": "Golden set — 15 synthetic labels",
          "shows": "Clean controls plus every adversarial trap (title-case, all-bold, skew, glare…)."},
-        {"id": "napa", "label": "Napa set — 8 real wine labels",
+        {"id": "napa", "group": "golden",
+         "label": "Napa set — 8 real wine labels",
          "shows": "Real photographs (CC, Wikimedia): script fonts, occlusion, low-res, two-bottle frames."},
     ]
+    for cid, path in get_corpora().items():
+        if cid.startswith("golden_"):
+            n = len(json.loads((path / "manifest.json").read_text()))
+            t = cid.split("_", 1)[1].replace("_", " ")
+            base.append({"id": cid, "group": "golden",
+                         "label": f"Golden — {t} ({n} synthetic, full-res)",
+                         "shows": "Synthetic front+back pair patterned on this pipeline's "
+                                  "real label structure; ground truth by construction."})
     for cid, path in get_corpora().items():
         if not cid.startswith("colacloud_"):
             continue
         n = len(json.loads((path / "manifest.json").read_text()))
         t = cid.split("_", 1)[1].replace("_", " ")
-        base.append({"id": cid,
+        base.append({"id": cid, "group": "cola",
                      "label": f"COLA Cloud — {t} ({n} approved registry labels)",
                      "shows": "Real approved COLAs pulled from the public registry; "
                               "the registry record is the application ground truth."})
