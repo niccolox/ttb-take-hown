@@ -333,7 +333,7 @@ def run_j2(rid: str, store, gpu_extractor, gpu_engine: str,
                 continue
             changed = merge_refinement(
                 f, re_warn, "warning-reread", gpu_engine,
-                upgrade_ok=j1_green,
+                upgrade_ok=j1_green, refresh_on_same=True,
                 note=("re-read the warning band at crop resolution"
                       + ("" if j1_green else
                          " — clean re-read NOT applied: second engine did not concur")))

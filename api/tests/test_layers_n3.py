@@ -70,6 +70,32 @@ def test_full_lattice_classification():
         assert classify(base, new, bl, nl) == want, (base, new, want)
 
 
+def test_same_status_reread_refreshes_details():
+    """Titlecase-trap regression: J2 confirms MISMATCH but with a corrected
+    read — sub-checks/label text must refresh so the reviewer sees the true
+    defect (caps violation), not the fast read's dropout artifact."""
+    f = _field("MISMATCH", label="…word dropped…",
+               sub_results=[{"check": "text_exact", "outcome": "fail",
+                             "detail": 'The required word "a" is missing…'}])
+    refined = _field("MISMATCH", label="Government Warning: full correct text",
+                     sub_results=[{"check": "text_exact", "outcome": "pass",
+                                   "detail": "matches"},
+                                  {"check": "prefix_caps", "outcome": "fail",
+                                   "detail": "must be all capitals"}])
+    changed = merge_refinement(f, refined, "warning-reread", "nemotron",
+                               upgrade_ok=True, refresh_on_same=True)
+    assert not changed and f["status"] == "MISMATCH"      # verdict unchanged
+    assert f["sub_results"][0]["outcome"] == "pass"       # details refreshed
+    assert f["label_value"] == "Government Warning: full correct text"
+    assert f["refinements"][0]["details_refreshed"] is True
+    # without the flag (J1 path) details stay untouched
+    g = _field("MISMATCH", sub_results=[{"check": "text_exact",
+                                         "outcome": "fail", "detail": "x"}])
+    merge_refinement(g, refined, "second-engine-check", "paddle",
+                     upgrade_ok=True)
+    assert g["sub_results"][0]["outcome"] == "fail"
+
+
 def test_provenance_always_recorded():
     f = _field("MATCH")
     merge_refinement(f, _field("MATCH"), "second-engine-check", "paddle",

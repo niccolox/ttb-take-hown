@@ -39,9 +39,16 @@ def classify(base_status: str, new_status: str, base_located: bool,
 
 
 def merge_refinement(field: dict, refined: dict, layer: str, engine: str,
-                     upgrade_ok: bool, note: str = "") -> bool:
+                     upgrade_ok: bool, note: str = "",
+                     refresh_on_same: bool = False) -> bool:
     """Mutates `field` in place (caller holds the store's entry lock via
-    ResultStore.mutate). Returns True when the status changed."""
+    ResultStore.mutate). Returns True when the status changed.
+
+    `refresh_on_same`: a higher-fidelity re-read (J2) that CONFIRMS the
+    status still carries better details — corrected sub-checks, label text,
+    evidence. Without refreshing them, a reviewer acts on the fast read's
+    artifacts (e.g. the dropout's 'word missing' line surviving on a
+    titlecase trap whose real defect is the caps violation)."""
     base_status = field["status"]
     kind = classify(base_status, refined["status"],
                     base_located=field.get("label_value") is not None,
@@ -52,6 +59,12 @@ def merge_refinement(field: dict, refined: dict, layer: str, engine: str,
     field.setdefault("refinements", []).append(prov)
 
     if kind == "same":
+        if refresh_on_same:
+            prov["details_refreshed"] = True
+            for key in ("label_value", "reason_code", "note", "evidence",
+                        "sub_results"):
+                if key in refined:
+                    field[key] = refined[key]
         return False
     if kind == "upgrade" and not upgrade_ok:
         # recorded, never applied — a single uncorroborated read cannot
