@@ -47,6 +47,26 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const err = (m) => { const e = $("err"); e.textContent = m || ""; e.style.display = m ? "block" : "none"; };
 
+/** Focus restoration (508, TODOS P2): renders rebuild DOM via innerHTML and
+ *  drop keyboard focus to <body>. Capture a stable selector for the focused
+ *  control before a rebuild and re-focus its successor after. */
+function captureFocus() {
+  const a = document.activeElement;
+  if (!a || a === document.body
+      || !a.matches("button, [href], input, select, [tabindex]")) return null;
+  if (a.id) return `#${CSS.escape(a.id)}`;
+  const parts = [];
+  for (const at of a.attributes) {
+    if (at.name.startsWith("data-")) parts.push(`[${at.name}="${CSS.escape(at.value)}"]`);
+  }
+  return parts.length ? a.tagName.toLowerCase() + parts.join("") : null;
+}
+function restoreFocus(sel) {
+  if (!sel) return;
+  const el = document.querySelector(sel);
+  if (el) el.focus({ preventScroll: true });
+}
+
 /** DaisyUI progress bar under the status line: numbers → determinate,
  *  done=null with a total → indeterminate stripe, total=null → hidden. */
 function progressBar(done, total) {
@@ -357,6 +377,7 @@ function visible(it) {
 }
 
 function renderList() {
+  const focusSel = captureFocus();
   const list = $("list");
   list.innerHTML = "";
   const counts = { waiting: 0, attention: 0, mismatch: 0, review: 0,
@@ -387,6 +408,7 @@ function renderList() {
     if (!it.thumbUrl) it.thumbUrl = URL.createObjectURL(it.file);   // front panel, cached per item
     mini.src = it.thumbUrl;
     b.prepend(mini);
+    b.dataset.id = it.id;
     b.addEventListener("click", () => select(it.id));
     list.appendChild(b);
   }
@@ -428,6 +450,7 @@ function renderList() {
   $("verifyAll").textContent = items.length > 1 ? "Verify all" : "Verify label";
   $("cancel").style.display = running ? "inline-block" : "none";
   $("export").style.display = done > 0 ? "inline-block" : "none";
+  restoreFocus(focusSel);
 }
 
 /** An application's review is COMPLETE when it has a final disposition:
@@ -470,6 +493,7 @@ const sel = () => items.find((i) => i.id === selectedId);
 function markStale(it) { if (it.state === "done") { it.stale = true; } }
 
 function renderDetail() {
+  const focusSel = captureFocus();
   const it = sel();
   const d = $("detail");
   const fp = $("appform");                     // application form column (side by side with the image)
@@ -524,6 +548,7 @@ function renderDetail() {
       // rotate 90° clockwise — re-rasterizes the panel (canvas), so the
       // thumbnail, zoom, AND the next verify all use the upright image
       const rot = document.createElement("button");
+      rot.dataset.role = `rotate-${p.panel}`;
       rot.type = "button";
       rot.className = "btn btn-sm btn-outline gap-1 mb-2";
       rot.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-[1.1em]" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>' +
@@ -663,6 +688,7 @@ function renderDetail() {
   fp.appendChild(staleNote);
 
   const verifyBtn = document.createElement("button");
+  verifyBtn.dataset.role = "verify-one";
   verifyBtn.className = "primary"; verifyBtn.type = "button";
   verifyBtn.textContent = it.state === "done" ? "Re-check this label" : "Verify this label";
   verifyBtn.addEventListener("click", () => runOne(it));
@@ -674,6 +700,7 @@ function renderDetail() {
     fp.appendChild(p);
   }
   if (it.result) renderResult(d, it);
+  restoreFocus(focusSel);
 }
 
 function bannerFor(fields, it = null) {

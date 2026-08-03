@@ -210,7 +210,7 @@ dialog canvas { max-width: 86vw; }
 
 .ov-note { @apply text-sm font-semibold mt-1 text-warning; }
 .batchbar { @apply flex gap-2 mt-2.5 flex-wrap; }
-footer { @apply px-6 py-4 opacity-60 text-[13px]; }
+footer { @apply px-6 py-4 opacity-80 text-[13px]; }  /* 60% failed 4.5:1 (axe) */
 img.thumb { @apply max-w-full border border-base-300 rounded-lg; }
 /* cursor-tracking zoom-on-hover: frame clips the scaled image; the JS sets
    transform-origin to the pointer position */

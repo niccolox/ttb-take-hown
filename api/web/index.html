@@ -77,7 +77,7 @@
 
   <section class="panel" aria-labelledby="apps-h">
     <h2 id="apps-h">Applications</h2>
-    <div class="status-note" id="progress">No labels yet — add images, a sample, or a CSV + images.</div>
+    <div class="status-note" id="progress" role="status" aria-live="polite">No labels yet — add images, a sample, or a CSV + images.</div>
     <progress id="progressbar" class="progress progress-primary w-full" max="100" style="display:none"></progress>
     <div class="filters" id="filters" style="display:none">
       <button data-f="waiting" aria-pressed="false">Waiting</button>
@@ -89,7 +89,7 @@
       <button data-f="progress" aria-pressed="false">In progress</button>
       <button data-f="all" aria-pressed="true">All</button>
     </div>
-    <div id="list" aria-label="Uploaded labels"></div>
+    <div id="list" role="group" aria-label="Uploaded labels"></div>
     <div class="batchbar">
       <button class="primary" id="verifyAll" style="display:none;margin-top:0;width:auto;padding:0 16px">Verify all</button>
       <button class="secondary" id="cancel" style="display:none">Cancel waiting checks</button>
@@ -117,7 +117,7 @@
   </form></dialog>
 <footer>Prototype for the Treasury take-home exercise — not an official TTB system; no
   approval authority. Type size, placement, and contrast limits are not fully checked (27 CFR §16.22).</footer>
-<script src="app.js?v=n7.2"></script><!-- bump ?v= on app.js changes: browsers
+<script src="app.js?v=n7.3"></script><!-- bump ?v= on app.js changes: browsers
   heuristically cache un-versioned statics and can keep pre-refinement code
   running against the new API -->
 </body>
