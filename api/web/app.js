@@ -463,10 +463,20 @@ function renderDetail() {
   const it = sel();
   const d = $("detail");
   const fp = $("appform");                     // application form column (side by side with the image)
+  const badge = $("appstatus");                // disposition summary, top right of the panel
   if (!it) {
     d.innerHTML = '<p class="note">Select a label from the Applications list.</p>';
     fp.innerHTML = '<p class="note">The application values appear here.</p>';
+    badge.style.display = "none";
     return;
+  }
+  {
+    const [cls, txt] = ITEM_STATES[itemState(it)] || ITEM_STATES.waiting;
+    badge.className = "badge badge-soft font-bold " +
+      ({ green: "badge-success", amber: "badge-warning",
+         red: "badge-error", grey: "badge-neutral" }[cls] || "badge-neutral");
+    badge.textContent = txt;
+    badge.style.display = "inline-flex";
   }
   d.innerHTML = ""; fp.innerHTML = "";
   {
