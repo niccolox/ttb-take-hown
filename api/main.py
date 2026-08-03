@@ -134,6 +134,38 @@ SAMPLES = {
                         "alcohol_content": "12.5%", "net_contents": "750 mL"}},
 }
 
+# degraded wine pairs (front+back) from the per-pipeline golden set — the
+# bad-photo conditions agents actually submit, with measured dispositions
+_WINE_APP = {"beverage_type": "wine", "brand_name": "SEACLIFF ESTATE",
+             "class_type": "California Chardonnay — Table Wine",
+             "alcohol_content": "", "net_contents": "750 mL"}
+SAMPLES.update({
+    "wine_blur": {
+        "label": "Blurry wine photo (front + back)",
+        "shows": "Blur degrades honestly: unreadable fields go to review with crops — never a false mismatch.",
+        "files": [("golden_cola/wine/gw_wine_blur_front.jpg", "front"),
+                  ("golden_cola/wine/gw_wine_blur_back.jpg", "back")],
+        "application": _WINE_APP},
+    "wine_angle": {
+        "label": "Wine photo at an angle (front + back)",
+        "shows": "7° tilt: deskew recovers brand and warning; the long class phrase goes amber for a human.",
+        "files": [("golden_cola/wine/gw_wine_angle_front.jpg", "front"),
+                  ("golden_cola/wine/gw_wine_angle_back.jpg", "back")],
+        "application": _WINE_APP},
+    "wine_dark": {
+        "label": "Poor lighting (front + back)",
+        "shows": "Underexposed photo still verifies all-green.",
+        "files": [("golden_cola/wine/gw_wine_dark_front.jpg", "front"),
+                  ("golden_cola/wine/gw_wine_dark_back.jpg", "back")],
+        "application": _WINE_APP},
+    "wine_glare": {
+        "label": "Flash glare (front + back)",
+        "shows": "Glare washes the front; the back-label warning still verifies.",
+        "files": [("golden_cola/wine/gw_wine_glare_front.jpg", "front"),
+                  ("golden_cola/wine/gw_wine_glare_back.jpg", "back")],
+        "application": _WINE_APP},
+})
+
 
 @app.on_event("startup")
 def _warm():
@@ -196,16 +228,35 @@ def healthz():
 
 @app.get("/api/samples")
 def samples():
-    return [{"id": k, "label": v["label"], "shows": v["shows"],
-             "application": v["application"], "image": f"/api/samples/{k}/image"}
-            for k, v in SAMPLES.items()]
+    out = []
+    for k, v in SAMPLES.items():
+        row = {"id": k, "label": v["label"], "shows": v["shows"],
+               "application": v["application"],
+               "image": f"/api/samples/{k}/image/0"}
+        if v.get("files"):                    # front+back pair (degraded wine set)
+            row["images"] = [{"panel": p, "url": f"/api/samples/{k}/image/{i}"}
+                             for i, (_f, p) in enumerate(v["files"])]
+        out.append(row)
+    return out
+
+
+@app.get("/api/samples/{sid}/image/{idx}")
+def sample_image_panel(sid: str, idx: int):
+    if sid not in SAMPLES:
+        return JSONResponse({"error": "unknown sample"}, status_code=404)
+    v = SAMPLES[sid]
+    if v.get("files"):
+        if not (0 <= idx < len(v["files"])):
+            return JSONResponse({"error": "unknown panel"}, status_code=404)
+        # paths are server-defined constants relative to api/eval — no user input
+        return FileResponse(Path(__file__).parent / "eval" / v["files"][idx][0],
+                            media_type="image/jpeg")
+    return FileResponse(GOLDEN / v["file"], media_type="image/jpeg")
 
 
 @app.get("/api/samples/{sid}/image")
-def sample_image(sid: str):
-    if sid not in SAMPLES:
-        return JSONResponse({"error": "unknown sample"}, status_code=404)
-    return FileResponse(GOLDEN / SAMPLES[sid]["file"], media_type="image/jpeg")
+def sample_image(sid: str):                   # legacy single-image URL
+    return sample_image_panel(sid, 0)
 
 
 _EVAL = Path(__file__).parent / "eval"

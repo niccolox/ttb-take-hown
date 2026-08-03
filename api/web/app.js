@@ -179,6 +179,19 @@ async function loadSamples() {
     b.innerHTML = `<strong>${esc(s.label)}</strong><span class="shows">${esc(s.shows)}</span>`;
     b.addEventListener("click", async () => {
       err("");
+      if (s.images?.length) {                 // front+back sample pair
+        const panelFiles = [];
+        for (const p of s.images) {
+          const blob = await (await fetch(p.url)).blob();
+          panelFiles.push({ file: new File([blob], `${s.id}_${p.panel}.jpg`,
+                                           { type: "image/jpeg" }),
+                            panel: p.panel });
+        }
+        const added = await addItem(panelFiles, s.application);
+        if (added) { select(added.id); renderList(); }
+        else err("This sample is already imported.");
+        return;
+      }
       const blob = await (await fetch(s.image)).blob();
       await addFiles([new File([blob], s.id + ".jpg", { type: "image/jpeg" })], s.application);
       select(items[items.length - 1].id);
