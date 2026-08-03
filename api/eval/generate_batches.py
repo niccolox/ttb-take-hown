@@ -9,8 +9,8 @@ advance:
   - every 25th item: ABV outside tolerance        → expected MISMATCH
   - every 20th item: title-case warning heading   → expected MISMATCH
   - every 7th item:  a photographic degradation   → green or honest amber
-  - every 5th item:  front+back pair              → multi-panel merge load
-  - the rest: clean single-panel                  → expected all green
+  - 10 items/batch:  FRONT-ONLY (no back photo)   → warning not visible, amber
+  - the rest: front+back pairs (the warning lives on the back)
 
 Output (GITIGNORED — ~25-30 MB per batch; regenerate on demand):
   api/eval/batches/batch{1..4}/
@@ -74,7 +74,9 @@ def item_spec(batch: int, i: int) -> tuple[dict, dict]:
     trap_abv = (i % 25) == 24                      # printed ABV far from application
     trap_caps = (i % 20) == 19 and not trap_abv    # title-case heading
     degraded = DEGRADE[(i // 7) % 4] if (i % 7) == 6 and not (trap_abv or trap_caps) else None
-    pair = (i % 5) == 4
+    # front+back is the norm (the statutory warning lives on the back);
+    # 10 items per 300 are FRONT-ONLY — the missing-back-photo scenario
+    pair = (i % 30) != 29
 
     printed_abv = abv + (1.6 if trap_abv else 0.0)
     printed_abv_text = abv_text.replace(f"{abv}", f"{round(printed_abv, 1)}") \
@@ -96,6 +98,8 @@ def item_spec(batch: int, i: int) -> tuple[dict, dict]:
         expect = "MISMATCH (printed ABV outside tolerance)"
     elif trap_caps:
         expect = "MISMATCH (title-case warning heading)"
+    elif not pair:
+        expect = "amber: warning not visible (back panel missing)"
     elif degraded:
         expect = f"green or honest amber ({degraded[0]} degradation)"
     else:
@@ -144,8 +148,10 @@ def main() -> None:
         n_traps = sum(1 for m in manifest if m["expect"].startswith("MISMATCH"))
         n_deg = sum(1 for m in manifest if "degradation" in m["expect"])
         n_pairs = sum(1 for m in manifest if len(m["files"]) == 2)
+        n_solo = args.per - n_pairs
         print(f"batch{b}: {args.per} items — {n_traps} planted reds, "
-              f"{n_deg} degraded, {n_pairs} front+back pairs")
+              f"{n_deg} degraded, {n_pairs} front+back pairs, "
+              f"{n_solo} front-only exceptions")
 
 
 if __name__ == "__main__":
