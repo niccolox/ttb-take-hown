@@ -751,7 +751,7 @@ function renderResult(container, it) {
                title="${v} this field (agent decision)"
                aria-label="${v} — ${esc(FIELD_LABELS[f.field] || f.field)} (agent decision)"
                aria-pressed="${String(fov?.value === v)}"
-               style="min-height:40px;min-width:44px">${OV_ICONS[v]}</button>`).join("")}
+               style="min-height:44px;min-width:48px">${OV_ICONS[v]}</button>`).join("")}
         </div>
       </div>
       <div>
