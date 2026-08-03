@@ -45,6 +45,7 @@ let sessionDirty = false;         // tab state diverges from the DuckDB store
 let lastSavedAt = null;
 let running = false, cancelRequested = false;
 let filter = "all";
+let commodityFilter = "all";      // scope facet (COLA commodity), ANDs with `filter`
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -368,6 +369,8 @@ function itemTitle(it) {
 }
 
 function visible(it) {
+  // commodity is a SCOPE: it ANDs with the status filter below
+  if (commodityFilter !== "all" && it.app.beverage_type !== commodityFilter) return false;
   const s = itemState(it);
   if (filter === "waiting") return s === "waiting";
   if (filter === "attention") return !reviewComplete(it) && ["done_red", "done_amber", "error"].includes(s);
@@ -403,9 +406,22 @@ function renderList() {
     });
     list.appendChild(hero);
   }
-  const counts = { waiting: 0, attention: 0, mismatch: 0, review: 0,
-                   passed: 0, progress: 0, failed: 0, all: items.length };
+  // commodity counts are unfiltered totals; status counts recompute within
+  // the selected commodity (facet convention: numbers answer "what's in
+  // front of me now")
+  const cCounts = { wine: 0, malt_beverage: 0, distilled_spirits: 0, unspecified: 0 };
   for (const it of items) {
+    const b = it.app.beverage_type || "unspecified";
+    cCounts[b] = (cCounts[b] || 0) + 1;
+  }
+  if (commodityFilter !== "all" && !cCounts[commodityFilter]) commodityFilter = "all";
+  const inScope = (it) => commodityFilter === "all"
+    || it.app.beverage_type === commodityFilter;
+  const counts = { waiting: 0, attention: 0, mismatch: 0, review: 0,
+                   passed: 0, progress: 0, failed: 0, all: 0 };
+  for (const it of items) {
+    if (!inScope(it)) continue;
+    counts.all++;
     const s = itemState(it);
     if (!reviewComplete(it) && ["done_red", "done_amber", "error"].includes(s)) counts.attention++;
     if (GREENS.includes(s)) counts.passed++;
@@ -451,6 +467,19 @@ function renderList() {
     const allDone = !running && items.length > 0 && items.every(reviewComplete);
     $("progress").classList.toggle("text-success", allDone);
     $("progress").classList.toggle("font-bold", allDone);
+  }
+  $("commodities").style.display = items.length ? "flex" : "none";
+  {
+    const C_LABEL = { all: "All", wine: "🍷 Wine", malt_beverage: "🍺 Malt",
+                      distilled_spirits: "🥃 Spirits", unspecified: "Not specified" };
+    for (const btn of $("commodities").querySelectorAll("button")) {
+      const c = btn.dataset.c;
+      const n = c === "all" ? items.length : (cCounts[c] ?? 0);
+      btn.setAttribute("aria-pressed", String(c === commodityFilter));
+      btn.disabled = c !== "all" && n === 0;        // empty scope: disable, don't hide
+      if (c === "unspecified") btn.style.display = n ? "" : "none";
+      btn.innerHTML = `${C_LABEL[c]} <span class="ccnt">${n}</span>`;
+    }
   }
   $("filters").style.display = items.length ? "grid" : "none";
   $("saveSession").style.display = items.length ? "inline-block" : "none";
@@ -513,6 +542,11 @@ function completionText() {
 $("filters").addEventListener("click", (e) => {
   const f = e.target.closest("button")?.dataset.f;
   if (f) { filter = f; renderList(); }
+});
+
+$("commodities").addEventListener("click", (e) => {
+  const c = e.target.closest("button")?.dataset.c;
+  if (c) { commodityFilter = c; renderList(); }
 });
 
 // ── detail pane (form + results + override) ──────────────────────────────────

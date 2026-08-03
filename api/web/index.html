@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Label Check — TTB label screening (prototype)</title>
-<link rel="stylesheet" href="vendor/tailwind-daisyui.css?v=16">
+<link rel="stylesheet" href="vendor/tailwind-daisyui.css?v=17">
 </head>
 <body>
 <header>
@@ -79,6 +79,14 @@
     <h2 id="apps-h">Applications</h2>
     <div class="status-note" id="progress" role="status" aria-live="polite">No labels yet — add images, a sample, or a CSV + images.</div>
     <progress id="progressbar" class="progress progress-primary w-full" max="100" style="display:none"></progress>
+    <div class="commodities" id="commodities" role="group" aria-label="Commodity"
+         style="display:none">
+      <button data-c="all" aria-pressed="true">All</button>
+      <button data-c="wine" aria-pressed="false">🍷 Wine</button>
+      <button data-c="malt_beverage" aria-pressed="false">🍺 Malt</button>
+      <button data-c="distilled_spirits" aria-pressed="false">🥃 Spirits</button>
+      <button data-c="unspecified" aria-pressed="false" style="display:none">Not specified</button>
+    </div>
     <div class="filters" id="filters" style="display:none">
       <button data-f="waiting" aria-pressed="false">Received</button>
       <button data-f="attention" aria-pressed="false">Needs attention</button>
@@ -117,7 +125,7 @@
   </form></dialog>
 <footer>Prototype for the Treasury take-home exercise — not an official TTB system; no
   approval authority. Type size, placement, and contrast limits are not fully checked (27 CFR §16.22; §4.36 type size/legibility).</footer>
-<script src="app.js?v=n7.9"></script><!-- bump ?v= on app.js changes: browsers
+<script src="app.js?v=n8.0"></script><!-- bump ?v= on app.js changes: browsers
   heuristically cache un-versioned statics and can keep pre-refinement code
   running against the new API -->
 </body>

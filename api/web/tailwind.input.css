@@ -203,6 +203,17 @@ dialog canvas { max-width: 86vw; }
 .timing.ok { @apply badge-success; }
 .timing.over { @apply badge-error; }
 
+/* commodity scope facet: segmented control above the status filters —
+   scope first, then state. Selected segment goes primary; empty scopes
+   disable rather than hide so the layout never jumps */
+.commodities { @apply join w-full mb-1.5; }
+.commodities button {
+  @apply join-item btn btn-xs flex-1 gap-1 font-bold text-[12px] min-h-[30px]
+         whitespace-nowrap px-1;
+}
+.commodities button[aria-pressed="true"] { @apply btn-primary; }
+.commodities .ccnt { @apply opacity-70 font-normal tabular-nums; }
+
 /* two-stage stepper (Screened → Cross-checked): daisyui steps, compacted —
    the default component is sized for wizards, not a status line */
 .timing-steps { @apply mb-1 w-full grid; grid-auto-columns: 1fr; }
