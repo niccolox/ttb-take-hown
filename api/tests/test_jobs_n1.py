@@ -226,3 +226,21 @@ def test_healthz_live_while_verify_blocks(client):
         assert body["pending"] == [] and "cancel_token" in body  # AD-34/39
     finally:
         appmod.extractor = real
+
+
+def test_rollup_recomputed_on_every_read():
+    """The J-layers mutate fields after the provisional envelope froze its
+    rollup — found live as a clean golden settling 'mismatch_found' (the
+    provisional warning read was red; J2 fixed the FIELD but not the
+    summary). public() must recompute screening/attention from the fields
+    it returns."""
+    store = ResultStore()
+    r = _result()
+    r["fields"] = [{"field": "government_warning", "status": "MISMATCH"}]
+    r["screening_result"] = "mismatch_found"
+    entry = store.put(r)
+    assert entry.public()["screening_result"] == "mismatch_found"
+    entry.result["fields"][0]["status"] = "MATCH"     # what merge_refinement does
+    body = entry.public()
+    assert body["screening_result"] == "no_mismatch_found"
+    assert body["attention_state"] == "none"

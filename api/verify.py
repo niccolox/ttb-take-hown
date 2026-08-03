@@ -611,7 +611,13 @@ def verify_multi(panels: list[tuple[list[Word], "object"]], application: dict,
     return out
 
 
-def _envelope_dicts(fields: list[dict], t0: float) -> dict:
+def rollup(fields: list[dict]) -> tuple[str, str]:
+    """(screening_result, attention_state) from CURRENT field statuses.
+    Exposed so the result store can recompute on every read — the J-layers
+    mutate fields after the provisional envelope is built, and a rollup
+    frozen at provisional time misreports the settled result (found live:
+    a clean golden settling 'mismatch_found' because nemotron's first
+    warning read — the exact thing J2 corrects — was red)."""
     statuses = [f["status"] for f in fields]
     if "MISMATCH" in statuses:
         screening = "mismatch_found"
@@ -621,6 +627,11 @@ def _envelope_dicts(fields: list[dict], t0: float) -> dict:
         screening = "no_mismatch_found"
     attention = "action_required" if any(
         s in ("MISMATCH", "NEEDS_REVIEW", "WITHIN_TOLERANCE", "LIKELY_MATCH") for s in statuses) else "none"
+    return screening, attention
+
+
+def _envelope_dicts(fields: list[dict], t0: float) -> dict:
+    screening, attention = rollup(fields)
     return {"schema_version": "1", "request_id": str(uuid.uuid4()),
             "screening_result": screening, "attention_state": attention,
             "timing_ms": {"total": round((time.perf_counter() - t0) * 1000)},

@@ -73,13 +73,20 @@ class _Entry:
 
     def public(self) -> dict:
         status = "settled" if self.settled() else "provisional"
-        return {**self.result,
-                "result_id": self.result.get("request_id"),
-                "status": status, "settled": status == "settled",
-                "revision": self.revision,
-                "pending": [j.public() for j in self.jobs.values()
-                            if j.state not in TERMINAL],
-                "jobs": [j.public() for j in self.jobs.values()]}
+        out = {**self.result,
+               "result_id": self.result.get("request_id"),
+               "status": status, "settled": status == "settled",
+               "revision": self.revision,
+               "pending": [j.public() for j in self.jobs.values()
+                           if j.state not in TERMINAL],
+               "jobs": [j.public() for j in self.jobs.values()]}
+        # the J-layers mutate fields AFTER the provisional envelope froze its
+        # rollup — recompute on every read so screening_result/attention_state
+        # always describe the fields being returned
+        if out.get("fields"):
+            from .verify import rollup
+            out["screening_result"], out["attention_state"] = rollup(out["fields"])
+        return out
 
 
 class ResultStore:
