@@ -839,8 +839,21 @@ async function runOne(it) {
     const fd = new FormData();
     for (const p of (it.panels || [{ file: it.file }])) fd.append("images", p.file);
     fd.append("application", JSON.stringify(it.app));
-    const res = await fetch("/api/verify", { method: "POST", body: fd });
-    const body = await res.json();
+    // batch physics: a 300-label run WILL hit the per-IP rate limiter — a
+    // 429 is pacing, not failure; honor Retry-After instead of erroring
+    // the item (measured: 19/30 rapid submits 429'd at default limits)
+    let res, body;
+    for (let attempt = 0; ; attempt++) {
+      res = await fetch("/api/verify", { method: "POST", body: fd });
+      body = await res.json();
+      if (res.status === 429 && attempt < 60) {
+        const wait = Math.min(10, parseInt(res.headers.get("Retry-After") || "2", 10) || 2);
+        $("progress").textContent = `Rate limit pacing — retrying in ${wait}s…`;
+        await new Promise((r) => setTimeout(r, wait * 1000));
+        continue;
+      }
+      break;
+    }
     if (!res.ok) throw new Error(body.error || "This check didn't finish — retry.");
     it.result = body; it.state = "done"; it.errorMsg = null;
     it.elapsedMs = performance.now() - t0;
