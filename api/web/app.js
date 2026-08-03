@@ -376,7 +376,8 @@ function visible(it) {
   if (filter === "attention") return !reviewComplete(it) && ["done_red", "done_amber", "error"].includes(s);
   if (filter === "mismatch") return s === "done_red";
   if (filter === "review") return s === "done_amber";
-  if (filter === "passed") return GREENS.includes(s);   // auto all-clear or agent PASS
+  if (filter === "allclear") return s === "done_green"; // machine green, no decision yet
+  if (filter === "passed") return s === "pass_agent";   // agent PASS decisions
   if (filter === "failed") return s === "fail_agent";   // reviewer FAIL decisions
   if (filter === "progress") return s === "checking";
   return true;
@@ -419,13 +420,14 @@ function renderList() {
   const inScope = (it) => commodityFilter === "all"
     || it.app.beverage_type === commodityFilter;
   const counts = { waiting: 0, attention: 0, mismatch: 0, review: 0,
-                   passed: 0, progress: 0, failed: 0, all: 0 };
+                   allclear: 0, passed: 0, progress: 0, failed: 0, all: 0 };
   for (const it of items) {
     if (!inScope(it)) continue;
     counts.all++;
     const s = itemState(it);
     if (!reviewComplete(it) && ["done_red", "done_amber", "error"].includes(s)) counts.attention++;
-    if (GREENS.includes(s)) counts.passed++;
+    if (s === "done_green") counts.allclear++;   // machine green, undecided
+    if (s === "pass_agent") counts.passed++;     // agent PASS decisions
     if (s === "fail_agent") counts.failed++;     // decided FAILs get their own row
     if (s === "done_red") counts.mismatch++;     // machine mismatch, undecided
     if (s === "done_amber") counts.review++;     // machine amber, undecided
@@ -489,7 +491,8 @@ function renderList() {
     attention: ["Needs attention", "#b3261e", "#fdecea"],
     mismatch: ["Needs Correction", "#b3261e", "#fdecea"],
     review: ["Needs review", "#8a6d00", "#fff7d6"],
-    passed: ["All clear / Passed", "#2e7d32", "#e8f5e9"],
+    allclear: ["All clear", "#2e7d32", "#e8f5e9"],
+    passed: ["Passed ·agent", "#2e7d32", "#e8f5e9"],
     failed: ["Failed ·agent", "#b3261e", "#fdecea"],
     progress: ["In Process", "#005ea2", "#e8f1f8"],
     all: ["All", "#005ea2", "#e8f1f8"],
