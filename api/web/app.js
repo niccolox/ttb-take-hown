@@ -600,26 +600,6 @@ function renderDetail() {
   });
   fp.appendChild(form);
 
-  if (items.length > 1) {
-    const applyAll = document.createElement("button");
-    applyAll.className = "secondary"; applyAll.type = "button";
-    applyAll.style.marginTop = "8px";
-    applyAll.textContent = "Apply these values to all labels…";
-    applyAll.addEventListener("click", () => {
-      const n = items.length - 1;
-      if (confirm(`Copy beverage type, class/type, ABV, and net contents from this label to the other ${n} label(s)? (Brand name is NOT copied.) You can undo by editing rows individually.`)) {
-        for (const other of items) if (other !== it) {
-          Object.assign(other.app, { beverage_type: it.app.beverage_type,
-            class_type: it.app.class_type, alcohol_content: it.app.alcohol_content,
-            net_contents: it.app.net_contents });
-          markStale(other);
-        }
-        renderList();
-      }
-    });
-    fp.appendChild(applyAll);
-  }
-
   const staleNote = document.createElement("p");
   staleNote.className = "ov-note";
   staleNote.textContent = "Values changed since the last check — re-check to refresh this result.";
