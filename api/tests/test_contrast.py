@@ -54,3 +54,31 @@ def test_empty_region_is_unknown():
     img = np.full((120, 900), 255, dtype=np.uint8)
     outcome, _ = weight_contrast(img, (10, 5, 360, 45), (10, 55, 880, 100))
     assert outcome == "unknown"
+
+
+def test_blur_gate_never_asserts_violation():
+    """Gaussian blur widens strokes past the thin floor while erasing the
+    bold delta — a blurred region must return unknown, never no_contrast
+    (the gw_wine_blur false-red regression)."""
+    import numpy as np
+    from PIL import Image, ImageDraw, ImageFilter, ImageFont
+
+    img = Image.new("L", (600, 200), 255)
+    d = ImageDraw.Draw(img)
+    try:
+        bold = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 22)
+        reg = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 22)
+    except OSError:
+        import pytest
+        pytest.skip("dejavu fonts unavailable")
+    d.text((10, 10), "GOVERNMENT WARNING:", font=bold, fill=0)
+    for i in range(4):
+        d.text((10, 50 + i * 34), "consumption of alcoholic beverages impairs", font=reg, fill=0)
+    blurred = np.array(img.filter(ImageFilter.GaussianBlur(2.2)))
+    outcome, detail = weight_contrast(blurred, (10, 10, 320, 40), (10, 50, 590, 190))
+    assert outcome == "unknown"
+    assert "blur" in detail.lower()
+    # and the sharp version still measures normally (not gated)
+    sharp = np.array(img)
+    outcome2, _ = weight_contrast(sharp, (10, 10, 320, 40), (10, 50, 590, 190))
+    assert outcome2 != "unknown" or "blur" not in _.lower()

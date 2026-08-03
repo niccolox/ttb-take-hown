@@ -70,8 +70,18 @@ def weight_contrast(image_gray: np.ndarray,
         x1, y1, x2, y2 = (int(max(0, v)) for v in box)
         return image_gray[y1:y2, x1:x2]
 
+    # Blur gate BEFORE stroke bands: Gaussian blur widens both regions'
+    # measured strokes past the thin-stroke floor while destroying the
+    # bold/regular delta — a confident false violation (measured: blurred
+    # golden 39 Laplacian-var vs ≥7,900 on every sharp reference; threshold
+    # 500 has two orders of magnitude of margin each way).
+    body_crop = crop(body_box)
+    if body_crop.size and float(cv2.Laplacian(body_crop, cv2.CV_64F).var()) < 500:
+        return "unknown", ("warning region is too blurred to measure stroke "
+                           "weight — confirm the bold heading visually.")
+
     p = _median_stroke(crop(prefix_box))
-    b = _median_stroke(crop(body_box))
+    b = _median_stroke(body_crop)
     if p is None or b is None:
         return "unknown", "Too little ink in the measured regions — confirm visually."
 

@@ -22,9 +22,34 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-from .generate_golden import WARNING_TEXT, draw_warning, font, wrap
+from .generate_golden import (WARNING_TEXT, degrade_glare, degrade_skew,
+                              draw_warning, font, wrap)
 
 OUT = Path(__file__).parent / "golden_cola"
+
+
+def degrade_blur(img: Image.Image) -> Image.Image:
+    from PIL import ImageFilter
+    return img.filter(ImageFilter.GaussianBlur(2.2))
+
+
+def degrade_dark(img: Image.Image) -> Image.Image:
+    from PIL import ImageEnhance
+    return ImageEnhance.Brightness(img).enhance(0.45)
+
+
+# Photographic degradations applied to the WINE golden (both panels — a bad
+# phone photo degrades front and back alike). Expectations follow the
+# ratified screening posture: recoverable degradations stay green (S0
+# deskew handles the angle; the refinement layers recover blur), and
+# anything unrecoverable degrades to honest NEEDS_REVIEW — never a false
+# MISMATCH on a compliant label.
+WINE_DEGRADATIONS = [
+    ("blur", degrade_blur, "blurry phone photo"),
+    ("angle", lambda im: degrade_skew(im, angle=7), "photographed at an angle (7°)"),
+    ("dark", degrade_dark, "poor lighting (underexposed)"),
+    ("glare", degrade_glare, "flash glare across the upper label"),
+]
 
 
 def _center(d, img_w, y, text, fnt, fill="#1d1d1d"):
@@ -200,25 +225,41 @@ PIPELINES: list[dict] = [
 ]
 
 
+def _entry(fid: str, spec: dict, expect: str) -> dict:
+    return {
+        "id": fid,
+        "file": f"{fid}_front.jpg",
+        "files": [{"file": f"{fid}_front.jpg", "panel": "front"},
+                  {"file": f"{fid}_back.jpg", "panel": "back"}],
+        "application": spec["application"],
+        "note": (f"Synthetic golden patterned on the {spec['pipeline']} "
+                 f"corpus structure; ground truth by construction. "
+                 f"Expected: {expect}"),
+        "provenance": {"source": "generate_golden_cola.py (synthetic; "
+                                 "fictional brand, controlled truth)"},
+    }
+
+
 def main() -> None:
     for spec in PIPELINES:
         out = OUT / spec["pipeline"]
         out.mkdir(parents=True, exist_ok=True)
         fid = spec["id"]
-        front_panel(spec).save(out / f"{fid}_front.jpg", "JPEG", quality=92)
-        back_panel(spec).save(out / f"{fid}_back.jpg", "JPEG", quality=92)
-        manifest = [{
-            "id": fid,
-            "file": f"{fid}_front.jpg",
-            "files": [{"file": f"{fid}_front.jpg", "panel": "front"},
-                      {"file": f"{fid}_back.jpg", "panel": "back"}],
-            "application": spec["application"],
-            "note": (f"Synthetic golden patterned on the {spec['pipeline']} "
-                     f"corpus structure; ground truth by construction. "
-                     f"Expected: {spec['expect']}"),
-            "provenance": {"source": "generate_golden_cola.py (synthetic; "
-                                     "fictional brand, controlled truth)"},
-        }]
+        front = front_panel(spec)
+        back = back_panel(spec)
+        front.save(out / f"{fid}_front.jpg", "JPEG", quality=92)
+        back.save(out / f"{fid}_back.jpg", "JPEG", quality=92)
+        manifest = [_entry(fid, spec, spec["expect"])]
+        if spec["pipeline"] == "wine":
+            for suffix, transform, desc in WINE_DEGRADATIONS:
+                did = f"gw_wine_{suffix}"          # gw_wine_blur, gw_wine_angle…
+                transform(front).save(out / f"{did}_front.jpg", "JPEG", quality=88)
+                transform(back).save(out / f"{did}_back.jpg", "JPEG", quality=88)
+                manifest.append(_entry(did, spec,
+                                       f"{desc} — recoverable checks stay green; "
+                                       f"unrecoverable ones degrade to honest "
+                                       f"NEEDS_REVIEW, never a false MISMATCH"))
+                print(f"  wine degraded: {did} ({desc})")
         (out / "manifest.json").write_text(json.dumps(manifest, indent=1))
         print(f"{spec['pipeline']}: {fid} (front+back)")
 
