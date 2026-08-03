@@ -38,7 +38,10 @@ class AbvReading:
 
 
 _PCT = r"\b(\d{1,2}(?:\.\d{1,2})?)"   # \b stops "100% AGAVE" matching as "00%"
-RANGE_RE = re.compile(rf"(?:ALC(?:OHOL)?\.?\s*)?{_PCT}\s*%?\s*TO\s*{_PCT}\s*%", re.I)
+# range separator accepts "TO" and hyphen/dash — TTB's own §4.36 examples are
+# hyphenated ("17%-19% ALC. BY VOL."); TO-only parsing read those as a
+# specific 17% and compared against the wrong number
+RANGE_RE = re.compile(rf"(?:ALC(?:OHOL)?\.?\s*)?{_PCT}\s*%?\s*(?:TO|[-–—])\s*{_PCT}\s*%", re.I)
 PCT_RE = re.compile(
     rf"(?:ALC(?:OHOL)?\.?\s*)?{_PCT}\s*%\s*(?:ALC(?:OHOL)?\.?)?\s*(?:/|BY)?\s*(?:VOL(?:UME)?\.?)?"
     rf"|ALC(?:OHOL)?\.?\s*{_PCT}\s*(?:%|PERCENT)", re.I)
@@ -92,6 +95,22 @@ def compare_abv(app_percent: float | None, label: AbvReading, bev: BevType,
         return AbvVerdict.NEEDS_REVIEW, "no application ABV supplied"
 
     if label.range_lo is not None:
+        # wine range statements carry their own legality limits (§4.36(b),
+        # TTB wine-ABV guidance): the span may not exceed 2 points above 14%
+        # or 3 points at/below, and a range may never overlap a class/tax-
+        # grade limit — an illegal range is a labeling defect regardless of
+        # whether the application value falls inside it
+        if bev == BevType.WINE:
+            if crosses_class_boundary(bev, label.range_lo, label.range_hi):
+                return AbvVerdict.MISMATCH, (
+                    f"labeled range {label.range_lo}%–{label.range_hi}% overlaps a wine "
+                    "class/tax-grade limit (14/21/24%) — a range may not cross one (§4.36(b))")
+            cap = 2.0 if label.range_lo > 14.0 else 3.0
+            span = label.range_hi - label.range_lo
+            if span > cap + 1e-9:
+                return AbvVerdict.MISMATCH, (
+                    f"labeled range spans {span:g} points — wine ranges may not exceed "
+                    f"{cap:g} points for this class (§4.36(b))")
         inside = label.range_lo <= app_percent <= label.range_hi
         if inside:
             return AbvVerdict.WITHIN_TOLERANCE, (
@@ -126,6 +145,23 @@ def proof_consistency(label: AbvReading) -> tuple[bool | None, str]:
     ok = abs(label.proof - 2.0 * label.percent) <= 0.2
     return ok, (f"{label.percent}% vs {label.proof} proof "
                 + ("consistent" if ok else "INCONSISTENT (proof should be 2×ABV)"))
+
+
+_ABV_ABBREV_RE = re.compile(r"\bA\.?\s?B\.?\s?V\.?\b", re.I)
+
+
+def abv_format_legality(label_text: str | None, bev: BevType) -> tuple[str, str] | None:
+    """Statement-wording check for wine (§4.36(a); TTB wine-ABV guidance):
+    only 'alc.' and 'vol.' may abbreviate 'alcohol'/'volume' — 'ABV' is not
+    permitted on wine labels. Wording is a labeling defect, not a data
+    mismatch, so callers escalate green to amber at most. None = no opinion
+    (other commodities' wording rules are not asserted here)."""
+    if bev != BevType.WINE or not label_text:
+        return None
+    if _ABV_ABBREV_RE.search(label_text):
+        return ("FAIL", "'ABV' is not a permitted abbreviation on wine labels — "
+                        "only 'alc.' and 'vol.' may abbreviate (§4.36(a))")
+    return ("PASS", "statement wording uses permitted forms")
 
 
 def abv_required(bev: BevType, label_class_type: str | None) -> tuple[bool, str]:

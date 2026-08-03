@@ -16,8 +16,8 @@ import uuid
 from dataclasses import asdict, dataclass
 
 from .locator import Locator, Word
-from .rules.abv import (AbvVerdict, BevType, abv_required, compare_abv,
-                        parse_abv, proof_consistency, PCT_RE, PROOF_RE)
+from .rules.abv import (AbvVerdict, BevType, abv_format_legality, abv_required,
+                        compare_abv, parse_abv, proof_consistency, PCT_RE, PROOF_RE)
 from .rules.net_contents import NET_RE, compare_net
 from .rules.normalize import loose, whitespace_only
 from .rules.warning import STATUTORY_WARNING, Outcome, SubCheck, validate_warning
@@ -206,14 +206,34 @@ def verify(words: list[Word], application: dict, image_gray=None) -> dict:
                 digit_confidence_ok=abv_loc.min_conf >= _floor())
             citation = ("Magnitude per 27 CFR; drift permitted by Form 5100.31 "
                         "allowable-revision item 11") if verdict == AbvVerdict.WITHIN_TOLERANCE else None
+            reason = ("within_tolerance_confirm" if verdict == AbvVerdict.WITHIN_TOLERANCE else
+                      ("value_differs" if verdict == AbvVerdict.MISMATCH else None))
+            # statement-wording legality (wine: 'ABV' prohibited, §4.36(a)) —
+            # a wording defect escalates green to amber, never to red, and
+            # never masks a worse data verdict
+            fmt = abv_format_legality(abv_loc.text, bev)
+            sub = [{"check": "format", "outcome": fmt[0], "detail": fmt[1]}] if fmt else None
+            if fmt and fmt[0] == "FAIL" and verdict == AbvVerdict.MATCH:
+                verdict, reason = AbvVerdict.NEEDS_REVIEW, "format_nonstandard"
+                note += " — value matches, but the statement wording is not a permitted form"
+                citation = "27 CFR §4.36(a)"
             fields.append(FieldResult("alcohol_content", verdict.value, abv_loc.text,
-                                      app_abv_text,
-                                      "within_tolerance_confirm" if verdict == AbvVerdict.WITHIN_TOLERANCE else
-                                      ("value_differs" if verdict == AbvVerdict.MISMATCH else None),
-                                      note, _evidence(abv_loc), citation))
+                                      app_abv_text, reason,
+                                      note, _evidence(abv_loc), citation, sub))
         else:
             required, why = abv_required(bev, ct_result.label_value or application.get("class_type"))
-            if not required:
+            if not required and bev == BevType.WINE and app_abv is not None and app_abv > 14.0:
+                # the 'table'/'light' designation only substitutes for the
+                # number at 7–14% — a declared >14% wine must print its
+                # alcohol content, and the designation itself is suspect
+                fields.append(FieldResult(
+                    "alcohol_content", "NEEDS_REVIEW", None, app_abv_text,
+                    "designation_band_conflict",
+                    f"Application declares {app_abv:g}% — above 14% a printed alcohol "
+                    "content is mandatory and a 'table'/'light' designation no longer "
+                    "applies (§4.36(a)) — inspect the label and the class/type.",
+                    None, "27 CFR §4.36(a)"))
+            elif not required:
                 fields.append(FieldResult("alcohol_content", "NOT_REQUIRED", None,
                                           app_abv_text, "not_required_for_commodity",
                                           f"No ABV found on the label — {why}", None,

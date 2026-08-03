@@ -188,6 +188,102 @@ def test_digit_confidence_gate():
     v, _ = compare_abv(45.0, parse_abv("45.2%"), BevType.SPIRITS, digit_confidence_ok=False)
     assert v == AbvVerdict.NEEDS_REVIEW              # shaky digits never earn amber
 
+
+# ── §4.36 audit backfill (TTB wine-ABV guidance page, TTB G 2019-2) ──────────
+
+def test_hyphen_range_parses_like_ttb_examples():
+    """TTB's own §4.36 examples are hyphenated ('17%-19% ALC. BY VOL.') —
+    TO-only parsing read them as a specific 17%."""
+    r = parse_abv("17%-19% ALC. BY VOL.")
+    assert (r.range_lo, r.range_hi) == (17.0, 19.0)
+    r2 = parse_abv("9%–12% alc. by vol.")                       # en dash
+    assert (r2.range_lo, r2.range_hi) == (9.0, 12.0)
+    v, _ = compare_abv(18.0, r, BevType.WINE)
+    assert v == AbvVerdict.WITHIN_TOLERANCE
+
+
+def test_wine_range_span_caps():
+    # ≤14%: span may not exceed 3 points — 9–13 is 4 points, illegal
+    v, note = compare_abv(11.0, parse_abv("9% to 13% alc by vol"), BevType.WINE)
+    assert v == AbvVerdict.MISMATCH and "may not exceed" in note
+    # >14%: 2-point span is the page's own legal example
+    v2, _ = compare_abv(18.0, parse_abv("17%-19% ALC. BY VOL."), BevType.WINE)
+    assert v2 == AbvVerdict.WITHIN_TOLERANCE
+    # >14%: 3-point span exceeds the 2-point cap
+    v3, _ = compare_abv(18.0, parse_abv("16%-19% ALC BY VOL"), BevType.WINE)
+    assert v3 == AbvVerdict.MISMATCH
+
+
+def test_wine_range_may_not_cross_class_limit():
+    v, note = compare_abv(14.0, parse_abv("13% to 15% alcohol by volume"), BevType.WINE)
+    assert v == AbvVerdict.MISMATCH and "class" in note
+
+
+def test_wine_upper_tax_breaks_and_exact_14_band():
+    # the 21% and 24% taxable-grade breaks are as un-rescuable as 14%
+    assert compare_abv(20.5, parse_abv("21.5%"), BevType.WINE)[0] == AbvVerdict.MISMATCH
+    assert compare_abv(23.5, parse_abv("24.2%"), BevType.WINE)[0] == AbvVerdict.MISMATCH
+    # a label stating exactly 14.0% sits in the '14% or less' tier → ±1.5
+    assert compare_abv(12.6, parse_abv("14%"), BevType.WINE)[0] == AbvVerdict.WITHIN_TOLERANCE
+
+
+def test_abv_format_legality_wine_only():
+    from api.rules.abv import abv_format_legality
+    assert abv_format_legality("12.5% ABV", BevType.WINE)[0] == "FAIL"
+    assert abv_format_legality("A.B.V. 12.5%", BevType.WINE)[0] == "FAIL"
+    assert abv_format_legality("ALC. 12.5% BY VOL.", BevType.WINE)[0] == "PASS"
+    assert abv_format_legality("Alcohol 12.5% by volume", BevType.WINE)[0] == "PASS"
+    assert abv_format_legality("12.5% ABV", BevType.SPIRITS) is None   # wine-only assertion
+    assert abv_format_legality(None, BevType.WINE) is None
+
+
+def _label_words(lines, start_y=10):
+    from api.locator import Word
+    out, y = [], start_y
+    for text in lines:
+        x = 10
+        for w in text.split():
+            out.append(Word(w, (x, y, x + len(w) * 12, y + 20), 0.96))
+            x += len(w) * 12 + 8
+        y += 28
+    return out
+
+
+def test_table_designation_does_not_excuse_missing_abv_over_14():
+    """A declared 16% wine with a 'Table Wine' class and no printed ABV must
+    NOT get NOT_REQUIRED — above 14% the statement is mandatory and the
+    designation itself is suspect (§4.36(a))."""
+    from api.verify import verify
+    words = _label_words(["SEABREEZE CELLARS", "Red Table Wine", "750 mL"])
+    app = {"beverage_type": "wine", "brand_name": "SEABREEZE CELLARS",
+           "class_type": "Red Table Wine", "alcohol_content": "16%",
+           "net_contents": "750 mL"}
+    f = next(x for x in verify(words, app)["fields"] if x["field"] == "alcohol_content")
+    assert f["status"] == "NEEDS_REVIEW"
+    assert f["reason_code"] == "designation_band_conflict"
+
+
+def test_abv_format_defect_escalates_match_to_amber():
+    """Label prints '12.5% ABV' — the value matches the application but the
+    wording is prohibited on wine labels: green becomes amber with a format
+    sub-result, never red."""
+    from api.verify import verify
+    words = _label_words(["SEABREEZE CELLARS", "California Chardonnay — Table Wine",
+                          "12.5% ABV", "750 mL"])
+    app = {"beverage_type": "wine", "brand_name": "SEABREEZE CELLARS",
+           "class_type": "California Chardonnay — Table Wine",
+           "alcohol_content": "12.5%", "net_contents": "750 mL"}
+    f = next(x for x in verify(words, app)["fields"] if x["field"] == "alcohol_content")
+    assert f["status"] == "NEEDS_REVIEW"
+    assert f["reason_code"] == "format_nonstandard"
+    assert f["sub_results"] and f["sub_results"][0]["outcome"] == "FAIL"
+    # and the same wording on a spirits label stays out of scope (no sub-check)
+    app_sp = {"beverage_type": "distilled_spirits", "brand_name": "SEABREEZE CELLARS",
+              "class_type": "California Chardonnay — Table Wine",
+              "alcohol_content": "12.5%", "net_contents": "750 mL"}
+    f2 = next(x for x in verify(words, app_sp)["fields"] if x["field"] == "alcohol_content")
+    assert f2["sub_results"] is None
+
 def test_proof_consistency():
     ok, _ = proof_consistency(parse_abv("45% Alc./Vol. (90 Proof)"))
     assert ok is True
