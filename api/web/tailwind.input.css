@@ -57,8 +57,21 @@ body {
 header { border-bottom: 3px solid #ffbe2e; background: #162e51; @apply px-3 py-1 text-white; }
 header h1 { @apply text-2xl font-bold m-0 text-white; }
 header p { @apply text-sm mt-0.5 mb-0; color: #dfe1e2; }
-header .menu summary.btn-ghost { @apply text-white; }
-header .menu summary.btn-ghost:hover { background: #1a4480; }
+/* USWDS-style primary nav (ttb.gov): white bold items on the navy banner,
+   underline on hover, and the open item inverts to white-with-blue — the
+   classic USWDS header dropdown behavior. Square corners throughout. */
+.ttbnav { display: flex; align-items: stretch; margin: 0; padding: 0; list-style: none; }
+.ttbnav li { position: relative; }
+.navlink {
+  @apply flex items-center font-bold cursor-pointer select-none;
+  color: #fff; font-size: 15px; padding: 14px 16px; border-radius: 0;
+  list-style: none;
+}
+.navlink::-webkit-details-marker { display: none; }
+.navlink:hover { text-decoration: underline; text-underline-offset: 4px; }
+.ttbnav details[open] > .navlink {
+  background: #fff; color: #005ea2; text-decoration: none;
+}
 /* focus on the navy banner needs the gold, not the blue */
 header button:focus, header summary:focus {
   outline: 3px solid #ffbe2e !important; outline-offset: 2px;
@@ -67,8 +80,10 @@ header button:focus, header summary:focus {
 /* megamenu (daisyui navbar + details dropdowns): panels carry the former
    left-column sections; wide, scrollable, above everything */
 .megapanel {
-  @apply bg-base-100 rounded-box border border-base-300 shadow-lg p-4 mt-1;
-  max-height: 72vh; overflow-y: auto; z-index: 60;
+  @apply bg-base-100 border border-base-300 p-4;
+  border-top: none; border-radius: 0 0 0.25rem 0.25rem;
+  box-shadow: 0 8px 16px rgb(0 0 0 / 0.15);
+  max-height: 72vh; overflow-y: auto; z-index: 60; margin-top: 0;
 }
 .megacols { columns: 2; column-gap: 1.25rem; }
 .megacols > * { break-inside: avoid; }

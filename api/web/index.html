@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Label Check — TTB label screening (prototype)</title>
-<link rel="stylesheet" href="vendor/tailwind-daisyui.css?v=10">
+<link rel="stylesheet" href="vendor/tailwind-daisyui.css?v=11">
 </head>
 <body>
 <header>
@@ -16,10 +16,10 @@
       </div>
     </div>
     <div class="navbar-center flex-1 justify-start">
-      <ul class="menu menu-horizontal px-1 gap-1">
+      <ul class="ttbnav">
         <li>
           <details class="dropdown">
-            <summary class="btn btn-ghost font-bold">Start a check</summary>
+            <summary class="navlink">Start a check</summary>
             <div class="dropdown-content megapanel w-96">
               <label for="files" class="filebtn" id="filebtn">Choose label image(s)</label>
               <input type="file" id="files" accept="image/png,image/jpeg" multiple
@@ -37,7 +37,7 @@
         </li>
         <li>
           <details class="dropdown">
-            <summary class="btn btn-ghost font-bold">Samples</summary>
+            <summary class="navlink">Samples</summary>
             <div class="dropdown-content megapanel w-[26rem]">
               <div class="samples" id="samples"></div>
             </div>
@@ -45,7 +45,7 @@
         </li>
         <li>
           <details class="dropdown">
-            <summary class="btn btn-ghost font-bold">Eval sets</summary>
+            <summary class="navlink">Eval sets</summary>
             <div class="dropdown-content megapanel w-[46rem]">
               <div class="samples megacols" id="corpora"></div>
             </div>
@@ -53,7 +53,7 @@
         </li>
         <li>
           <details class="dropdown">
-            <summary class="btn btn-ghost font-bold">Pipelines &amp; session</summary>
+            <summary class="navlink">Pipelines &amp; session</summary>
             <div class="dropdown-content megapanel w-[26rem]">
               <div class="samples" id="pipelines">
                 <p class="note" id="pipelines-note">Pull real approved COLAs per commodity; the
@@ -114,7 +114,7 @@
   </form></dialog>
 <footer>Prototype for the Treasury take-home exercise — not an official TTB system; no
   approval authority. Type size, placement, and contrast limits are not fully checked (27 CFR §16.22).</footer>
-<script src="app.js?v=n6.7"></script><!-- bump ?v= on app.js changes: browsers
+<script src="app.js?v=n6.8"></script><!-- bump ?v= on app.js changes: browsers
   heuristically cache un-versioned statics and can keep pre-refinement code
   running against the new API -->
 </body>
