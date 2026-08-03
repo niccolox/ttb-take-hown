@@ -219,13 +219,29 @@ class Locator:
             return None
         first = block[0]
         prefix_words = first.words[:2]
-        # Body region EXCLUDES the heading line when the block wraps: the
-        # union rectangle of row-1 body words spans the full row — including
-        # the bold heading's ink — which dilutes the stroke measurement
-        # toward ratio 1.0 (false no_contrast on a correctly-bold label,
-        # observed on a 700px corpus label). Lines 2+ give a clean body strip.
+        # Two containment rules for the BODY measurement region (the text
+        # check tolerates sloppier bounds; stroke measurement does not):
+        # 1. EXCLUDE the heading line when the block wraps — the union
+        #    rectangle of row-1 body words spans the full row including the
+        #    bold heading's ink, diluting the ratio toward 1.0 (false
+        #    no_contrast on a correctly-bold 700px label).
+        # 2. CLIP at the statutory character budget — the block grouping's
+        #    trailing-neighbor tolerance absorbs lines BELOW the warning
+        #    ("IMPORTED BY… CA CRV"), whose mixed serif/bold type inverted a
+        #    measurement to ratio 0.75 on a correctly-bold champagne label.
+        from ..rules.warning import STATUTORY_WARNING
+        budget = len(STATUTORY_WARNING.replace(" ", ""))
+        consumed = sum(len(w.text) for w in first.words)   # heading + row-1 body
+        body_boxes = []
         if len(block) >= 2:
-            body_boxes = [w.box for line in block[1:] for w in line.words]
+            for line in block[1:]:
+                if consumed >= budget:
+                    break
+                for w in line.words:
+                    if consumed >= budget:
+                        break
+                    body_boxes.append(w.box)
+                    consumed += len(w.text)
         else:
             body_boxes = [w.box for w in first.words[2:]]
         if not prefix_words or not body_boxes:
