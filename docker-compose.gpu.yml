@@ -36,7 +36,8 @@ services:
       # Replicates the HF repo's own Dockerfile (verified against the clone)
       # + fastapi/uvicorn for the HTTP wrapper. 8.6 = GA107 (RTX 3050 Ti).
       dockerfile_inline: |
-        FROM nvcr.io/nvidia/pytorch:25.09-py3
+        # digest-pinned (800-190): nvcr.io/nvidia/pytorch:25.09-py3 as of 2026-08-03
+        FROM nvcr.io/nvidia/pytorch:25.09-py3@sha256:f3b4a33fd60d5e0358287bb44d57e91eda45e8f1681fef1bfd6c969371417130
         ARG TARGETARCH
         ARG TORCH_CUDA_ARCH_LIST
         ENV TORCH_CUDA_ARCH_LIST=$${TORCH_CUDA_ARCH_LIST}

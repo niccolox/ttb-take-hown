@@ -1,6 +1,11 @@
 # Label Check — single image: FastAPI + PaddleOCR (CPU) + static UI.
 # Models are baked at build (no runtime downloads — the no-egress/firewall story).
-FROM python:3.12-slim
+# Base pinned by DIGEST (800-190 re-audit: mutable tags were the last open
+# container finding) — the tag stays as a human-readable comment. Bump ritual:
+#   docker buildx imagetools inspect python:3.12-slim   → update digest,
+#   rebuild, run the suite + golden sweep (same ritual as the dependency lock).
+# python:3.12-slim as of 2026-08-03:
+FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libgomp1 libglib2.0-0 libgl1 curl \

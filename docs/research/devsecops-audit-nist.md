@@ -265,7 +265,7 @@ surface), footer `data-act` handlers (allowlisted actions).
 |---|---|---|---|
 | Supply chain (800-161, EO 14028) | B+ | **A-** | SBOM shipped + regenerated; locks + weight pins; CI proves the lock per-push |
 | Secure development (SSDF 800-218) | C+ | **B+** | CI gates on every push (pending first hosted run); tests 208 |
-| Container security (800-190) | C- | **B** | non-root asserted in CI; no-data asserted; base tags still mutable (accepted for a prototype) |
+| Container security (800-190) | C- | **B+** | non-root asserted in CI; no-data asserted; base images digest-pinned (python:3.12-slim + nvcr pytorch, bump ritual documented) — 800-190 §4.1.1/§4.2.2 image-provenance line closed |
 | Access control / network (AC/SC) | B- | **B-** | unchanged by design — deploy-gated (docs/deploy-security.md) |
 | Audit & accountability (AU) | B | **B+** | provenance + rotation + drop-counter health signal |
 | AI risk (AI RMF 1.0) | B+ | **A-** | risk statement artifact; decision friction now ENFORCED (earned-PASS); tour teaches the no-authority posture |
