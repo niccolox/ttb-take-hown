@@ -174,24 +174,34 @@ def pick_image(detail: dict) -> tuple[str | None, str]:
     return None, ""
 
 
-def pick_panels(detail: dict) -> list[tuple[str, str]]:
-    """Front AND back panels [(url, panel)] — the warning usually lives on the
-    back label, so multi-panel is the honest input. Falls back to pick_image."""
-    panels: list[tuple[str, str]] = []
+def pick_panels(detail: dict) -> list[tuple[str, str, str]]:
+    """Front AND back panels [(url, panel, declared_px)] — the warning usually
+    lives on the back label, so multi-panel is the honest input. Falls back to
+    pick_image. `declared_px` records the ORIGINAL dimensions TTB holds
+    ("731x993") — the CDN serves a ~700px rendition, so the manifest keeps an
+    honest record of what resolution exists upstream vs what we stored."""
+    def dims(img: dict) -> str:
+        w, h = img.get("width_pixels"), img.get("height_pixels")
+        return f"{w}x{h}" if w and h else ""
+
+    panels: list[tuple[str, str, str]] = []
     seen: set[str] = set()
     for want in (("front", "brand", "brand (front)", "main"), ("back", "back (rear)")):
         for img in detail.get("images") or []:
             pos = (img.get("container_position") or "").lower()
             url = img.get("image_url")
             if url and url not in seen and pos in want:
-                panels.append((url, "front" if want[0] == "front" else "back"))
+                panels.append((url, "front" if want[0] == "front" else "back",
+                               dims(img)))
                 seen.add(url)
                 break
     if not panels:
         url, pos = pick_image(detail)
         if url:
             pos = pos if pos in ("front", "back", "main") else "unknown"
-            panels.append((url, pos))
+            declared = next((dims(i) for i in detail.get("images") or []
+                             if i.get("image_url") == url), "")
+            panels.append((url, pos, declared))
     return panels
 
 
@@ -308,16 +318,17 @@ def pull_type(tname: str, *, api_key: str, per_type: int = 4, query: str | None 
                 time.sleep(sleep)
                 continue
             files = []
-            for url, pos in panels:
+            for url, pos, declared_px in panels:
                 ext = ".jpg" if ".png" not in url.lower() else ".png"
                 fname = f"{summary.ttb_id}_{pos}{ext}"
                 img = httpx.get(url, timeout=60, follow_redirects=True)
                 img.raise_for_status()
                 (out_dir / fname).write_bytes(img.content)
-                files.append({"file": fname, "panel": pos})
+                files.append({"file": fname, "panel": pos,
+                              **({"declared_px": declared_px} if declared_px else {})})
             entry = build_entry(d, bev, files[0]["file"])
             entry["files"] = files                       # all panels (front first)
-            entry["provenance"]["image_panel"] = ",".join(p for _, p in panels)
+            entry["provenance"]["image_panel"] = ",".join(p for _, p, _d in panels)
             if tname in ("imported_wine", "champagne"):
                 entry["note"] += (" IMPORTED: country of origin is mandatory on the label "
                                   f"(origin: {d.get('origin_name', '?')}).")
@@ -453,18 +464,19 @@ def backfill_panels(tname: str, *, api_key: str, sleep: float = 8.0,
             d = detail.model_dump() if hasattr(detail, "model_dump") else dict(detail)
             panels = pick_panels(d)
             files = []
-            for url, pos in panels:
+            for url, pos, declared_px in panels:
                 ext = ".jpg" if ".png" not in url.lower() else ".png"
                 fname = f"{m['id']}_{pos}{ext}"
                 if not (out_dir / fname).exists():
                     img = httpx.get(url, timeout=60, follow_redirects=True)
                     img.raise_for_status()
                     (out_dir / fname).write_bytes(img.content)
-                files.append({"file": fname, "panel": pos})
+                files.append({"file": fname, "panel": pos,
+                              **({"declared_px": declared_px} if declared_px else {})})
             if files:
                 m["file"] = files[0]["file"]
                 m["files"] = files
-                m["provenance"]["image_panel"] = ",".join(p for _, p in panels)
+                m["provenance"]["image_panel"] = ",".join(p for _, p, _d in panels)
             _save_manifest(out_dir, manifest)
             done += 1
             log.info("backfilled %s panels=%s", m["id"], [f["file"] for f in files])
@@ -508,16 +520,17 @@ def pull_by_id(tname: str, ttb_ids: list[str], *, api_key: str, sleep: float = 7
                 time.sleep(sleep)
                 continue
             files = []
-            for url, pos in panels:
+            for url, pos, declared_px in panels:
                 ext = ".jpg" if ".png" not in url.lower() else ".png"
                 fname = f"{ttb_id}_{pos}{ext}"
                 img = httpx.get(url, timeout=60, follow_redirects=True)
                 img.raise_for_status()
                 (out_dir / fname).write_bytes(img.content)
-                files.append({"file": fname, "panel": pos})
+                files.append({"file": fname, "panel": pos,
+                              **({"declared_px": declared_px} if declared_px else {})})
             entry = build_entry(d, bev, files[0]["file"])
             entry["files"] = files
-            entry["provenance"]["image_panel"] = ",".join(p for _, p in panels)
+            entry["provenance"]["image_panel"] = ",".join(p for _, p, _d in panels)
             manifest.append(entry)
             _save_manifest(out_dir, manifest)
             added += 1

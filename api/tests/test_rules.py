@@ -350,12 +350,16 @@ def test_colacloud_pick_panels_front_and_back():
     detail = {"images": [{"image_url": "https://x/b.jpg", "container_position": "back"},
                          {"image_url": "https://x/f.jpg", "container_position": "front"}]}
     panels = pick_panels(detail)
-    assert panels == [("https://x/f.jpg", "front"), ("https://x/b.jpg", "back")]
+    assert panels == [("https://x/f.jpg", "front", ""), ("https://x/b.jpg", "back", "")]
     # front-only COLA: one panel, no invented back
     assert pick_panels({"images": [{"image_url": "https://x/f.jpg",
-                                    "container_position": "front"}]}) == [("https://x/f.jpg", "front")]
+                                    "container_position": "front"}]}) == [("https://x/f.jpg", "front", "")]
     # no positions at all → falls back to pick_image
-    assert pick_panels({"main_image_url": "https://x/m.jpg"}) == [("https://x/m.jpg", "main")]
+    assert pick_panels({"main_image_url": "https://x/m.jpg"}) == [("https://x/m.jpg", "main", "")]
+    # declared original dims ride along when the API provides them
+    assert pick_panels({"images": [{"image_url": "u", "container_position": "front",
+                                    "width_pixels": 731, "height_pixels": 993}]}) \
+        == [("u", "front", "731x993")]
 
 
 # ── multi-panel verification (front + back label) ────────────────────────────

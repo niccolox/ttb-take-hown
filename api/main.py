@@ -550,6 +550,12 @@ def _verify_impl(image, images, application):
                 pre_w = img.width
                 img = img.resize((int(img.width * r), int(img.height * r)), Image.LANCZOS)
                 scale_back = pre_w / img.width   # evidence boxes map back to the client's bitmap
+            # NOTE (measured 2026-08-02): a 2x Lanczos upscale for small inputs
+            # was A/B-tested on 700px-capped COLA CDN images — 16/16 fields
+            # identical. Synthetic pixels don't help either engine; reverted.
+            # The registry images cap at 700px at the SOURCE (COLA Cloud CDN
+            # serves one rendition; TTB direct is bot-blocked) — higher-res
+            # corpus requires original-resolution access from the provider.
             # S0 deskew (N2): both engines read straightened text; evidence
             # boxes come back in the rotated frame and are mapped to the
             # client's bitmap via box_to_pre + scale_back below
