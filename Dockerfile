@@ -7,9 +7,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY api/requirements.txt api/requirements.txt
-RUN pip install --no-cache-dir -r api/requirements.txt \
-        fastapi uvicorn python-multipart
+# Hash-locked install (TODOS P1): pip refuses any artifact whose SHA-256
+# isn't in the lock — a hijacked PyPI release fails the build. Regenerate:
+#   uv pip compile api/requirements.in --generate-hashes -o api/requirements.lock
+COPY api/requirements.lock api/requirements.lock
+RUN pip install --no-cache-dir --require-hashes -r api/requirements.lock
 
 COPY api/ api/
 COPY scripts/ scripts/
@@ -24,6 +26,11 @@ ocr = PaddleOCR(use_doc_orientation_classify=False, use_doc_unwarping=False,
 ocr.predict("api/eval/golden/spirits_clean.jpg")
 print("models baked")
 EOF
+
+# Supply-chain gate (TODOS P1): the bake above downloads weights from Baidu's
+# CDN with no integrity guarantee — assert them against the committed
+# known-good manifest; a drifted upstream fails the BUILD, not production.
+RUN python -m api.integrity check --models-dir /root/.paddlex/official_models
 
 ENV PORT=8123 PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True LABELCHECK_MODELS_DIR=/root/.paddlex/official_models
 EXPOSE 8123

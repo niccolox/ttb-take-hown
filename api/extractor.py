@@ -67,6 +67,15 @@ class PaddleExtractor:
                 textline_orientation_model_name="PP-LCNet_x1_0_textline_ori",
                 textline_orientation_model_dir=str(m / "PP-LCNet_x1_0_textline_ori"),
             )
+        # supply-chain gate (TODOS P1): refuse to serve verdicts from weights
+        # that differ from the pinned known-good build — fail loud at warm,
+        # never silently downstream
+        from .integrity import DEFAULT_MANIFEST, check, default_models_dir
+        if DEFAULT_MANIFEST.exists():
+            problems = check(default_models_dir(), DEFAULT_MANIFEST)
+            if problems:
+                raise RuntimeError("model integrity check failed: "
+                                   + "; ".join(problems))
         with self._lock:
             self._ocr = PaddleOCR(**kwargs)
             self._ocr.predict(sample_path)          # first-inference warmup

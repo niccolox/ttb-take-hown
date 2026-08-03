@@ -1,0 +1,17 @@
+# Top-level dependencies — the compiled, hash-locked file is
+# api/requirements.lock (uv pip compile --generate-hashes). A PyPI release
+# compromise (ultralytics-style, Dec 2024) cannot ship silently: pip
+# refuses any artifact whose hash isn't in the lock. Regenerate:
+#   uv pip compile api/requirements.in --generate-hashes -o api/requirements.lock
+paddleocr==3.2.0
+paddlepaddle==3.2.2
+opencv-python-headless
+rapidfuzz
+pillow
+pytest
+colacloud==0.4.4
+duckdb==1.5.5
+# previously installed loose in the Dockerfile — now locked with the rest
+fastapi
+uvicorn
+python-multipart
