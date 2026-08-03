@@ -105,6 +105,7 @@ async function addFiles(files, app = {}) {
 /** One application = one item; panelFiles = [{file, panel}] front first.
  *  COLA Cloud corpora supply front+back — the warning lives on the back. */
 async function addItem(panelFiles, app = {}, registry = null) {
+  noteFirstAdd();                            // T5: time-to-first-decision clock
   const f = panelFiles[0].file;
   // same application twice = same primary file (name + size) — skip re-imports
   // (clicking an eval set again, re-choosing a file, restoring over a batch)
@@ -218,10 +219,27 @@ function splitCsv(line) {   // minimal quoted-cell support
 
 async function loadSamples() {
   const list = await (await fetch("/api/samples")).json();
-  for (const s of list) {
+  // training set first, in lesson order (train-before-pilot T4) — the five
+  // curated lessons ARE the hands-on training; everything else follows
+  const training = list.filter((s) => s.training)
+    .sort((a, b) => a.training[0] - b.training[0]);
+  const rest = list.filter((s) => !s.training);
+  if (training.length) {
+    const h = document.createElement("p");
+    h.className = "note samples-h";
+    h.textContent = "Training set — five lessons, one point each:";
+    $("samples").appendChild(h);
+  }
+  for (const s of [...training, ...rest]) {
+    if (rest.length && s === rest[0]) {
+      const h2 = document.createElement("p");
+      h2.className = "note samples-h";
+      h2.textContent = "More samples:";
+      $("samples").appendChild(h2);
+    }
     const b = document.createElement("button");
     b.type = "button";
-    b.innerHTML = `<strong>${esc(s.label)}</strong><span class="shows">${esc(s.shows)}</span>`;
+    b.innerHTML = `<strong>${esc(s.label)}</strong><span class="shows">${esc(s.training ? s.training[1] : s.shows)}</span>`;
     b.addEventListener("click", async () => {
       err("");
       if (s.images?.length) {                 // front+back sample pair
@@ -414,9 +432,11 @@ function renderList() {
         application — start with your own images or a built-in sample.</p>
       <button type="button" class="btn btn-primary btn-block" data-hero="files">Choose label image(s)</button>
       <button type="button" class="btn btn-outline btn-primary btn-block mt-2" data-hero="sample">Try a sample</button>
+      <button type="button" class="btn btn-ghost btn-block mt-2" data-hero="tour">▶ Watch a guided sample check (90 s)</button>
       <p class="cite" style="margin-top:10px">Batches: Add labels → Import CSV manifest.
         Eval sets and registry pipelines live in the top navigation.</p>`;
     hero.querySelector('[data-hero="files"]').addEventListener("click", () => $("files").click());
+    hero.querySelector('[data-hero="tour"]').addEventListener("click", () => startTour());
     hero.querySelector('[data-hero="sample"]').addEventListener("click", (e) => {
       e.stopPropagation();  // same: don't let the outside-click closer undo the open
       const d = document.querySelectorAll("header details")[1];
@@ -569,6 +589,126 @@ $("commodities").addEventListener("click", (e) => {
   if (c) { commodityFilter = c; renderList(); }
 });
 
+// ── train-before-pilot: guided walk-through (T1) + usage beacons (T5) ────────
+// beacons are local-only (same-origin /api/telemetry → E4 stream); they
+// never block or break anything
+function beacon(event, ms) {
+  try {
+    fetch("/api/telemetry", { method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(ms == null ? { event } : { event, ms }) });
+  } catch { /* telemetry never matters more than the work */ }
+}
+
+let firstAddAt = null, firstDecisionSent = false;
+function noteFirstAdd() { firstAddAt ||= performance.now(); }
+function noteDecision() {
+  if (firstDecisionSent || firstAddAt == null) return;
+  firstDecisionSent = true;
+  beacon("first_decision", performance.now() - firstAddAt);
+}
+
+let tourT0 = null;
+const TOUR_STEPS = [
+  { title: "The application's journey",
+    sel: () => document.querySelector("#detail .timing-steps"),
+    text: "Every label moves through the same four steps: Received → Screened " +
+          "(the fast read) → Cross-checked (a second engine double-checks) → " +
+          "Your decision. The last step is always yours — the tool never decides." },
+  { title: "The verdict summary",
+    sel: () => document.querySelector("#detail .banner"),
+    text: "One line, color-coded. Green: everything matched. Amber: something " +
+          "needs your eyes. Red: a check failed — this sample has a planted " +
+          "defect, so it's red and names the field." },
+  { title: "A field row: claim, evidence, decision",
+    sel: () => [...document.querySelectorAll("#detail .row")]
+      .find((r) => /Government Warning/i.test(r.querySelector(".fname")?.textContent || ""))
+      || document.querySelector("#detail .row"),
+    text: "Each row shows what the label says next to what the application " +
+          "says, with a crop of the exact spot on the label as evidence. This " +
+          "warning is printed in title case — the law requires capitals, and " +
+          "the sub-checks below the row say exactly that. The ✓ 👁 ✗ buttons " +
+          "record YOUR decision for this row." },
+  { title: "Your decision — the whole label",
+    sel: () => document.querySelector("#detail .override"),
+    text: "PASS stays locked until every row passes — machine-green or decided " +
+          "by you. NEEDS REVIEW and FAIL are always available. For this label, " +
+          "FAIL is one click, and the record keeps what the machine found." },
+  { title: "That's the whole job",
+    sel: () => document.querySelector(".batchbar"),
+    text: "Add real labels (or a CSV batch), let the checks run, decide, then " +
+          "Export results or Save session. The one-page runbook in the footer " +
+          "covers everything you just saw." },
+];
+
+function endTour(completed) {
+  document.querySelectorAll(".tour-anchor").forEach((x) => x.classList.remove("tour-anchor"));
+  $("tourtip")?.remove();
+  if (completed && tourT0 != null) beacon("tour_completed", performance.now() - tourT0);
+  tourT0 = null;
+}
+
+function showTourStep(i) {
+  const step = TOUR_STEPS[i];
+  document.querySelectorAll(".tour-anchor").forEach((x) => x.classList.remove("tour-anchor"));
+  const el = step.sel();
+  if (el) { el.classList.add("tour-anchor"); el.scrollIntoView({ block: "center", behavior: "smooth" }); }
+  let tip = $("tourtip");
+  if (!tip) {
+    tip = document.createElement("div");
+    tip.id = "tourtip";
+    tip.setAttribute("role", "dialog");
+    tip.setAttribute("aria-label", "Guided walk-through");
+    document.body.appendChild(tip);
+    tip.addEventListener("click", (e) => {
+      const act = e.target.closest("button")?.dataset.tour;
+      if (act === "next") (i => i < TOUR_STEPS.length ? showTourStep(i) : endTour(true))(Number(tip.dataset.idx) + 1);
+      else if (act === "back") showTourStep(Number(tip.dataset.idx) - 1);
+      else if (act === "exit") endTour(false);
+    });
+  }
+  tip.dataset.idx = String(i);
+  tip.innerHTML = `<strong>${esc(step.title)}</strong><p>${esc(step.text)}</p>
+    <div class="tour-nav"><span class="cite">${i + 1} of ${TOUR_STEPS.length}</span>
+      ${i > 0 ? '<button type="button" data-tour="back" class="btn btn-xs">Back</button>' : ""}
+      <button type="button" data-tour="next" class="btn btn-xs btn-primary">
+        ${i === TOUR_STEPS.length - 1 ? "Done" : "Next"}</button>
+      <button type="button" data-tour="exit" class="btn btn-xs btn-ghost">Exit</button></div>`;
+  tip.querySelector('[data-tour="next"]')?.focus();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && $("tourtip")) endTour(false);
+});
+
+async function startTour() {
+  if (tourT0 != null) return;                     // already running
+  tourT0 = performance.now();
+  beacon("tour_started");
+  err("");
+  try {
+    const list = await (await fetch("/api/samples")).json();
+    const s = list.find((x) => x.id === "titlecase_trap") || list[0];
+    const existing = items.find((x) => x.file.name.startsWith(s.id));
+    let it = existing;
+    if (!it) {
+      const blob = await (await fetch(s.image)).blob();
+      await addFiles([new File([blob], s.id + ".jpg", { type: "image/jpeg" })], s.application);
+      it = items[items.length - 1];
+    }
+    select(it.id);
+    if (it.state !== "done") await runOne(it);
+    // wait for the cross-check to settle so every step shows its final form
+    for (let n = 0; n < 40 && it.result && it.result.settled === false; n++)
+      await new Promise((r) => setTimeout(r, 500));
+    renderDetail();
+    showTourStep(0);
+  } catch (e) {
+    tourT0 = null;
+    err("The walk-through couldn't load its sample — try again, or just click a sample in the Samples menu.");
+  }
+}
+
 // footer workflow/corpora links re-enter the app: file pickers fire
 // directly; menu links scroll up and open the matching megamenu
 document.querySelector("footer").addEventListener("click", (e) => {
@@ -582,6 +722,8 @@ document.querySelector("footer").addEventListener("click", (e) => {
     const d = document.querySelectorAll("header details")[MENUS[act]];
     d?.setAttribute("open", "");
     d?.querySelector("summary")?.focus();
+  } else if (act === "tour") {
+    startTour();
   } else if (act === "export") {
     if ($("export").style.display === "none") {
       err("No results to export yet — run a check first.");
@@ -925,6 +1067,7 @@ function renderResult(container, it) {
       delete it.fieldOverrides[name];              // click again to retract
     } else {
       const f = it.result.fields.find((x) => x.field === name);
+      noteDecision();                      // T5
       it.fieldOverrides[name] = { value: v, at: ovStamp(),
                                   original: f ? f.status : "" };
     }
@@ -1034,6 +1177,7 @@ function renderResult(container, it) {
     if (ovValue(it) === v) {
       it.override = null;                            // click again to retract
     } else {
+      noteDecision();                      // T5
       it.override = { value: v, at: ovStamp(), original: auto };
     }
     markSessionDirty();

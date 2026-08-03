@@ -100,6 +100,7 @@ def _wedged_out() -> bool:
 
 SAMPLES = {
     "clean_match": {
+        "training": [1, 'Lesson 1 — a clean pass: every check green, ready for sign-off.'],
         "file": "spirits_clean.jpg", "label": "Clean match (bourbon)",
         "shows": "Everything matches — the all-clear state.",
         "application": {"beverage_type": "distilled_spirits",
@@ -107,6 +108,7 @@ SAMPLES = {
                         "class_type": "Kentucky Straight Bourbon Whiskey",
                         "alcohol_content": "45% Alc./Vol.", "net_contents": "750 mL"}},
     "obvious_mismatch": {
+        "training": [2, 'Lesson 2 — a real defect: red verdict with the evidence that proves it.'],
         "file": "trap_abv_outside_band.jpg", "label": "Obvious mismatch (wrong ABV)",
         "shows": "Label prints 46% against a 45% application — outside the ±0.3 band.",
         "application": {"beverage_type": "distilled_spirits",
@@ -121,12 +123,14 @@ SAMPLES = {
                         "class_type": "Kentucky Straight Bourbon Whiskey",
                         "alcohol_content": "45% Alc./Vol.", "net_contents": "750 mL"}},
     "bad_photo": {
+        "training": [5, 'Lesson 5 — unreadable input degrades to review, never a fake verdict.'],
         "file": "photo_lowres.jpg", "label": "Bad photo → human review",
         "shows": "Unreadable input degrades honestly to NEEDS REVIEW, never a false verdict.",
         "application": {"beverage_type": "wine", "brand_name": "SEABREEZE CELLARS",
                         "class_type": "California Chardonnay — Table Wine",
                         "alcohol_content": "", "net_contents": "750 mL"}},
     "table_wine_no_abv": {
+        "training": [3, 'Lesson 3 — the tool knows the rules: missing ABV is legal here (NOT REQUIRED).'],
         "file": "wine_no_abv_table.jpg", "label": "Table wine, no ABV printed",
         "shows": "Missing ABV is legally compliant here → NOT REQUIRED, not a mismatch.",
         "application": {"beverage_type": "wine", "brand_name": "SEABREEZE CELLARS",
@@ -141,6 +145,7 @@ _WINE_APP = {"beverage_type": "wine", "brand_name": "SEACLIFF ESTATE",
              "alcohol_content": "12.5%", "net_contents": "750 mL"}
 SAMPLES.update({
     "wine_blur": {
+        "training": [4, 'Lesson 4 — front + back pair, and honest ambers when the photo degrades.'],
         "label": "Blurry wine photo (front + back)",
         "shows": "Blur degrades honestly: unreadable fields go to review with crops — never a false mismatch.",
         "files": [("golden_cola/wine/gw_wine_blur_front.jpg", "front"),
@@ -233,11 +238,37 @@ def samples():
         row = {"id": k, "label": v["label"], "shows": v["shows"],
                "application": v["application"],
                "image": f"/api/samples/{k}/image/0"}
+        if v.get("training"):                 # curated lesson set (train-before-pilot T4)
+            row["training"] = v["training"]
         if v.get("files"):                    # front+back pair (degraded wine set)
             row["images"] = [{"panel": p, "url": f"/api/samples/{k}/image/{i}"}
                              for i, (_f, p) in enumerate(v["files"])]
         out.append(row)
     return out
+
+
+_UI_EVENTS = {"tour_started", "tour_completed", "first_decision"}
+
+
+@app.post("/api/telemetry", include_in_schema=False)
+async def ui_telemetry(request: Request):
+    """Train-before-pilot T5: local-only usage signals (time-to-first-
+    decision, walkthrough completion) into the E4 stream — strict allowlist,
+    no free text, never breaks anything."""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False}, status_code=400)
+    event = body.get("event")
+    if event not in _UI_EVENTS:
+        return JSONResponse({"ok": False}, status_code=400)
+    row = {"kind": "ui", "event": event, "at": time.time()}
+    ms = body.get("ms")
+    if isinstance(ms, (int, float)) and 0 <= ms < 1e8:
+        row["ms"] = round(float(ms))
+    from .layers import _telemetry
+    _telemetry(row)
+    return {"ok": True}
 
 
 @app.get("/api/samples/{sid}/image/{idx}")

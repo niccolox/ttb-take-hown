@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="corporate">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Label Check — Agent Runbook (1 page)</title>
+<link rel="stylesheet" href="vendor/tailwind-daisyui.css?v=21">
+<style>
+  main.runbook { display: block; max-width: 52rem; margin: 0 auto; padding: 20px 24px; }
+  .runbook h1 { font-size: 26px; font-weight: 700; margin: 0 0 2px; }
+  .runbook h2 { font-size: 17px; margin-top: 18px; }
+  .runbook table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .runbook td, .runbook th { border: 1px solid #dfe1e2; padding: 4px 8px; text-align: left; }
+  .runbook li { margin: 3px 0; }
+  @media print { .noprint { display: none; } body { font-size: 13px; } }
+</style>
+</head>
+<body>
+<main class="runbook">
+  <h1>Label Check — Agent Runbook</h1>
+  <p class="cite">One page. If something here doesn't match the screen, the screen wins —
+    and please report it. <span class="noprint"><a class="link" href="./">Back to the app</a> ·
+    print this page for your desk.</span></p>
+
+  <h2>What this tool is (and is not)</h2>
+  <p><strong>It screens labels; you decide.</strong> Label Check reads a label image,
+    compares it with the COLA application values, and shows evidence for every check.
+    It has <strong>no approval authority</strong> — nothing is decided until you press
+    a decision button, and your decision is what gets saved.</p>
+
+  <h2>The six steps</h2>
+  <ol>
+    <li><strong>Add labels</strong> (top menu): images, a front + back pair, or a CSV batch.</li>
+    <li><strong>Watch the statuses</strong>: each application moves
+      Received → Screened → Cross-checked → <em>Your decision</em>.</li>
+    <li><strong>Work the filters</strong> (bar under the menu): pick a commodity
+      (Wine / Malt / Spirits), then a status — <em>Needs attention</em> collects
+      everything waiting on you.</li>
+    <li><strong>Read the rows</strong>: label text vs application text, with a crop of the
+      exact spot on the label. Hover the label image to magnify; click a crop to zoom.</li>
+    <li><strong>Decide</strong>: ✓ 👁 ✗ on each row as needed, then PASS / NEEDS REVIEW /
+      FAIL for the whole label. <strong>PASS unlocks only when every row passes</strong> —
+      machine-green or decided by you.</li>
+    <li><strong>Export results (CSV)</strong> or <strong>Save session</strong> — decisions
+      are recorded with time and the original machine finding.</li>
+  </ol>
+
+  <h2>What the statuses mean</h2>
+  <table>
+    <tr><th>Status</th><th>Meaning</th><th>You should…</th></tr>
+    <tr><td>Received</td><td>Loaded, not yet checked</td><td>Run Verify (or Verify all)</td></tr>
+    <tr><td>In Process</td><td>Checks running — first answer in seconds, a second engine
+      double-checks after</td><td>Wait a moment; results may upgrade</td></tr>
+    <tr><td>All clear</td><td>Every check matched — no decision yet</td><td>Sign off when ready</td></tr>
+    <tr><td>Needs review</td><td>Something needs human eyes (often an honest
+      "couldn't read it well enough")</td><td>Look at the evidence crop, decide the row</td></tr>
+    <tr><td>Needs Correction</td><td>A check found a real mismatch</td><td>Confirm against the
+      evidence, decide</td></tr>
+    <tr><td>Pass ·agent / Fail ·agent</td><td>Your recorded decision</td><td>Done — retract by
+      clicking again if needed</td></tr>
+  </table>
+
+  <h2>Reading evidence</h2>
+  <ul>
+    <li><strong>Crops</strong> show the exact label region a check read. 🔍 means click to zoom.</li>
+    <li><strong>Red boxes</strong> in a warning crop mark words that differ from the required
+      text; <strong>dashed boxes</strong> mark where required words are missing.</li>
+    <li><strong>NEEDS REVIEW is honesty, not failure</strong> — the tool refuses to guess when
+      the image is blurry, small, or ambiguous. Your eyes are the resolution.</li>
+  </ul>
+
+  <h2>Known limits (by design)</h2>
+  <p class="cite">Type size, exact placement, and contrast limits are not fully measurable from
+    a photo (27 CFR §16.22; §4.36) — check those visually. Organic claims, formula approvals,
+    and state-law variations are outside this tool's scope. When both OCR engines disagree,
+    the field locks amber with both readings shown — that disagreement is yours to resolve.</p>
+</main>
+</body>
+</html>

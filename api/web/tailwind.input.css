@@ -246,6 +246,21 @@ dialog canvas { max-width: 86vw; }
 
 .ov-note { @apply text-sm font-semibold mt-1 text-warning; }
 .batchbar { @apply flex gap-2 mt-2.5 flex-wrap; }
+/* guided walk-through (train-before-pilot T1): highlighted anchor + one
+   fixed tooltip at the bottom — no per-anchor positioning math to go wrong */
+.tour-anchor { outline: 3px dashed var(--accent) !important; outline-offset: 4px;
+               border-radius: 4px; }
+#tourtip {
+  @apply fixed bottom-4 left-1/2 -translate-x-1/2 z-[80] bg-base-100 border-2
+         border-primary rounded-xl shadow-lg p-4 w-[34rem] max-w-[92vw] text-[15px];
+}
+#tourtip p { @apply my-2; }
+#tourtip .tour-nav { @apply flex items-center gap-2 justify-end; }
+#tourtip .tour-nav .cite { @apply mr-auto; }
+
+/* samples menu section headings (training set first) */
+.samples-h { @apply font-bold mt-2 mb-0 opacity-80; }
+
 /* daisyui footer (logo-section variant): workflow/corpora links re-enter the
    app (data-act), references cite the governing sources. No opacity on text
    containers — 60% failed 4.5:1 (axe); base-content on base-200 passes */

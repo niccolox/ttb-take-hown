@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Label Check — TTB label screening (prototype)</title>
-<link rel="stylesheet" href="vendor/tailwind-daisyui.css?v=20">
+<link rel="stylesheet" href="vendor/tailwind-daisyui.css?v=21">
 </head>
 <body>
 <header>
@@ -140,6 +140,8 @@
   </aside>
   <nav>
     <h6 class="footer-title">Workflow</h6>
+    <a class="link link-hover" href="#" data-act="tour">Guided walk-through (90 s)</a>
+    <a class="link link-hover" href="runbook.html" target="_blank" rel="noopener">Agent runbook (1 page)</a>
     <a class="link link-hover" href="#" data-act="files">Add label images</a>
     <a class="link link-hover" href="#" data-act="pair">Front + back of one label</a>
     <a class="link link-hover" href="#" data-act="csv">Import CSV batch</a>
@@ -163,7 +165,7 @@
        target="_blank" rel="noopener">27 CFR part 16 — health warning</a>
   </nav>
 </footer>
-<script src="app.js?v=n8.5"></script><!-- bump ?v= on app.js changes: browsers
+<script src="app.js?v=n8.6"></script><!-- bump ?v= on app.js changes: browsers
   heuristically cache un-versioned statics and can keep pre-refinement code
   running against the new API -->
 </body>
