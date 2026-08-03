@@ -75,6 +75,36 @@ def _status_class(status: str) -> str:
                                             else "review")
 
 
+def _no_read(field: dict) -> bool:
+    """An engine 'found nothing' here: no located text behind a review-class
+    status. Absence of a second read is not a conflicting read — it must not
+    veto the other engine's positive read (either direction)."""
+    return not field.get("label_value") \
+        and field.get("status") in ("NEEDS_REVIEW", "NOT_CHECKED")
+
+
+def _map_evidence(ev: dict | None, meta: dict) -> dict | None:
+    """QA-engine evidence boxes are in the PROCESSED frame; responses carry
+    original-bitmap coords — map like the fast path does."""
+    if not ev or not ev.get("bbox"):
+        return ev
+    p = ev.get("panel") or 0
+    scales = meta.get("scales") or []
+    tfs = meta.get("skew_tfs") or []
+    s = scales[p] if p < len(scales) else 1.0
+    tf = tfs[p] if p < len(tfs) else None
+
+    def m(bx):
+        if tf is not None:
+            bx = tf.box_to_pre(bx)
+        return [round(v * s, 1) for v in bx]
+    ev = dict(ev)
+    ev["bbox"] = m(ev["bbox"])
+    if ev.get("diff_boxes"):
+        ev["diff_boxes"] = [{**d, "box": m(d["box"])} for d in ev["diff_boxes"]]
+    return ev
+
+
 def run_j1(rid: str, store, qa_extractor, qa_engine: str, jobq,
            gpu_extractor=None, gpu_engine: str = "nemotron",
            gpu_available=lambda: True, vlm_client=None) -> None:
@@ -101,21 +131,24 @@ def run_j1(rid: str, store, qa_extractor, qa_engine: str, jobq,
                 continue
             agree = _status_class(f["status"]) == _status_class(qa["status"])
             guard = name in GUARD_FIELDS
+            single_read = (f["status"] in GREEN and _no_read(qa)) \
+                or (_no_read(f) and qa["status"] in GREEN)
             _telemetry({"result_id": rid, "field": name,
                         "primary": {"engine": gpu_engine, "status": f["status"]},
                         "qa": {"engine": qa_engine, "status": qa["status"]},
                         "agree": agree, "guard": guard,
+                        "single_read": single_read,
                         "ts": time.time()})
             if not guard:
                 # shadow-recovery (AD-20 general rule): a primary read stuck at
-                # NEEDS_REVIEW for a *read-quality* reason, where the QA engine
-                # read the same region cleanly, has two independent agreeing
-                # reads (QA exact + primary within-OCR-error) — upgrade with
-                # corroboration. Ambiguous stays human (two candidate regions
-                # is a layout question, not a read-quality one).
+                # NEEDS_REVIEW for a *read-quality* reason — or with NO read at
+                # all — where the QA engine read the region cleanly, upgrades
+                # with corroboration. Ambiguous stays human (two candidate
+                # regions is a layout question, not a read-quality one).
                 if f["status"] == "NEEDS_REVIEW" \
-                        and f.get("reason_code") in ("possible_ocr_misread",
-                                                     "unreadable") \
+                        and (f.get("reason_code") in ("possible_ocr_misread",
+                                                      "unreadable")
+                             or _no_read(f)) \
                         and qa["status"] in ("MATCH", "LIKELY_MATCH"):
                     refined = {"status": qa["status"],
                                "label_value": qa.get("label_value"),
@@ -123,12 +156,35 @@ def run_j1(rid: str, store, qa_extractor, qa_engine: str, jobq,
                                "note": (f"Second engine ({qa_engine}) read this "
                                         f"region cleanly and it matches the "
                                         f"application — two-engine agreement."),
-                               "evidence": f.get("evidence")}
+                               "evidence": (_map_evidence(qa.get("evidence"), meta)
+                                            if _no_read(f) else f.get("evidence"))}
                     merge_refinement(f, refined, "second-engine-check",
                                      qa_engine, upgrade_ok=True)
                 continue                    # otherwise shadow-only outside guard scope
             if agree:
                 f["guard"] = {"state": "agreed", "engine": qa_engine,
+                              "qa_status": qa["status"]}
+            elif f["status"] in GREEN and _no_read(qa):
+                # one engine passed, the other had NO read here — absence
+                # doesn't veto the positive read; the green stands, marked as
+                # single-read so the provenance is honest
+                f["guard"] = {"state": "agreed_single_read", "engine": qa_engine,
+                              "qa_status": qa["status"],
+                              "qa_note": "second engine had no read for this field"}
+            elif _no_read(f) and qa["status"] in GREEN:
+                # the QA engine found text the primary missed — a discovery
+                # (applies immediately per AD-20's lattice), and the field
+                # passes on that single located read
+                refined = {"status": qa["status"],
+                           "label_value": qa.get("label_value"),
+                           "reason_code": qa.get("reason_code"),
+                           "note": (f"{qa_engine} located this field where "
+                                    f"{gpu_engine} found nothing — value matches "
+                                    f"the application."),
+                           "evidence": _map_evidence(qa.get("evidence"), meta)}
+                merge_refinement(f, refined, "second-engine-check", qa_engine,
+                                 upgrade_ok=True)
+                f["guard"] = {"state": "agreed_single_read", "engine": qa_engine,
                               "qa_status": qa["status"]}
             else:
                 f["guard"] = {"state": "disagreed", "engine": qa_engine,

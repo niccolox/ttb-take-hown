@@ -168,9 +168,9 @@ PIPELINES: list[dict] = [
          application=dict(beverage_type="wine", brand_name="MAISON VERLET",
                           class_type="Champagne Blanc de Blancs — Sparkling Wine",
                           alcohol_content="12%", net_contents="750 mL"),
-         expect="green except net_contents may go amber (engine_disagreement): "
-                "the corpus-faithful glued '750ML' format reads differently "
-                "across engines — an intended hard case the QA guard surfaces"),
+         expect="all green; the corpus-faithful glued '750ML' reads on one "
+                "engine only — passes via the green+no-read single-read rule "
+                "(guard state agreed_single_read)"),
     dict(pipeline="kentucky_whisky", id="gw_kentucky_01",
          brand_label="CUMBERLAND OAK",
          class_type="Kentucky Straight Bourbon Whiskey",

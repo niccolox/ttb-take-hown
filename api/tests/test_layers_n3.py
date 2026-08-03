@@ -215,6 +215,54 @@ def test_j1_shadow_recovery_upgrades_read_quality_reviews(stack, monkeypatch):
     assert fields["brand_name"]["status"] == "NEEDS_REVIEW"   # ambiguous stays
 
 
+def test_j1_green_plus_no_read_passes(stack, monkeypatch):
+    """One engine passes, the other found NOTHING → the green stands
+    (absence is not a conflicting read), marked agreed_single_read."""
+    store, q, _ = stack
+    _seed(store, [{"field": "net_contents", "status": "MATCH",
+                   "label_value": "750ML", "note": ""}])
+    monkeypatch.setattr(layers, "verify_multi", lambda p, a, conf_floor=None:
+                        _canned([{"field": "net_contents", "status": "NEEDS_REVIEW",
+                                  "reason_code": "unreadable", "label_value": None,
+                                  "note": ""}]))
+    layers.run_j1("r-1", store, FakeExtractor(), "paddle", q)
+    f = store.get("r-1").result["fields"][0]
+    assert f["status"] == "MATCH"                       # green survives
+    assert f["guard"]["state"] == "agreed_single_read"
+
+
+def test_j1_no_read_plus_qa_green_discovers(stack, monkeypatch):
+    """Primary found nothing on a guard field; QA located it green → the QA
+    read applies (discovery) and the field passes."""
+    store, q, _ = stack
+    _seed(store, [{"field": "net_contents", "status": "NEEDS_REVIEW",
+                   "reason_code": "not_found_in_image", "label_value": None,
+                   "note": ""}])
+    monkeypatch.setattr(layers, "verify_multi", lambda p, a, conf_floor=None:
+                        _canned([{"field": "net_contents", "status": "MATCH",
+                                  "label_value": "750 mL", "note": "",
+                                  "evidence": {"bbox": [1, 2, 3, 4], "panel": 0}}]))
+    layers.run_j1("r-1", store, FakeExtractor(), "paddle", q)
+    f = store.get("r-1").result["fields"][0]
+    assert f["status"] == "MATCH" and f["label_value"] == "750 mL"
+    assert f["guard"]["state"] == "agreed_single_read"
+
+
+def test_j1_green_vs_located_red_still_disagrees(stack, monkeypatch):
+    """A genuine conflicting READ (both located text) still locks the field
+    for the human — the new rule only covers absence."""
+    store, q, _ = stack
+    _seed(store, [{"field": "net_contents", "status": "MATCH",
+                   "label_value": "750 mL", "note": ""}])
+    monkeypatch.setattr(layers, "verify_multi", lambda p, a, conf_floor=None:
+                        _canned([{"field": "net_contents", "status": "MISMATCH",
+                                  "label_value": "700 mL", "note": ""}]))
+    layers.run_j1("r-1", store, FakeExtractor(), "paddle", q)
+    f = store.get("r-1").result["fields"][0]
+    assert f["status"] == "NEEDS_REVIEW"
+    assert f["reason_code"] == "engine_disagreement"
+
+
 def test_j1_guard_agreement_marks_confirmed(stack, monkeypatch):
     store, q, _ = stack
     _seed(store, [_field("MATCH")])

@@ -19,7 +19,7 @@
    "alcohol_content": "12%",
    "net_contents": "750 mL"
   },
-  "note": "Synthetic golden patterned on the champagne corpus structure; ground truth by construction. Expected: green except net_contents may go amber (engine_disagreement): the corpus-faithful glued '750ML' format reads differently across engines \u2014 an intended hard case the QA guard surfaces",
+  "note": "Synthetic golden patterned on the champagne corpus structure; ground truth by construction. Expected: all green; the corpus-faithful glued '750ML' reads on one engine only \u2014 passes via the green+no-read single-read rule (guard state agreed_single_read)",
   "provenance": {
    "source": "generate_golden_cola.py (synthetic; fictional brand, controlled truth)"
   }
