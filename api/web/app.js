@@ -247,11 +247,16 @@ function ovValue(it) {          // override may be a legacy string or {value, at
 
 function autoState(it) {
   if (it.state !== "done") return it.state;
-  // refining guard fields are excluded from the rollup (AD-11: a batch row
-  // must not flash red on a provisional read, then silently flip)
+  // a provisional result stays "Checking…" in the Applications list — a
+  // green "All clear" must only ever mean the SETTLED verdict (the same
+  // no-premature-verdict rule as AD-12, applied to the rollup). Red still
+  // shows immediately: a provisional MISMATCH on a non-guard field is
+  // actionable attention, and guard fields are excluded while refining.
   const st = it.result.fields.filter((f) => !isRefining(it, f))
     .map((f) => effStatus(it, f));
+  const settling = it.result.settled === false && !it.stale;
   if (st.includes("MISMATCH")) return "done_red";
+  if (settling) return "checking";
   if (st.some((s) => ["NEEDS_REVIEW", "WITHIN_TOLERANCE", "LIKELY_MATCH"].includes(s))) return "done_amber";
   return "done_green";
 }
