@@ -22,7 +22,22 @@ from .rules.net_contents import NET_RE, compare_net
 from .rules.normalize import loose, whitespace_only
 from .rules.warning import STATUTORY_WARNING, Outcome, SubCheck, validate_warning
 
-CONF_FLOOR = 0.60          # word-confidence gate (tuned at M0)
+CONF_FLOOR = 0.60          # word-confidence gate (tuned at M0, paddle semantics)
+# AD-29 (PLAN-enrichment): nemotron confidence is a recognizer token-prob
+# geometric mean — a different distribution from paddle's. Crude per-engine
+# floor from the 2026-08-02 golden sweep (good reads ≥0.92); refined at N7.
+CONF_FLOOR_BY_ENGINE = {"paddle": 0.60, "nemotron": 0.70}
+# ContextVar, not a global swap: the fast path (one engine) and the J1 QA
+# job (the other engine) verify concurrently in different threads.
+from contextvars import ContextVar
+
+_conf_floor: ContextVar[float] = ContextVar("conf_floor", default=CONF_FLOOR)
+
+
+def _floor() -> float:
+    return _conf_floor.get()
+
+
 TEXT_MASS_FLOOR = 4        # fewer located words → "doesn't look like a label"
 
 
@@ -74,7 +89,7 @@ def _text_field_one(name: str, expected: str | None, locator: Locator) -> FieldR
                            "No application value entered.")
     loc = locator.find(expected)
     if not loc.found:
-        if loc.score > 0 and loc.min_conf < CONF_FLOOR:
+        if loc.score > 0 and loc.min_conf < _floor():
             return FieldResult(name, "NEEDS_REVIEW", loc.text or None, expected,
                                "unreadable",
                                "Couldn't read this part of the image — check the label "
@@ -88,7 +103,7 @@ def _text_field_one(name: str, expected: str | None, locator: Locator) -> FieldR
         return FieldResult(name, "NEEDS_REVIEW", loc.text, expected, "ambiguous",
                            "Two similar regions match — check both candidates.",
                            _evidence(loc))
-    if loc.min_conf < CONF_FLOOR:
+    if loc.min_conf < _floor():
         return FieldResult(name, "NEEDS_REVIEW", loc.text, expected, "unreadable",
                            "Found a likely region but it reads poorly — confirm from the crop.",
                            _evidence(loc))
@@ -175,7 +190,7 @@ def verify(words: list[Word], application: dict, image_gray=None) -> dict:
         if abv_loc.found:
             verdict, note = compare_abv(
                 app_abv, label_abv, bev,
-                digit_confidence_ok=abv_loc.min_conf >= CONF_FLOOR)
+                digit_confidence_ok=abv_loc.min_conf >= _floor())
             citation = ("Magnitude per 27 CFR; drift permitted by Form 5100.31 "
                         "allowable-revision item 11") if verdict == AbvVerdict.WITHIN_TOLERANCE else None
             fields.append(FieldResult("alcohol_content", verdict.value, abv_loc.text,
@@ -232,7 +247,7 @@ def verify(words: list[Word], application: dict, image_gray=None) -> dict:
             wc_outcome, _wc_detail = weight_contrast(image_gray, *regions)
     diff_boxes = _warning_diff_boxes(locator) if warn_loc.found else []
     wr = validate_warning(warn_loc.text if warn_loc.found else None,
-                          region_quality_ok=(warn_loc.min_conf >= CONF_FLOOR) if warn_loc.found else True,
+                          region_quality_ok=(warn_loc.min_conf >= _floor()) if warn_loc.found else True,
                           weight_contrast=wc_outcome)
     sub = [{"check": c.value, "outcome": wr.outcomes[c].value, "detail": wr.details[c]}
            for c in SubCheck if c in wr.outcomes]
@@ -316,12 +331,18 @@ _MERGE_RANK = {"MATCH": 6, "LIKELY_MATCH": 5, "WITHIN_TOLERANCE": 5,
                "MISMATCH": 3, "NOT_REQUIRED": 2, "NEEDS_REVIEW": 1, "NOT_CHECKED": 0}
 
 
-def verify_multi(panels: list[tuple[list[Word], "object"]], application: dict) -> dict:
+def verify_multi(panels: list[tuple[list[Word], "object"]], application: dict,
+                 conf_floor: float | None = None) -> dict:
     """Multi-panel verification: run the single-image pipeline per panel and
     merge per field, preferring definitive positives — a field legally lives on
     ANY panel (the warning is usually on the back, §16.21), so a MATCH on one
     panel beats not-found on another; a genuine found-but-wrong (MISMATCH)
-    outranks unreadable/absent. Evidence carries the panel index."""
+    outranks unreadable/absent. Evidence carries the panel index.
+
+    `conf_floor` selects the engine-calibrated confidence gate (AD-29);
+    None keeps the paddle-tuned default."""
+    if conf_floor is not None:
+        _conf_floor.set(conf_floor)
     t0 = time.perf_counter()
     if not panels:
         return _envelope("screening_incomplete", [], t0)

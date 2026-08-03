@@ -9,6 +9,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+import os
 import tempfile
 import threading
 import time
@@ -39,9 +40,38 @@ app.add_middleware(TrustedHostMiddleware,          # AD-31 Host validation
 rate_limiter = RateLimiter()
 inflight_gate = InflightGate()
 extractor = build_extractor()
+PRIMARY_ENGINE = os.environ.get("LABELCHECK_EXTRACTOR", "paddle")
+# AD-24: the GPU profile constructs and warms BOTH engines — paddle is the
+# AD-1 fallback fast path and the J1 QA engine. CPU profile: single engine,
+# no background layers.
+qa_extractor = None
+if PRIMARY_ENGINE == "nemotron" \
+        and os.environ.get("LABELCHECK_JOBS", "on") != "off":
+    from .extractor import PaddleExtractor
+    qa_extractor = PaddleExtractor()
 pool = ThreadPoolExecutor(max_workers=2)          # fast path ONLY (AD-23)
 store = ResultStore()                             # single-process (AD-25)
 jobq = JobQueue(store)                            # background layers (N3+)
+
+# AD-26 circuit breaker: consecutive sidecar failures short-circuit GPU
+# calls (fast path falls back to paddle; J2 jobs fail fast) until a cooloff.
+_breaker = {"fails": 0, "until": 0.0}
+_breaker_lock = threading.Lock()
+
+
+def _gpu_ok() -> bool:
+    with _breaker_lock:
+        return _breaker["fails"] < 3 or time.monotonic() >= _breaker["until"]
+
+
+def _gpu_result(success: bool) -> None:
+    with _breaker_lock:
+        if success:
+            _breaker["fails"] = 0
+        else:
+            _breaker["fails"] += 1
+            if _breaker["fails"] >= 3:
+                _breaker["until"] = time.monotonic() + 30.0
 
 # Wedge detection (AD-33): a native OCR call that hangs keeps its pool
 # thread + engine lock forever; count timed-out-but-still-running extracts
@@ -117,6 +147,13 @@ def _warm():
         lambda f: f.exception() and logging.getLogger("uvicorn.error").error(
             "extractor warm-up FAILED — /healthz will report loading forever: %r",
             f.exception()))
+    if qa_extractor is not None:              # AD-24: warm the QA/fallback engine too
+        qfut = jobq._executor.submit(qa_extractor.warm,
+                                     str(GOLDEN / "spirits_clean.jpg"))
+        qfut.add_done_callback(
+            lambda f: f.exception() and logging.getLogger("uvicorn.error").error(
+                "QA engine warm-up FAILED — J1/fallback unavailable: %r",
+                f.exception()))
 
 
 def _rss_mb() -> float:
@@ -136,8 +173,16 @@ def healthz():
     # `state` is the tri-state (degraded_paddle arrives with N3's dual-engine).
     if _wedged_out():
         state, ready = "down", False
-    elif extractor.ready():
-        state, ready = "ready", True
+    elif extractor.ready() or (qa_extractor is not None and qa_extractor.ready()):
+        # degraded_paddle (AD-24): sidecar tripped the breaker but the warmed
+        # paddle fallback still serves verdicts — ready stays true
+        if PRIMARY_ENGINE == "nemotron" and not _gpu_ok() \
+                and qa_extractor is not None and qa_extractor.ready():
+            state, ready = "degraded_paddle", True
+        elif extractor.ready():
+            state, ready = "ready", True
+        else:
+            state, ready = "loading", False
     else:
         state, ready = "loading", False
     return {"status": "ready" if ready else ("wedged" if state == "down"
@@ -477,6 +522,9 @@ def _verify_impl(image, images, application):
     panels = []
     scales = []                                  # OCR-space → original-bitmap factor per panel
     skew_tfs = []                                # S0 deskew inverse transforms (N2)
+    panel_jpegs = []                             # processed panels, kept for J1/J2
+    panel_words = []                             # primary-engine words per panel
+    engines_used = []                            # per-panel engine (AD-1 fallback aware)
     t0 = time.perf_counter()
     for up in uploads:
         raw = up.file.read()
@@ -507,11 +555,20 @@ def _verify_impl(image, images, application):
         except Exception:
             return JSONResponse({"error": "Couldn't read this image — the file may be "
                                            "corrupt.", "code": "decode_failed"}, status_code=422)
+        jpeg_buf = io.BytesIO()
+        img.save(jpeg_buf, "JPEG", quality=92)   # retained for background layers
+        jpeg = jpeg_buf.getvalue()
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=True) as tmp:
-            img.save(tmp.name, "JPEG", quality=92)
-            fut = pool.submit(extractor.extract, tmp.name)
+            tmp.write(jpeg)
+            tmp.flush()
+            use_fallback = (PRIMARY_ENGINE == "nemotron" and not _gpu_ok()
+                            and qa_extractor is not None and qa_extractor.ready())
+            eng = qa_extractor if use_fallback else extractor
+            fut = pool.submit(eng.extract, tmp.name)
             try:
                 words = fut.result(timeout=15)
+                if eng is extractor:
+                    _gpu_result(True)
             except TimeoutError:
                 # the native call may be hung holding the engine lock — track
                 # it so /healthz stops reporting ready if the pool wedges
@@ -519,13 +576,46 @@ def _verify_impl(image, images, application):
                 return JSONResponse({"error": "This check didn't finish — retry.",
                                      "code": "system_error"}, status_code=500)
             except Exception:
-                return JSONResponse({"error": "This check didn't finish — retry.",
-                                     "code": "system_error"}, status_code=500)
+                # AD-1: sidecar failure degrades to the warmed paddle fallback
+                # instead of failing the verify
+                if eng is extractor and PRIMARY_ENGINE == "nemotron":
+                    _gpu_result(False)
+                    if qa_extractor is not None and qa_extractor.ready():
+                        use_fallback = True
+                        try:
+                            words = qa_extractor.extract(tmp.name)
+                        except Exception:
+                            return JSONResponse(
+                                {"error": "This check didn't finish — retry.",
+                                 "code": "system_error"}, status_code=500)
+                    else:
+                        return JSONResponse(
+                            {"error": "This check didn't finish — retry.",
+                             "code": "system_error"}, status_code=500)
+                else:
+                    return JSONResponse({"error": "This check didn't finish — retry.",
+                                         "code": "system_error"}, status_code=500)
+        engines_used.append("paddle" if use_fallback or PRIMARY_ENGINE != "nemotron"
+                            else "nemotron")
+        panel_jpegs.append(jpeg)
+        panel_words.append(words)
         panels.append((words, np.array(img.convert("L"))))
         scales.append(scale_back)
         skew_tfs.append(skew_tf)
 
-    result = verify_multi(panels, app_data)
+    engine_for_floor = "paddle" if "paddle" in engines_used else PRIMARY_ENGINE
+    from .verify import CONF_FLOOR_BY_ENGINE
+    result = verify_multi(panels, app_data,
+                          conf_floor=CONF_FLOOR_BY_ENGINE.get(engine_for_floor))
+    # capture the warning band in PROCESSED-frame coords for J2 BEFORE the
+    # response mapping below rewrites evidence to original-bitmap coords
+    warn_bbox = warn_panel = None
+    for f in result["fields"]:
+        if f["field"] == "government_warning" and f.get("evidence", {}) \
+                and f["evidence"].get("bbox"):
+            warn_bbox = list(f["evidence"]["bbox"])
+            warn_panel = f["evidence"].get("panel") or 0
+            break
     # OCR ran on ≤2000px downscales; the browser draws crops on the ORIGINAL
     # bitmap — scale every evidence box back to original coordinates
     for f in result["fields"]:
@@ -546,6 +636,23 @@ def _verify_impl(image, images, application):
                 d["box"] = _map(d["box"])
     result["timing_ms"]["ocr"] = round((time.perf_counter() - t0) * 1000)
     entry = store.put(result)                 # result_id == request_id (AD-36)
+    rid = result["request_id"]
+    # J1 second-engine QA (N3): only when the fast path actually ran the GPU
+    # engine — a fallback verify already IS the paddle read (AD-24: J1
+    # suspended while degraded)
+    if qa_extractor is not None and qa_extractor.ready() \
+            and "paddle" not in engines_used:
+        entry.meta.update(panels_jpeg=panel_jpegs, panel_words=panel_words,
+                          app_data=app_data, warn_bbox=warn_bbox,
+                          warn_panel=warn_panel or 0, scales=scales,
+                          skew_tfs=skew_tfs)
+        from .layers import run_j1
+        jobq.submit(rid, "second-engine-check",
+                    lambda: run_j1(rid, store, qa_extractor, "paddle", jobq,
+                                   gpu_extractor=extractor,
+                                   gpu_engine="nemotron",
+                                   gpu_available=_gpu_ok),
+                    deadline_s=45)
     body = entry.public()
     body["cancel_token"] = entry.cancel_token  # only in the POST response (AD-39)
     return body

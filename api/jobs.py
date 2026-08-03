@@ -64,6 +64,9 @@ class _Entry:
     last_access: float = field(default_factory=time.monotonic)
     cancelled: bool = False
     lock: threading.Lock = field(default_factory=threading.Lock)
+    # job-only context (panel jpegs, app data, coordinate transforms) —
+    # never serialized into responses
+    meta: dict = field(default_factory=dict)
 
     def settled(self) -> bool:
         return all(j.state in TERMINAL for j in self.jobs.values())

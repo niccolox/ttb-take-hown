@@ -774,12 +774,41 @@ async function runOne(it) {
     it.result = body; it.state = "done"; it.errorMsg = null;
     it.elapsedMs = performance.now() - t0;
     markSessionDirty();
+    // N3: provisional results settle via background layers — poll until
+    // settled (AD-34), applying only monotonically newer revisions (AD-19).
+    if (body.settled === false && body.result_id) pollRefinements(it, body.result_id);
   } catch (e) {
     it.state = "error"; it.errorMsg = e.message;
     markSessionDirty();
   }
   renderList(); if (sel() === it) renderDetail();
   schedulePersist();                     // status (all clear / review / mismatch) is saved
+}
+
+// N3 refinement polling (AD-19): 1s → backoff → stop at settled or 60s.
+// The reviewer's own decisions always win — a refinement never reopens an
+// overridden field (precedence rule AD-18 is enforced server-side; here we
+// only swap in newer machine results and re-render).
+async function pollRefinements(it, resultId) {
+  let delay = 1000; const deadline = Date.now() + 60000;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, delay));
+    delay = Math.min(delay * 1.5, 5000);
+    if (it.state !== "done" || !it.result || it.result.result_id !== resultId) return;
+    let body;
+    try {
+      const res = await fetch(`/api/verify/${resultId}`);
+      if (!res.ok) return;                       // expired/gone: keep last state
+      body = await res.json();
+    } catch { return; }
+    if ((body.revision || 0) > (it.result.revision || 0)) {
+      body.cancel_token = it.result.cancel_token; // token only arrives on POST
+      it.result = body;
+      markSessionDirty(); renderList(); if (sel() === it) renderDetail();
+      schedulePersist();
+    }
+    if (body.settled) return;
+  }
 }
 
 $("verifyAll").addEventListener("click", async () => {

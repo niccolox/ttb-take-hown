@@ -15,7 +15,7 @@ services:
     build: .
     ports:
       - "127.0.0.1:8123:8123"   # loopback only — the app is auth-less by design
-    mem_limit: 4g
+    mem_limit: 6g          # AD-24: paddle QA engine resident beside the app
     environment:
       - PORT=8123
       - LABELCHECK_EXTRACTOR=nemotron          # engine swap is an env var (PLAN.md)
