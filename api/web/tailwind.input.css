@@ -9,7 +9,38 @@
 @source "./index.html";
 @source "./app.js";
 @plugin "daisyui" {
-  themes: winter --default;
+  themes: winter;
+}
+/* custom theme from ttb.gov's compiled USWDS tokens (fetched 2026-08-02):
+   primary #005ea2, dark blue #1a4480, header navy #162e51, gold #ffbe2e,
+   error #b50909, ink #1b1b1b, greys #f0f0f0/#dfe1e2 */
+@plugin "daisyui/theme" {
+  name: "ttb";
+  default: true;
+  color-scheme: light;
+  --color-base-100: #ffffff;
+  --color-base-200: #f0f0f0;
+  --color-base-300: #dfe1e2;
+  --color-base-content: #1b1b1b;
+  --color-primary: #005ea2;
+  --color-primary-content: #ffffff;
+  --color-secondary: #1a4480;
+  --color-secondary-content: #ffffff;
+  --color-accent: #ffbe2e;
+  --color-accent-content: #1b1b1b;
+  --color-neutral: #454545;
+  --color-neutral-content: #ffffff;
+  --color-info: #00bde3;
+  --color-info-content: #1b1b1b;
+  --color-success: #008817;
+  --color-success-content: #ffffff;
+  --color-warning: #ffbe2e;
+  --color-warning-content: #1b1b1b;
+  --color-error: #b50909;
+  --color-error-content: #ffffff;
+  --radius-box: 0.5rem;
+  --radius-field: 0.25rem;
+  --radius-selector: 0.25rem;
 }
 
 :root {
@@ -22,9 +53,16 @@ body {
   @apply bg-base-200 text-base-content;
 }
 
-header { border-bottom: 3px solid var(--accent); @apply bg-base-100 px-3 py-1; }
-header h1 { @apply text-2xl font-bold m-0; }
-header p { @apply text-sm opacity-70 mt-0.5 mb-0; }
+/* ttb.gov signature: navy banner (#162e51), gold keyline, light text */
+header { border-bottom: 3px solid #ffbe2e; background: #162e51; @apply px-3 py-1 text-white; }
+header h1 { @apply text-2xl font-bold m-0 text-white; }
+header p { @apply text-sm mt-0.5 mb-0; color: #dfe1e2; }
+header .menu summary.btn-ghost { @apply text-white; }
+header .menu summary.btn-ghost:hover { background: #1a4480; }
+/* focus on the navy banner needs the gold, not the blue */
+header button:focus, header summary:focus {
+  outline: 3px solid #ffbe2e !important; outline-offset: 2px;
+}
 
 /* megamenu (daisyui navbar + details dropdowns): panels carry the former
    left-column sections; wide, scrollable, above everything */
