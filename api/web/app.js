@@ -786,7 +786,8 @@ function renderJourney(container, it) {
   else add("○", "Cross-check", "");
   // 4 · Disposition — only an agent decision fills this step
   const ov = ovValue(it);
-  if (ov === "PASS" || ov === "FAIL") add("✓", `Decided — ${ov}`, "step-success");
+  if (ov === "PASS") add("✓", "Decided — PASS", "step-success");
+  else if (ov === "FAIL") add("✗", "Decided — FAIL", "step-error");
   else if (ov === "NEEDS REVIEW") add("👁", "Flagged — needs review", "step-warning");
   else add("○", "Your decision", "");
   container.appendChild(steps);
