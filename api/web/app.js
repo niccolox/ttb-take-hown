@@ -520,6 +520,36 @@ function renderDetail() {
         `${(((e.clientY - r.top) / r.height) * 100).toFixed(1)}%`;
     });
     d.appendChild(wrap);
+    {
+      // rotate 90° clockwise — re-rasterizes the panel (canvas), so the
+      // thumbnail, zoom, AND the next verify all use the upright image
+      const rot = document.createElement("button");
+      rot.type = "button";
+      rot.className = "btn btn-sm btn-outline gap-1 mb-2";
+      rot.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-[1.1em]" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>' +
+        `Rotate ${p.panel} 90°`;
+      rot.setAttribute("aria-label", `Rotate the ${p.panel} panel image 90 degrees clockwise`);
+      rot.addEventListener("click", async () => {
+        rot.disabled = true;
+        try {
+          const bmp = p.bitmap || await createImageBitmap(p.file);
+          const c = document.createElement("canvas");
+          c.width = bmp.height; c.height = bmp.width;
+          const ctx = c.getContext("2d");
+          ctx.translate(c.width, 0);
+          ctx.rotate(Math.PI / 2);
+          ctx.drawImage(bmp, 0, 0);
+          const blob = await new Promise((res) => c.toBlob(res, "image/jpeg", 0.92));
+          p.file = new File([blob], p.file.name, { type: "image/jpeg" });
+          p.bitmap = await createImageBitmap(p.file);
+          if (p.thumbUrl) { URL.revokeObjectURL(p.thumbUrl); p.thumbUrl = null; }
+          if (p === (it.panels || [])[0]) { it.bitmap = p.bitmap; }
+          markStale(it); markSessionDirty();
+          renderList(); renderDetail();
+        } finally { rot.disabled = false; }
+      });
+      d.appendChild(rot);
+    }
     if ((it.panels || []).length > 1) {
       const cap = document.createElement("div");
       cap.className = "cite"; cap.style.marginTop = "-8px"; cap.style.marginBottom = "8px";
