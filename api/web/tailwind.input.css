@@ -246,6 +246,13 @@ dialog canvas { max-width: 86vw; }
 
 .ov-note { @apply text-sm font-semibold mt-1 text-warning; }
 .batchbar { @apply flex gap-2 mt-2.5 flex-wrap; }
+/* PASS-decision draft summary card (E3): plainly labeled AI-assisted,
+   subordinate to the chips above it — never louder than the verdicts */
+.summary-card { @apply mt-3 p-3 border border-base-300 rounded-lg bg-base-200/60 text-[14px]; }
+.summary-card .summary-head { @apply flex items-center gap-2 mb-1; }
+.summary-card .summary-head button { margin-left: auto; }
+.summary-card p { @apply my-1; }
+
 /* guided walk-through (train-before-pilot T1): highlighted anchor + one
    fixed tooltip at the bottom — no per-anchor positioning math to go wrong */
 .tour-anchor { outline: 3px dashed var(--accent) !important; outline-offset: 4px;

@@ -17,7 +17,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -249,6 +249,56 @@ def samples():
                              for i, (_f, p) in enumerate(v["files"])]
         out.append(row)
     return out
+
+
+from .azure_openai import AzureOpenAIClient
+from .summary import SYSTEM as _SUMMARY_SYSTEM
+from .summary import build_user_prompt, contradicts
+
+azoai_client = AzureOpenAIClient()   # silent no-op without AZ_OPENAI_* env
+
+
+@app.post("/api/verify/{result_id}/summary", include_in_schema=False)
+async def pass_summary(result_id: str, request: Request):
+    """Enrichment E3/E4 (PASS-scoped): after the agent records a whole-label
+    PASS, draft a summary of the stored result. Display-layer only — the
+    stored result is authoritative and unchanged; absent config → 204 and
+    the UI shows nothing (D3). Metered like every POST (re-audit R1)."""
+    ip = request.client.host if request.client else "unknown"
+    ok, retry_after = rate_limiter.allow(ip)
+    if not ok:
+        return JSONResponse({"error": "rate_limited"}, status_code=429,
+                            headers={"Retry-After": str(max(1, int(retry_after)))})
+    if int(request.headers.get("content-length") or 0) > 2048:
+        return JSONResponse({"error": "too_large"}, status_code=413)
+    if os.environ.get("LABELCHECK_SUMMARY", "on") == "off" \
+            or not azoai_client.available():
+        return Response(status_code=204)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "bad_json"}, status_code=400)
+    if body.get("decision") != "PASS":
+        return JSONResponse({"error": "pass_only"}, status_code=400)
+    entry = store.get(result_id)
+    if entry is None:
+        return JSONResponse({"error": "unknown_result"}, status_code=404)
+    result = entry.public()
+    fields = result.get("fields") or []
+    application = body.get("application") or {}
+    if not isinstance(application, dict) or len(json.dumps(application)) > 1500:
+        return JSONResponse({"error": "bad_application"}, status_code=400)
+    text = azoai_client.complete(
+        _SUMMARY_SYSTEM,
+        build_user_prompt(fields, application, str(body.get("at") or "now")))
+    if not text:
+        return Response(status_code=204)
+    if contradicts(fields, text):
+        _layers_mod._telemetry({"kind": "j4s", "event": "summary_contradiction",
+                                "result_id": result_id, "at": time.time()})
+        return Response(status_code=204)
+    return {"text": text, "model": azoai_client.model,
+            "disclaimer": "AI-assisted draft — verify before use"}
 
 
 _UI_EVENTS = {"tour_started", "tour_completed", "first_decision"}

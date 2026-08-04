@@ -64,23 +64,48 @@ class AzureOpenAIClient:
             "max_tokens": min(max_tokens, MAX_OUTPUT_TOKENS),
             "temperature": 0.0,
         }
+        try:
+            body = self._post(payload)
+            answer = body["choices"][0]["message"]["content"]
+            self._fails = 0
+            return (answer or "").strip() or None
+        except urllib.error.HTTPError as e:
+            # gpt-5.x-class chat deployments reject max_tokens in favor of
+            # max_completion_tokens — adapt once, then the normal error path
+            detail = ""
+            try:
+                detail = e.read().decode()[:400]
+            except OSError:
+                pass
+            if e.code == 400 and "max_completion_tokens" in detail:
+                try:
+                    payload["max_completion_tokens"] = payload.pop("max_tokens")
+                    del payload["temperature"]      # 5.x chat: fixed temperature
+                    body = self._post(payload)
+                    answer = body["choices"][0]["message"]["content"]
+                    self._fails = 0
+                    return (answer or "").strip() or None
+                except Exception as e2:             # noqa: BLE001 — same silent posture
+                    e = e2
+            return self._note_failure(e)
+        except (urllib.error.URLError, OSError, KeyError, IndexError,
+                json.JSONDecodeError, TimeoutError) as e:
+            return self._note_failure(e)
+
+    def _post(self, payload: dict) -> dict:
         req = urllib.request.Request(
             self.endpoint, data=json.dumps(payload).encode(), method="POST",
             headers={"Content-Type": "application/json",
                      "Authorization": f"Bearer {self.api_key}",
                      "api-key": self.api_key})
-        try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                body = json.load(resp)
-            answer = body["choices"][0]["message"]["content"]
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.load(resp)
+
+    def _note_failure(self, e: Exception) -> None:
+        self._fails += 1
+        if self._fails >= BREAKER_FAILS:
+            self._cool_until = time.monotonic() + BREAKER_COOLOFF_S
             self._fails = 0
-            return (answer or "").strip() or None
-        except (urllib.error.URLError, OSError, KeyError, IndexError,
-                json.JSONDecodeError, TimeoutError) as e:
-            self._fails += 1
-            if self._fails >= BREAKER_FAILS:
-                self._cool_until = time.monotonic() + BREAKER_COOLOFF_S
-                self._fails = 0
-                log.info("Azure OpenAI breaker tripped for %.0fs", BREAKER_COOLOFF_S)
-            log.info("Azure OpenAI unavailable (silent no-op): %r", e)
-            return None
+            log.info("Azure OpenAI breaker tripped for %.0fs", BREAKER_COOLOFF_S)
+        log.info("Azure OpenAI unavailable (silent no-op): %r", e)
+        return None

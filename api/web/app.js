@@ -1176,15 +1176,54 @@ function renderResult(container, it) {
     if (v === "PASS" && passLocked) return;        // belt + suspenders with disabled
     if (ovValue(it) === v) {
       it.override = null;                            // click again to retract
+      it.summary = null;                             // draft dies with the decision
     } else {
       noteDecision();                      // T5
       it.override = { value: v, at: ovStamp(), original: auto };
+      it.summary = null;
+      if (v === "PASS") requestSummary(it);          // AI draft for the record (E3)
     }
     markSessionDirty();
     renderDetail(); renderList();
     schedulePersist();                       // debounced — decisions still auto-save
   });
   container.appendChild(ovBox);
+  renderSummaryCard(container, it);
+}
+
+// PASS-decision summary (E3): server drafts from the STORED result; absent
+// config → 204 → nothing appears (D3). The draft dies with the decision.
+async function requestSummary(it) {
+  const rid = it.result?.result_id;
+  if (!rid) return;
+  try {
+    const res = await fetch(`/api/verify/${rid}/summary`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ decision: "PASS", at: ovStamp(), application: it.app }),
+    });
+    if (res.status !== 200) return;
+    const body = await res.json();
+    if (ovValue(it) !== "PASS") return;      // decision changed while drafting
+    it.summary = body;
+    if (sel() === it) renderDetail();
+  } catch { /* silent — a draft is never worth an error */ }
+}
+
+function renderSummaryCard(container, it) {
+  if (ovValue(it) !== "PASS" || !it.summary?.text) return;
+  const card = document.createElement("div");
+  card.className = "summary-card";
+  card.innerHTML = `<div class="summary-head"><strong>Draft summary</strong>
+      <span class="badge badge-soft badge-sm">AI-assisted — verify before use</span>
+      <button type="button" class="btn btn-xs btn-outline" data-copy>Copy</button></div>
+    <p>${esc(it.summary.text)}</p>
+    <p class="cite">model: ${esc(it.summary.model || "?")} · drafted from the recorded
+      result; statuses above are authoritative.</p>`;
+  card.querySelector("[data-copy]").addEventListener("click", async (e) => {
+    try { await navigator.clipboard.writeText(it.summary.text);
+          e.target.textContent = "Copied ✓"; } catch { /* clipboard denied */ }
+  });
+  container.appendChild(card);
 }
 
 function screeningLabel(it) {
