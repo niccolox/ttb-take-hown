@@ -1162,6 +1162,7 @@ function renderResult(container, it) {
   ovBox.innerHTML = `<strong>Agent decision — whole label (all fields)</strong>
     <div class="note">Screening result: ${esc(auto)}. Your decision becomes the status and is
       saved; per-field decisions live on each row above.</div>
+    ${summaryProgressHtml(it)}
     <div class="btns">
       ${["PASS", "NEEDS REVIEW", "FAIL"].map((v) => {
         const locked = v === "PASS" && passLocked;
@@ -1227,23 +1228,21 @@ async function requestSummary(it) {
   } catch { it.summaryPending = false; /* silent — a draft is never worth an error */ }
 }
 
+function summaryProgressHtml(it) {
+  // rendered INSIDE the decision box, between the screening note and the
+  // buttons — drafting feedback lives where the decision was made
+  const dec = ovValue(it);
+  if (dec !== "PASS" && dec !== "FAIL") return "";
+  if (it.summaryPending && !it.summary?.text)
+    return '<div class="summary-card summary-pending"><span class="loading loading-dots loading-xs"></span> Drafting AI summary…</div>';
+  if (it.summaryError && !it.summary?.text)
+    return `<div class="summary-card summary-pending">${esc(it.summaryError)}</div>`;
+  return "";
+}
+
 function renderSummaryCard(container, it) {
   const dec = ovValue(it);
   if (dec !== "PASS" && dec !== "FAIL") return;
-  if (it.summaryError && !it.summary?.text && !it.summaryPending) {
-    const err = document.createElement("div");
-    err.className = "summary-card summary-pending";
-    err.textContent = it.summaryError;
-    container.appendChild(err);
-    return;
-  }
-  if (it.summaryPending && !it.summary?.text) {
-    const wait = document.createElement("div");
-    wait.className = "summary-card summary-pending";
-    wait.innerHTML = '<span class="loading loading-dots loading-xs"></span> Drafting AI summary…';
-    container.appendChild(wait);
-    return;
-  }
   if (!it.summary?.text) return;
   const card = document.createElement("div");
   card.className = "summary-card";
