@@ -353,3 +353,37 @@ def test_fail_summary_bullets_and_trailer(monkeypatch):
     assert "machine state at decision time: Needs correction" in text
     # failure language on a failing label never trips the PASS-only check
     assert "MISMATCH" in text
+
+
+def test_no_text_falls_back_to_deterministic_record(monkeypatch):
+    """A configured client whose model returns nothing must never cost the
+    agent the record — deterministic bullets from the recorded facts, with
+    the disclaimer saying so. D3 unchanged: unconfigured stays 204."""
+    from fastapi.testclient import TestClient
+    from api import main
+
+    class EmptyModel:
+        model = "Kimi-K2.6"
+        def available(self): return True
+        def complete(self, s, u): return None       # thinking ate the budget
+
+    fields = [{"field": "government_warning", "status": "MISMATCH",
+               "note": "title case"},
+              {"field": "brand_name", "status": "MATCH", "note": ""}]
+    store, _ = _fake_store_result(fields)
+    monkeypatch.setattr(main, "store", store)
+    monkeypatch.setattr(main, "azoai_client", EmptyModel())
+    client = TestClient(main.app)
+    r = client.post("/api/verify/sum-1/summary",
+                    json={"decision": "FAIL", "at": "t",
+                          "overrides": {"whole": {"value": "FAIL", "original": "Needs correction"},
+                                        "fields": {"government_warning": {"value": "FAIL", "at": "t"}}}})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["text"].startswith("- ")
+    assert "Government Warning: MISMATCH" in body["text"]
+    assert "Clean checks: Brand name." in body["text"]
+    assert "Override — Government Warning: machine found MISMATCH" in body["text"]
+    assert "Whole label: FAIL recorded t" in body["text"]       # trailer still appended
+    assert "AI draft unavailable" in body["disclaimer"]
+    assert "recorded facts" in body["model"]

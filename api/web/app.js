@@ -1280,7 +1280,7 @@ function renderSummaryCard(container, it) {
   const card = document.createElement("div");
   card.className = "summary-card";
   card.innerHTML = `<div class="summary-head"><strong>Draft summary</strong>
-      <span class="badge badge-soft badge-sm">AI-assisted — verify before use</span>
+      <span class="badge badge-soft badge-sm">${esc(it.summary.disclaimer || "AI-assisted — verify before use")}</span>
       <button type="button" class="btn btn-xs btn-outline" data-copy>Copy</button></div>
     ${it.summary.text.split(/\n\n+/).map((block) => {
       const lines = block.split(/\n/).map((l) => l.trim()).filter(Boolean);

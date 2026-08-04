@@ -145,6 +145,40 @@ def build_user_prompt(fields: list[dict], application: dict, decided_at: str,
     return "\n".join(lines)
 
 
+def deterministic_record(fields: list[dict], decided_at: str,
+                         overrides: dict | None, result: dict | None,
+                         decision: str) -> str:
+    """The no-model fallback: the same record built purely from recorded
+    facts. Used ONLY when the AI client is configured but returned no text
+    (reasoning models can exhaust the gateway's output cap deliberating) —
+    a drafting hiccup must never cost the agent the record. Never used when
+    the feature is off (D3: absence of config keeps absence of card)."""
+    bullets = [f"- {fact}" for fact in
+               quality_facts(result if result is not None else {"fields": fields})]
+    clean, contested = [], []
+    for f in fields:
+        name = FIELD_TITLES.get(f.get("field"), f.get("field", "?"))
+        if f.get("status") in ("MATCH", "NOT_REQUIRED", "NOT_CHECKED"):
+            clean.append(name)
+        else:
+            note = (f.get("note") or "").strip().replace("\n", " ")[:80]
+            contested.append(f"- {name}: {f.get('status')}"
+                             + (f" — {note}" if note else ""))
+    bullets.extend(contested)
+    if clean:
+        bullets.append(f"- Clean checks: {', '.join(clean)}.")
+    fld_ov = (overrides or {}).get("fields") or {}
+    by_field = {f.get("field"): f for f in fields}
+    for key, ov in fld_ov.items():
+        if isinstance(ov, dict) and ov.get("value"):
+            name = FIELD_TITLES.get(key, key)
+            machine = by_field.get(key, {}).get("status", "?")
+            bullets.append(f"- Override — {name}: machine found {machine}; "
+                           f"agent decided {ov['value']}.")
+    bullets.append(f"- Whole-label decision: {decision}, recorded {decided_at}.")
+    return "\n".join(bullets)
+
+
 def decisions_trailer(fields: list[dict], overrides: dict | None,
                       decided_at: str, decision: str = "PASS") -> str:
     """The decisions record, composed DETERMINISTICALLY — models proved

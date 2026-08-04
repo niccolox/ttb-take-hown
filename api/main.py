@@ -252,7 +252,8 @@ def samples():
 
 
 from .azure_openai import AzureOpenAIClient
-from .summary import build_user_prompt, contradicts, decisions_trailer, system_for
+from .summary import (build_user_prompt, contradicts, decisions_trailer,
+                      deterministic_record, system_for)
 
 azoai_client = AzureOpenAIClient()   # silent no-op without AZ_OPENAI_* env
 
@@ -303,8 +304,19 @@ async def pass_summary(result_id: str, request: Request):
         system_for(decision),
         build_user_prompt(fields, application, str(body.get("at") or "now"),
                           overrides=overrides, result=result, decision=decision))
+    used_model = azoai_client.model
+    disclaimer = "AI-assisted draft — verify before use"
     if not text:
-        return Response(status_code=204, headers={"X-Summary-Skip": "no_text"})
+        # the client IS configured but the model produced nothing (reasoning
+        # models can burn the whole output cap deliberating) — the agent
+        # still gets the record, built deterministically from the facts
+        logging.getLogger("uvicorn.error").info(
+            "summary: model returned no text for %s — deterministic fallback",
+            result_id)
+        text = deterministic_record(fields, str(body.get("at") or "now"),
+                                    overrides, result, decision)
+        used_model = "recorded facts (AI draft unavailable)"
+        disclaimer = "Auto-generated from recorded facts — AI draft unavailable"
     if decision == "PASS" and contradicts(fields, text):
         _layers_mod._telemetry({"kind": "j4s", "event": "summary_contradiction",
                                 "result_id": result_id, "at": time.time()})
@@ -313,8 +325,7 @@ async def pass_summary(result_id: str, request: Request):
     # left to the model (which proved willing to omit overrides)
     text = text.rstrip() + "\n\n" + decisions_trailer(
         fields, overrides, str(body.get("at") or "now"), decision=decision)
-    return {"text": text, "model": azoai_client.model,
-            "disclaimer": "AI-assisted draft — verify before use"}
+    return {"text": text, "model": used_model, "disclaimer": disclaimer}
 
 
 _UI_EVENTS = {"tour_started", "tour_completed", "first_decision"}
