@@ -334,13 +334,15 @@ function schedulePersist() {
 
 function packOverride(it) {
   const hasFields = it.fieldOverrides && Object.keys(it.fieldOverrides).length;
-  if (!it.override && !hasFields) return null;
-  return { whole: it.override || null, fields: hasFields ? it.fieldOverrides : {} };
+  if (!it.override && !hasFields && !it.summary) return null;
+  return { whole: it.override || null, fields: hasFields ? it.fieldOverrides : {},
+           summary: it.summary || null };          // PASS draft survives reload
 }
 
 function unpackOverride(it, raw) {
   if (raw && typeof raw === "object" && ("whole" in raw || "fields" in raw)) {
     it.override = raw.whole || null;
+    it.summary = raw.summary || null;
     it.fieldOverrides = raw.fields || {};
   } else {                                        // legacy: whole-label only
     it.override = raw || null;
@@ -1178,10 +1180,12 @@ function renderResult(container, it) {
     if (ovValue(it) === v) {
       it.override = null;                            // click again to retract
       it.summary = null;                             // draft dies with the decision
+      it.summaryError = null;
     } else {
       noteDecision();                      // T5
       it.override = { value: v, at: ovStamp(), original: auto };
       it.summary = null;
+      it.summaryError = null;
       if (v === "PASS") requestSummary(it);          // AI draft for the record (E3)
     }
     markSessionDirty();
@@ -1203,18 +1207,33 @@ async function requestSummary(it) {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ decision: "PASS", at: ovStamp(), application: it.app }),
     });
-    if (res.status !== 200) { it.summaryPending = false;
-                              if (sel() === it) renderDetail(); return; }
+    if (res.status !== 200) {
+      it.summaryPending = false;
+      if (res.status === 404) it.summaryError =
+        "Draft summary unavailable — this result has expired (restored session). " +
+        "Re-check the label, then PASS again to draft one.";
+      if (sel() === it) renderDetail();
+      return;
+    }
     const body = await res.json();
     it.summaryPending = false;
     if (ovValue(it) !== "PASS") return;      // decision changed while drafting
     it.summary = body;
+    markSessionDirty();
+    schedulePersist();                        // the draft rides the session save
     if (sel() === it) renderDetail();
   } catch { it.summaryPending = false; /* silent — a draft is never worth an error */ }
 }
 
 function renderSummaryCard(container, it) {
   if (ovValue(it) !== "PASS") return;
+  if (it.summaryError && !it.summary?.text && !it.summaryPending) {
+    const err = document.createElement("div");
+    err.className = "summary-card summary-pending";
+    err.textContent = it.summaryError;
+    container.appendChild(err);
+    return;
+  }
   if (it.summaryPending && !it.summary?.text) {
     const wait = document.createElement("div");
     wait.className = "summary-card summary-pending";
