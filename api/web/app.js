@@ -776,7 +776,7 @@ function renderDetail() {
     d.appendChild(head);
   }
   renderJourney(d, it);
-  renderSummaryCard(d, it);          // decided applications lead with the record
+  renderSummaryCard(d, it, "top");   // AI drafts lead the record
   for (const p of (it.panels || []).filter((p) => p.bitmap)) {
     const img = document.createElement("img");
     img.className = "thumb";
@@ -1196,6 +1196,7 @@ function renderResult(container, it) {
     schedulePersist();                       // debounced — decisions still auto-save
   });
   container.appendChild(ovBox);
+  renderSummaryCard(container, it, "bottom");   // auto-generated fallback as footer
 }
 
 // PASS-decision summary (E3): server drafts from the STORED result; absent
@@ -1257,9 +1258,15 @@ function summaryProgressHtml(it) {
   return "";
 }
 
-function renderSummaryCard(container, it) {
+function renderSummaryCard(container, it, where = "top") {
   const dec = ovValue(it);
   if (dec !== "PASS" && dec !== "FAIL") return;
+  // the genuine AI draft leads the result; the auto-generated fallback
+  // (facts the rows above already show) reads as a footer record instead
+  const auto = /AI draft unavailable/i.test(it.summary?.disclaimer || "");
+  if (it.summary?.text && ((where === "top" && auto) || (where === "bottom" && !auto)))
+    return;
+  if (where === "bottom" && !it.summary?.text) return;
   if (!it.summary?.text) {
     if (it.summaryError && !it.summaryPending) {
       const err = document.createElement("div");
