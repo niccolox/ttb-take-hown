@@ -774,6 +774,7 @@ function renderDetail() {
     d.appendChild(head);
   }
   renderJourney(d, it);
+  renderSummaryCard(d, it);          // decided applications lead with the record
   for (const p of (it.panels || []).filter((p) => p.bitmap)) {
     const img = document.createElement("img");
     img.className = "thumb";
@@ -1049,7 +1050,6 @@ function renderResult(container, it) {
   const banner = document.createElement("div");
   banner.className = "banner " + cls; banner.textContent = text;
   container.appendChild(banner);
-  renderSummaryCard(container, it);          // the PASS draft reads as part of the summary
   if (ov && typeof it.override === "object") {
     const audit = document.createElement("p");
     audit.className = "ov-note";
