@@ -42,6 +42,10 @@ def base_and_query(uri: str) -> tuple[str, dict]:
 
 def main() -> int:
     load_env()
+    if os.environ.get("OPENAI_DEBUG", "").lower() in ("1", "true", "yes", "on"):
+        os.environ.setdefault("OPENAI_LOG", "debug")   # openai SDK's native debug
+        import logging
+        logging.basicConfig(level=logging.DEBUG)
     uri = os.environ.get("AZ_OPENAI_URI", "")
     key = os.environ.get("AZ_OPENAI_API_KEY", "")
     model = os.environ.get("AZ_OPENAI_MODEL", "gpt-4.1")

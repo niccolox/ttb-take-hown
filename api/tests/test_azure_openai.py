@@ -189,3 +189,53 @@ def test_responses_text_extraction_output_array():
                            {"type": "output_text", "text": "Part one."},
                            {"type": "output_text", "text": "Part two."}]}]}
     assert AzureOpenAIClient._responses_text(body) == "Part one. Part two."
+
+
+def test_debug_mode_logs_without_leaking_the_key(monkeypatch, caplog):
+    """OPENAI_DEBUG=true emits request/response/error detail — and the API
+    key must never appear in any log line, in any mode."""
+    import logging
+    _env(monkeypatch)
+    monkeypatch.setenv("OPENAI_DEBUG", "true")
+    _capture(monkeypatch)
+    with caplog.at_level(logging.INFO, logger="uvicorn.error"):
+        c = AzureOpenAIClient()
+        assert c.complete("system rules", "summarize the result") is not None
+    text = "\n".join(r.getMessage() for r in caplog.records)
+    assert "[openai-debug]" in text
+    assert "→ chat" in text and "model=gpt-test" in text
+    assert "text (" in text                          # response text logged
+    assert "k9" not in text                          # the key, never
+    # failures log the error body in debug mode
+    caplog.clear()
+    _capture(monkeypatch, fail=True)
+    with caplog.at_level(logging.INFO, logger="uvicorn.error"):
+        c.complete("s", "u")
+    assert "✗" in "\n".join(r.getMessage() for r in caplog.records)
+
+
+def test_debug_off_is_quiet(monkeypatch, caplog):
+    import logging
+    _env(monkeypatch)
+    monkeypatch.delenv("OPENAI_DEBUG", raising=False)
+    _capture(monkeypatch)
+    with caplog.at_level(logging.INFO, logger="uvicorn.error"):
+        AzureOpenAIClient().complete("s", "u")
+    assert "[openai-debug]" not in "\n".join(r.getMessage() for r in caplog.records)
+
+
+def test_responses_endpoint_autodetected(monkeypatch):
+    monkeypatch.setenv("AZ_OPENAI_URI",
+                       "https://r.cognitiveservices.azure.com/openai/responses?api-version=x")
+    monkeypatch.setenv("AZ_OPENAI_API_KEY", "k9")
+    monkeypatch.setenv("AZ_OPENAI_MODEL", "m")
+    cap = _capture(monkeypatch)
+
+    def fake_urlopen(req, timeout=0):
+        payload = json.loads(req.data)
+        assert "input" in payload and "messages" not in payload   # no chat round trip
+        return io.BytesIO(json.dumps({"output_text": "hi"}).encode())
+    monkeypatch.setattr(azure_openai.urllib.request, "urlopen", fake_urlopen)
+    c = AzureOpenAIClient()
+    assert c._dialect == "responses"
+    assert c.complete("s", "u") == "hi"

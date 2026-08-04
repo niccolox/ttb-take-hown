@@ -18,6 +18,10 @@ Hard rules, same posture as the VLM client (D3 lineage):
 - Breaker: 3 consecutive failures → 30 s cooloff.
 - Output never becomes a verdict: callers render text; nothing in this
   module touches field status (enforced at the caller by AD-41 semantics).
+- Debug: OPENAI_DEBUG=true logs request/response detail (dialect, model,
+  latency, sizes, truncated text, full error bodies) — the API key is
+  NEVER logged in any mode. Dev flag; leave unset in shared environments
+  (prompts contain application values).
 """
 
 from __future__ import annotations
@@ -42,13 +46,19 @@ BREAKER_COOLOFF_S = 30.0
 
 class AzureOpenAIClient:
     def __init__(self, api_key: str | None = None):
+        self.debug = os.environ.get("OPENAI_DEBUG", "").strip().lower() \
+            in ("1", "true", "yes", "on")
         self.endpoint = os.environ.get("AZ_OPENAI_URI", "")
         self.model = os.environ.get("AZ_OPENAI_MODEL", DEFAULT_MODEL)
         self.api_key = api_key if api_key is not None \
             else os.environ.get("AZ_OPENAI_API_KEY", "")
         self._fails = 0
         self._cool_until = 0.0
-        self._dialect = "chat"        # flips to "responses" on gateway hint
+        # a /responses endpoint declares its dialect — skip the chat round
+        # trip (the gateway-hint flip still covers gateways that route
+        # chat/completions URLs to Responses)
+        self._dialect = ("responses" if "/responses" in self.endpoint.split("?")[0]
+                         else "chat")
 
     def available(self) -> bool:
         if not self.api_key or not self.endpoint:
@@ -83,6 +93,7 @@ class AzureOpenAIClient:
             body = self._post(payload)
             answer = body["choices"][0]["message"]["content"]
             self._fails = 0
+            self._dbg("text (%d chars): %s", len(answer or ""), (answer or "")[:200])
             return (answer or "").strip() or None
         except urllib.error.HTTPError as e:
             detail = ""
@@ -105,9 +116,10 @@ class AzureOpenAIClient:
             # Foundry gateways can route deployments to the Responses API
             # ("'messages' has moved to 'input'") — switch dialect and retry
             if e.code == 400 and "moved to 'input'" in detail:
+                self._dbg("dialect flip: chat → responses (gateway hint)")
                 self._dialect = "responses"
                 return self._complete_responses(messages, cap)
-            return self._note_failure(e)
+            return self._note_failure(e, detail)
         except (urllib.error.URLError, OSError, KeyError, IndexError,
                 json.JSONDecodeError, TimeoutError) as e:
             return self._note_failure(e)
@@ -118,21 +130,49 @@ class AzureOpenAIClient:
                                "max_output_tokens": cap})
             text = self._responses_text(body)
             self._fails = 0
+            self._dbg("text (%d chars): %s", len(text or ""), (text or "")[:200])
             return (text or "").strip() or None
         except (urllib.error.URLError, OSError, KeyError, IndexError,
                 json.JSONDecodeError, TimeoutError) as e:
             return self._note_failure(e)
 
+    def _dbg(self, msg: str, *args) -> None:
+        if self.debug:
+            log.info("[openai-debug] " + msg, *args)
+
     def _post(self, payload: dict) -> dict:
+        data = json.dumps(payload).encode()
+        if self.debug:
+            kind = "responses" if "input" in payload else "chat"
+            self._dbg("→ %s %s model=%s bytes=%d cap=%s", kind, self.endpoint,
+                      payload.get("model"),
+                      len(data),
+                      payload.get("max_output_tokens") or
+                      payload.get("max_completion_tokens") or
+                      payload.get("max_tokens"))
+            msgs = payload.get("messages") or payload.get("input") or []
+            for m in msgs:
+                c = m.get("content")
+                text = c if isinstance(c, str) else json.dumps(c)
+                self._dbg("  %s: %s", m.get("role"), text[:300])
         req = urllib.request.Request(
-            self.endpoint, data=json.dumps(payload).encode(), method="POST",
+            self.endpoint, data=data, method="POST",
             headers={"Content-Type": "application/json",
                      "Authorization": f"Bearer {self.api_key}",
                      "api-key": self.api_key})
+        t0 = time.monotonic()
         with urllib.request.urlopen(req, timeout=30) as resp:
-            return json.load(resp)
+            body = json.load(resp)
+        if self.debug:
+            usage = body.get("usage") or {}
+            self._dbg("← %d ms status=%s usage=%s",
+                      round((time.monotonic() - t0) * 1000),
+                      body.get("status", "ok"), json.dumps(usage)[:200])
+        return body
 
-    def _note_failure(self, e: Exception) -> None:
+    def _note_failure(self, e: Exception, detail: str = "") -> None:
+        if self.debug:
+            self._dbg("✗ %s %s", type(e).__name__, (detail or str(e))[:500])
         self._fails += 1
         if self._fails >= BREAKER_FAILS:
             self._cool_until = time.monotonic() + BREAKER_COOLOFF_S
