@@ -254,6 +254,9 @@ dialog canvas { max-width: 86vw; }
 .summary-card p { @apply my-1; }
 .summary-card ul { @apply my-1 pl-5 list-disc; }
 .summary-card li { @apply my-0.5; }
+/* machine-vs-agent differences are the record's emphasis */
+.summary-card li.sum-diff { @apply font-semibold; }
+.summary-card li.sum-diff::marker { color: #8a6d00; }
 
 /* guided walk-through (train-before-pilot T1): highlighted anchor + one
    fixed tooltip at the bottom — no per-anchor positioning math to go wrong */

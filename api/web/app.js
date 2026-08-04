@@ -1285,7 +1285,11 @@ function renderSummaryCard(container, it) {
     ${it.summary.text.split(/\n\n+/).map((block) => {
       const lines = block.split(/\n/).map((l) => l.trim()).filter(Boolean);
       if (lines.length && lines.every((l) => /^[-•]\s/.test(l)))
-        return `<ul>${lines.map((l) => `<li>${esc(l.replace(/^[-•]\s*/, ""))}</li>`).join("")}</ul>`;
+        return `<ul>${lines.map((l) => {
+          const text = l.replace(/^[-•]\s*/, "");
+          const diff = /^override\b|machine found/i.test(text);
+          return `<li${diff ? ' class="sum-diff"' : ""}>${esc(text)}</li>`;
+        }).join("")}</ul>`;
       return `<p>${esc(block)}</p>`;
     }).join("")}
     <p class="cite">model: ${esc(it.summary.model || "?")} · drafted from the recorded
