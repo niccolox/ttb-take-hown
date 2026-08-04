@@ -777,6 +777,7 @@ function renderDetail() {
   }
   renderJourney(d, it);
   renderSummaryCard(d, it, "top");   // AI drafts lead the record
+  renderAiReview(d, it);             // auto triage when ≥50% of rows troubled
   for (const p of (it.panels || []).filter((p) => p.bitmap)) {
     const img = document.createElement("img");
     img.className = "thumb";
@@ -1308,6 +1309,44 @@ function renderSummaryCard(container, it, where = "top") {
   container.appendChild(card);
 }
 
+// Troubled-application AI review: auto-triggered server-side when ≥50% of
+// checked rows settle MISMATCH/NEEDS_REVIEW. Suggestion-only — and it shows
+// its debugging (trigger math, model, timing) so the trust story is visible.
+function renderAiReview(container, it) {
+  const ai = it.result?.enrichments?.ai_review;
+  if (!ai) return;
+  const card = document.createElement("div");
+  if (ai === "pending") {
+    card.className = "summary-card summary-pending";
+    card.innerHTML = `<div class="summary-head"><strong>AI review</strong>
+        <span class="badge badge-soft badge-sm">running…</span></div>
+      <p class="note">Over half of the checks need attention — drafting a triage
+        review of this application.</p>`;
+    container.appendChild(card);
+    return;
+  }
+  const dbg = ai.debug || {};
+  const bullets = (ai.text || "").split(/\n/).map((l) => l.trim())
+    .filter((l) => /^[-•]\s/.test(l)).map((l) => l.replace(/^[-•]\s*/, ""));
+  const body = bullets.length
+    ? `<ul>${bullets.map((b) => `<li>${esc(b)}</li>`).join("")}</ul>`
+    : `<p>${esc(ai.text || "")}</p>`;
+  card.className = "summary-card";
+  card.innerHTML = `<div class="summary-head"><strong>AI review — troubled application</strong>
+      <span class="badge badge-soft badge-sm badge-warning">${esc(ai.disclaimer || "AI triage — the agent decides")}</span></div>
+    ${body}
+    <details class="cite"><summary>Debug — why this ran</summary>
+      <div>trigger: ${dbg.flagged ?? "?"}/${dbg.counted ?? "?"} checked rows troubled —
+        ratio ${dbg.ratio ?? "?"} ≥ threshold ${dbg.threshold ?? "?"}</div>
+      <div>flagged: ${esc((dbg.flagged_fields || []).map((f) =>
+        `${f.field}=${f.status}${f.reason ? ` (${f.reason})` : ""}`).join(", "))}</div>
+      <div>model: ${esc(String(dbg.model || "?"))} · dialect: ${esc(String(dbg.dialect || "?"))}
+        · elapsed: ${dbg.elapsed_ms ?? "?"} ms
+        · fallback: ${dbg.fallback ? "yes — deterministic (model returned no text)" : "no"}</div>
+    </details>`;
+  container.appendChild(card);
+}
+
 function screeningLabel(it) {
   const s = autoState(it);
   return { done_green: "All clear", pass_agent: "Passed by agent decision",
@@ -1408,7 +1447,7 @@ async function runOne(it) {
 // only swap in newer machine results and re-render).
 async function pollRefinements(it, resultId) {
   const pollStart = performance.now();      // stage-2 clock starts at handoff
-  let delay = 1000; const deadline = Date.now() + 60000;
+  let delay = 1000, deadline = Date.now() + 60000, settledAt = 0;
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, delay));
     delay = Math.min(delay * 1.5, 5000);
@@ -1436,7 +1475,26 @@ async function pollRefinements(it, resultId) {
       markSessionDirty(); renderList(); if (sel() === it) renderDetail();
       schedulePersist();
     }
-    if (body.settled) return;
+    if (body.settled) {
+      // Troubled-application AI review: when ≥50% of checked rows settle
+      // red/amber the server attaches enrichments.ai_review moments after
+      // settle ("pending" → the triage card). Follow it so the card lands
+      // without a manual refresh; give up quietly when it never appears
+      // (Azure client not configured) or the model is too slow.
+      const ai = (body.enrichments || {}).ai_review;
+      if (ai && ai !== "pending") return;          // review landed
+      const counted = (body.fields || []).filter((f) => f.status !== "NOT_CHECKED");
+      const troubled = counted.filter((f) =>
+        f.status === "MISMATCH" || f.status === "NEEDS_REVIEW").length;
+      if (!counted.length || troubled / counted.length < 0.5) return;
+      settledAt = settledAt || Date.now();
+      // 90s: the Azure client's incomplete-retry (reasoning models burning
+      // the output cap) can take ~55s before the deterministic fallback lands
+      const grace = ai === "pending" ? 90000 : 6000;
+      if (Date.now() - settledAt > grace) return;
+      deadline = Math.max(deadline, settledAt + grace + 2000);
+      delay = 1500;
+    }
   }
   // 60s without settling (queue backlog, shed jobs): stop polling but never
   // leave a provisional verdict looking final

@@ -252,10 +252,17 @@ def samples():
 
 
 from .azure_openai import AzureOpenAIClient
+from .review import run_ai_review
 from .summary import (build_user_prompt, contradicts, decisions_trailer,
                       deterministic_record, system_for)
 
 azoai_client = AzureOpenAIClient()   # silent no-op without AZ_OPENAI_* env
+# troubled-application trigger: ≥50% of checked fields red/amber after the
+# second layer settles → background AI triage review (D3: no client, no-op).
+# Own daemon thread: a slow model call must never occupy a J-layer worker.
+jobq.post_settle = lambda rid: threading.Thread(
+    target=run_ai_review, args=(rid, store, azoai_client),
+    name="labelcheck-ai-review", daemon=True).start()
 
 
 @app.post("/api/verify/{result_id}/summary", include_in_schema=False)

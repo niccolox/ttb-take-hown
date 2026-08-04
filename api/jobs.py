@@ -16,6 +16,7 @@ Design constraints from the plan's review decisions:
 
 from __future__ import annotations
 
+import logging
 import threading
 import time
 import uuid
@@ -170,6 +171,8 @@ class JobQueue:
     sheds it AT SUBMIT TIME (AD-27) — callers learn `shed` in the POST
     response, not by polling."""
 
+    post_settle = None               # set by main: fires on settle (advisory)
+
     def __init__(self, store: ResultStore, workers: int = 2,
                  bound: int = QUEUE_BOUND,
                  watchdog_interval_s: float = WATCHDOG_INTERVAL_S):
@@ -258,6 +261,16 @@ class JobQueue:
                 return                       # watchdog/cancel got there first
             fn()                             # the layer's work; merges via store.mutate
             self._set_state(rid, layer, DONE)
+            # post-settle hook (troubled-application AI review): fires when
+            # THIS completion made the entry settled; the hook dedupes itself
+            entry_after = self._store.get(rid)
+            if entry_after is not None and entry_after.settled() \
+                    and self.post_settle is not None:
+                try:
+                    self.post_settle(rid)
+                except Exception:                # advisory layer, never fatal
+                    logging.getLogger("uvicorn.error").warning(
+                        "post_settle hook failed for %s", rid, exc_info=True)
         except Exception as exc:             # exactly one terminal state, always
             self._set_state(rid, layer, FAILED, error=repr(exc)[:200])
         finally:
