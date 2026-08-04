@@ -110,9 +110,9 @@ def test_pass_summary_endpoint(monkeypatch):
                     json={"decision": "PASS", "at": "t", "application": {"brand_name": "X"}})
     assert r.status_code == 200
     assert "matched" in r.json()["text"] and r.json()["model"] == "gpt-test"
-    # PASS-only endpoint
+    # PASS and FAIL are the recordable decisions; open states are not
     assert client.post("/api/verify/sum-1/summary",
-                       json={"decision": "FAIL"}).status_code == 400
+                       json={"decision": "NEEDS REVIEW"}).status_code == 400
     # unknown result
     assert client.post("/api/verify/nope/summary",
                        json={"decision": "PASS"}).status_code == 404
@@ -322,3 +322,34 @@ def test_decisions_trailer_deterministic():
     # clean pass, no overrides → just the whole-label line
     tr2 = decisions_trailer([{"field": "a", "status": "MATCH"}], {}, "t")
     assert tr2 == "Agent decisions on record: Whole label: PASS recorded t."
+
+
+def test_fail_summary_bullets_and_trailer(monkeypatch):
+    from fastapi.testclient import TestClient
+    from api import main
+
+    class FakeClient:
+        model = "m"
+        def available(self): return True
+        def complete(self, system, user):
+            assert "bullet lines only" in system.lower() or "bullet" in system
+            assert "Whole-label decision: FAIL" in user
+            return ("- Government Warning: MISMATCH — printed in title case\n"
+                    "- Alcohol content: MATCH\n"
+                    "- One panel submitted; all statements readable")
+
+    fields = [{"field": "government_warning", "status": "MISMATCH", "note": "title case"}]
+    store, _ = _fake_store_result(fields)
+    monkeypatch.setattr(main, "store", store)
+    monkeypatch.setattr(main, "azoai_client", FakeClient())
+    client = TestClient(main.app)
+    r = client.post("/api/verify/sum-1/summary",
+                    json={"decision": "FAIL", "at": "t",
+                          "overrides": {"whole": {"value": "FAIL", "original": "Needs correction"}}})
+    assert r.status_code == 200
+    text = r.json()["text"]
+    assert text.startswith("- Government Warning")
+    assert "Whole label: FAIL recorded t" in text
+    assert "machine state at decision time: Needs correction" in text
+    # failure language on a failing label never trips the PASS-only check
+    assert "MISMATCH" in text

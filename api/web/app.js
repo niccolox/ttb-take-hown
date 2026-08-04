@@ -1186,7 +1186,7 @@ function renderResult(container, it) {
       it.override = { value: v, at: ovStamp(), original: auto };
       it.summary = null;
       it.summaryError = null;
-      if (v === "PASS") requestSummary(it);          // AI draft for the record (E3)
+      if (v === "PASS" || v === "FAIL") requestSummary(it);   // AI record draft (E3)
     }
     markSessionDirty();
     renderDetail(); renderList();
@@ -1199,13 +1199,14 @@ function renderResult(container, it) {
 // config → 204 → nothing appears (D3). The draft dies with the decision.
 async function requestSummary(it) {
   const rid = it.result?.result_id;
-  if (!rid) return;
+  const decision = ovValue(it);
+  if (!rid || (decision !== "PASS" && decision !== "FAIL")) return;
   it.summaryPending = true;
   if (sel() === it) renderDetail();
   try {
     const res = await fetch(`/api/verify/${rid}/summary`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ decision: "PASS", at: ovStamp(), application: it.app,
+      body: JSON.stringify({ decision, at: ovStamp(), application: it.app,
         overrides: { whole: it.override || null, fields: it.fieldOverrides || {} } }),
     });
     if (res.status !== 200) {
@@ -1218,7 +1219,7 @@ async function requestSummary(it) {
     }
     const body = await res.json();
     it.summaryPending = false;
-    if (ovValue(it) !== "PASS") return;      // decision changed while drafting
+    if (ovValue(it) !== decision) return;    // decision changed while drafting
     it.summary = body;
     markSessionDirty();
     schedulePersist();                        // the draft rides the session save
@@ -1227,7 +1228,8 @@ async function requestSummary(it) {
 }
 
 function renderSummaryCard(container, it) {
-  if (ovValue(it) !== "PASS") return;
+  const dec = ovValue(it);
+  if (dec !== "PASS" && dec !== "FAIL") return;
   if (it.summaryError && !it.summary?.text && !it.summaryPending) {
     const err = document.createElement("div");
     err.className = "summary-card summary-pending";
@@ -1248,7 +1250,12 @@ function renderSummaryCard(container, it) {
   card.innerHTML = `<div class="summary-head"><strong>Draft summary</strong>
       <span class="badge badge-soft badge-sm">AI-assisted — verify before use</span>
       <button type="button" class="btn btn-xs btn-outline" data-copy>Copy</button></div>
-    ${it.summary.text.split(/\n\n+/).map((para) => `<p>${esc(para)}</p>`).join("")}
+    ${it.summary.text.split(/\n\n+/).map((block) => {
+      const lines = block.split(/\n/).map((l) => l.trim()).filter(Boolean);
+      if (lines.length && lines.every((l) => /^[-•]\s/.test(l)))
+        return `<ul>${lines.map((l) => `<li>${esc(l.replace(/^[-•]\s*/, ""))}</li>`).join("")}</ul>`;
+      return `<p>${esc(block)}</p>`;
+    }).join("")}
     <p class="cite">model: ${esc(it.summary.model || "?")} · drafted from the recorded
       result; statuses above are authoritative.</p>`;
   card.querySelector("[data-copy]").addEventListener("click", async (e) => {

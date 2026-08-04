@@ -252,6 +252,8 @@ dialog canvas { max-width: 86vw; }
 .summary-card .summary-head { @apply flex items-center gap-2 mb-1; }
 .summary-card .summary-head button { margin-left: auto; }
 .summary-card p { @apply my-1; }
+.summary-card ul { @apply my-1 pl-5 list-disc; }
+.summary-card li { @apply my-0.5; }
 
 /* guided walk-through (train-before-pilot T1): highlighted anchor + one
    fixed tooltip at the bottom — no per-anchor positioning math to go wrong */
