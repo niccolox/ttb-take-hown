@@ -1047,6 +1047,7 @@ function renderResult(container, it) {
   const banner = document.createElement("div");
   banner.className = "banner " + cls; banner.textContent = text;
   container.appendChild(banner);
+  renderSummaryCard(container, it);          // the PASS draft reads as part of the summary
   if (ov && typeof it.override === "object") {
     const audit = document.createElement("p");
     audit.className = "ov-note";
@@ -1188,7 +1189,6 @@ function renderResult(container, it) {
     schedulePersist();                       // debounced — decisions still auto-save
   });
   container.appendChild(ovBox);
-  renderSummaryCard(container, it);
 }
 
 // PASS-decision summary (E3): server drafts from the STORED result; absent
@@ -1196,21 +1196,33 @@ function renderResult(container, it) {
 async function requestSummary(it) {
   const rid = it.result?.result_id;
   if (!rid) return;
+  it.summaryPending = true;
+  if (sel() === it) renderDetail();
   try {
     const res = await fetch(`/api/verify/${rid}/summary`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ decision: "PASS", at: ovStamp(), application: it.app }),
     });
-    if (res.status !== 200) return;
+    if (res.status !== 200) { it.summaryPending = false;
+                              if (sel() === it) renderDetail(); return; }
     const body = await res.json();
+    it.summaryPending = false;
     if (ovValue(it) !== "PASS") return;      // decision changed while drafting
     it.summary = body;
     if (sel() === it) renderDetail();
-  } catch { /* silent — a draft is never worth an error */ }
+  } catch { it.summaryPending = false; /* silent — a draft is never worth an error */ }
 }
 
 function renderSummaryCard(container, it) {
-  if (ovValue(it) !== "PASS" || !it.summary?.text) return;
+  if (ovValue(it) !== "PASS") return;
+  if (it.summaryPending && !it.summary?.text) {
+    const wait = document.createElement("div");
+    wait.className = "summary-card summary-pending";
+    wait.innerHTML = '<span class="loading loading-dots loading-xs"></span> Drafting AI summary…';
+    container.appendChild(wait);
+    return;
+  }
+  if (!it.summary?.text) return;
   const card = document.createElement("div");
   card.className = "summary-card";
   card.innerHTML = `<div class="summary-head"><strong>Draft summary</strong>

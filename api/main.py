@@ -271,9 +271,10 @@ async def pass_summary(result_id: str, request: Request):
                             headers={"Retry-After": str(max(1, int(retry_after)))})
     if int(request.headers.get("content-length") or 0) > 2048:
         return JSONResponse({"error": "too_large"}, status_code=413)
-    if os.environ.get("LABELCHECK_SUMMARY", "on") == "off" \
-            or not azoai_client.available():
-        return Response(status_code=204)
+    if os.environ.get("LABELCHECK_SUMMARY", "on") == "off":
+        return Response(status_code=204, headers={"X-Summary-Skip": "flag_off"})
+    if not azoai_client.available():
+        return Response(status_code=204, headers={"X-Summary-Skip": "unavailable"})
     try:
         body = await request.json()
     except Exception:
@@ -292,11 +293,11 @@ async def pass_summary(result_id: str, request: Request):
         _SUMMARY_SYSTEM,
         build_user_prompt(fields, application, str(body.get("at") or "now")))
     if not text:
-        return Response(status_code=204)
+        return Response(status_code=204, headers={"X-Summary-Skip": "no_text"})
     if contradicts(fields, text):
         _layers_mod._telemetry({"kind": "j4s", "event": "summary_contradiction",
                                 "result_id": result_id, "at": time.time()})
-        return Response(status_code=204)
+        return Response(status_code=204, headers={"X-Summary-Skip": "contradiction"})
     return {"text": text, "model": azoai_client.model,
             "disclaimer": "AI-assisted draft — verify before use"}
 

@@ -32,7 +32,9 @@ import urllib.request
 log = logging.getLogger("uvicorn.error")
 
 DEFAULT_MODEL = "gpt-4.1"
-MAX_OUTPUT_TOKENS = 700          # summaries are short by design (plan E3)
+MAX_OUTPUT_TOKENS = 2400         # summaries are short by design (plan E3) — the
+                                 # ceiling leaves room for reasoning models that
+                                 # think before answering (empty-output otherwise)
 
 BREAKER_FAILS = 3
 BREAKER_COOLOFF_S = 30.0
@@ -46,37 +48,50 @@ class AzureOpenAIClient:
             else os.environ.get("AZ_OPENAI_API_KEY", "")
         self._fails = 0
         self._cool_until = 0.0
+        self._dialect = "chat"        # flips to "responses" on gateway hint
 
     def available(self) -> bool:
         if not self.api_key or not self.endpoint:
             return False
         return time.monotonic() >= self._cool_until
 
+    @staticmethod
+    def _responses_text(body: dict) -> str:
+        """Extract text from a Responses-API body (output_text, or the
+        message parts inside output[])."""
+        text = body.get("output_text")
+        if text:
+            return text
+        parts = [c.get("text") for o in body.get("output", [])
+                 if o.get("type") == "message"
+                 for c in o.get("content", []) if c.get("type") == "output_text"]
+        return " ".join(p for p in parts if p)
+
     def complete(self, system: str, user: str,
                  max_tokens: int = MAX_OUTPUT_TOKENS) -> str | None:
         """One chat completion. Returns the text or None (silent no-op)."""
         if not self.available():
             return None
-        payload = {
-            "model": self.model,
-            "messages": [{"role": "system", "content": system},
-                         {"role": "user", "content": user}],
-            "max_tokens": min(max_tokens, MAX_OUTPUT_TOKENS),
-            "temperature": 0.0,
-        }
+        messages = [{"role": "system", "content": system},
+                    {"role": "user", "content": user}]
+        cap = min(max_tokens, MAX_OUTPUT_TOKENS)
+        if self._dialect == "responses":
+            return self._complete_responses(messages, cap)
+        payload = {"model": self.model, "messages": messages,
+                   "max_tokens": cap, "temperature": 0.0}
         try:
             body = self._post(payload)
             answer = body["choices"][0]["message"]["content"]
             self._fails = 0
             return (answer or "").strip() or None
         except urllib.error.HTTPError as e:
-            # gpt-5.x-class chat deployments reject max_tokens in favor of
-            # max_completion_tokens — adapt once, then the normal error path
             detail = ""
             try:
                 detail = e.read().decode()[:400]
             except OSError:
                 pass
+            # gpt-5.x-class chat deployments reject max_tokens in favor of
+            # max_completion_tokens — adapt once
             if e.code == 400 and "max_completion_tokens" in detail:
                 try:
                     payload["max_completion_tokens"] = payload.pop("max_tokens")
@@ -86,8 +101,24 @@ class AzureOpenAIClient:
                     self._fails = 0
                     return (answer or "").strip() or None
                 except Exception as e2:             # noqa: BLE001 — same silent posture
-                    e = e2
+                    return self._note_failure(e2)
+            # Foundry gateways can route deployments to the Responses API
+            # ("'messages' has moved to 'input'") — switch dialect and retry
+            if e.code == 400 and "moved to 'input'" in detail:
+                self._dialect = "responses"
+                return self._complete_responses(messages, cap)
             return self._note_failure(e)
+        except (urllib.error.URLError, OSError, KeyError, IndexError,
+                json.JSONDecodeError, TimeoutError) as e:
+            return self._note_failure(e)
+
+    def _complete_responses(self, messages: list[dict], cap: int) -> str | None:
+        try:
+            body = self._post({"model": self.model, "input": messages,
+                               "max_output_tokens": cap})
+            text = self._responses_text(body)
+            self._fails = 0
+            return (text or "").strip() or None
         except (urllib.error.URLError, OSError, KeyError, IndexError,
                 json.JSONDecodeError, TimeoutError) as e:
             return self._note_failure(e)

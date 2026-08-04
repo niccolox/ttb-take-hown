@@ -153,3 +153,39 @@ def test_contradiction_check_unit():
     assert contradicts(green, "the field failed to match") is True
     assert contradicts(green, "everything matched cleanly") is False
     assert contradicts(red, "one field is a mismatch, decided PASS anyway") is False
+
+
+def test_responses_dialect_fallback(monkeypatch):
+    """Foundry gateways can route a deployment to the Responses API — the
+    client must flip dialect on the 'moved to input' hint and parse
+    output_text, then stick with responses for subsequent calls."""
+    import email.message
+    _env(monkeypatch)
+    calls = []
+
+    def fake_urlopen(req, timeout=0):
+        payload = json.loads(req.data)
+        calls.append(payload)
+        if "messages" in payload:
+            hdrs = email.message.Message()
+            raise urllib.error.HTTPError(
+                req.full_url, 400, "bad", hdrs,
+                io.BytesIO(b'{"error":{"message":"Unsupported parameter: \'messages\'. '
+                           b'In the Responses API, this parameter has moved to \'input\'."}}'))
+        assert "input" in payload and "max_output_tokens" in payload
+        return io.BytesIO(json.dumps({"output_text": "All clear summary."}).encode())
+
+    monkeypatch.setattr(azure_openai.urllib.request, "urlopen", fake_urlopen)
+    c = AzureOpenAIClient()
+    assert c.complete("s", "u") == "All clear summary."
+    assert c._dialect == "responses" and len(calls) == 2
+    assert c.complete("s", "u") == "All clear summary."
+    assert len(calls) == 3                       # no chat retry the second time
+
+
+def test_responses_text_extraction_output_array():
+    body = {"output": [{"type": "reasoning"},
+                       {"type": "message", "content": [
+                           {"type": "output_text", "text": "Part one."},
+                           {"type": "output_text", "text": "Part two."}]}]}
+    assert AzureOpenAIClient._responses_text(body) == "Part one. Part two."
