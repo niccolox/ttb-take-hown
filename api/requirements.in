@@ -15,3 +15,6 @@ duckdb==1.5.5
 fastapi
 uvicorn
 python-multipart
+# Azure OpenAI / Foundry SDK — CLI + future J4 use; the in-app client
+# stays stdlib-urllib on purpose (no SDK in the verdict-adjacent path)
+openai

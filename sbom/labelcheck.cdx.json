@@ -3,16 +3,16 @@
  "specVersion": "1.5",
  "version": 1,
  "metadata": {
-  "timestamp": "2026-08-03T22:01:23+00:00",
+  "timestamp": "2026-08-04T02:33:16+00:00",
   "component": {
    "type": "application",
    "name": "labelcheck",
-   "version": "d3976e28f405"
+   "version": "0e42604c67da"
   },
   "properties": [
    {
     "name": "labelcheck:generation-context",
-    "value": "scripts/gen_sbom.py from api/requirements.lock (hash-locked install source) + api/models.sha256 at commit d3976e28f405"
+    "value": "scripts/gen_sbom.py from api/requirements.lock (hash-locked install source) + api/models.sha256 at commit 0e42604c67da"
    }
   ]
  },
@@ -247,6 +247,25 @@
     {
      "license": {
       "name": "LGPL-2.1-or-later"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "distro",
+   "version": "1.9.0",
+   "purl": "pkg:pypi/distro@1.9.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "2fa77c6fd8940f116ee1d6b94a2f90b13b5ea8d019b98bc8bafdcabcdd9bdbed"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "Apache License, Version 2.0"
      }
     }
    ]
@@ -500,6 +519,25 @@
   },
   {
    "type": "library",
+   "name": "jiter",
+   "version": "0.16.0",
+   "purl": "pkg:pypi/jiter@0.16.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "0542a7189c26920778658fc8fcf2af8bae05bae9924577f71804acef37996536"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
    "name": "modelscope",
    "version": "1.39.0",
    "purl": "pkg:pypi/modelscope@1.39.0",
@@ -576,6 +614,25 @@
     {
      "license": {
       "name": "BSD License"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "openai",
+   "version": "2.53.0",
+   "purl": "pkg:pypi/openai@2.53.0",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "baf5802ad08980e1d9d561e1b996e800c8bcd14af5847c6d0e7a5cc59e4d4116"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "Apache-2.0"
      }
     }
    ]
@@ -1183,6 +1240,25 @@
     {
      "license": {
       "name": "MIT"
+     }
+    }
+   ]
+  },
+  {
+   "type": "library",
+   "name": "sniffio",
+   "version": "1.3.1",
+   "purl": "pkg:pypi/sniffio@1.3.1",
+   "hashes": [
+    {
+     "alg": "SHA-256",
+     "content": "2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2"
+    }
+   ],
+   "licenses": [
+    {
+     "license": {
+      "name": "MIT OR Apache-2.0"
      }
     }
    ]
