@@ -253,7 +253,7 @@ def samples():
 
 from .azure_openai import AzureOpenAIClient
 from .summary import SYSTEM as _SUMMARY_SYSTEM
-from .summary import build_user_prompt, contradicts
+from .summary import build_user_prompt, contradicts, decisions_trailer
 
 azoai_client = AzureOpenAIClient()   # silent no-op without AZ_OPENAI_* env
 
@@ -289,15 +289,30 @@ async def pass_summary(result_id: str, request: Request):
     application = body.get("application") or {}
     if not isinstance(application, dict) or len(json.dumps(application)) > 1500:
         return JSONResponse({"error": "bad_application"}, status_code=400)
+    # agent overrides ride the request (they live client-side until session
+    # save): bounded, shape-checked, and only ever STATED in the summary as
+    # agent decisions — the stored machine result stays authoritative
+    overrides = body.get("overrides") or {}
+    if not isinstance(overrides, dict) or len(json.dumps(overrides)) > 2000:
+        return JSONResponse({"error": "bad_overrides"}, status_code=400)
+    fld_ov = overrides.get("fields")
+    if fld_ov is not None and (not isinstance(fld_ov, dict) or len(fld_ov) > 20
+                               or any(not isinstance(v, dict) for v in fld_ov.values())):
+        return JSONResponse({"error": "bad_overrides"}, status_code=400)
     text = azoai_client.complete(
         _SUMMARY_SYSTEM,
-        build_user_prompt(fields, application, str(body.get("at") or "now")))
+        build_user_prompt(fields, application, str(body.get("at") or "now"),
+                          overrides=overrides, result=result))
     if not text:
         return Response(status_code=204, headers={"X-Summary-Skip": "no_text"})
     if contradicts(fields, text):
         _layers_mod._telemetry({"kind": "j4s", "event": "summary_contradiction",
                                 "result_id": result_id, "at": time.time()})
         return Response(status_code=204, headers={"X-Summary-Skip": "contradiction"})
+    # the decisions record is deterministic — composed from facts, never
+    # left to the model (which proved willing to omit overrides)
+    text = text.rstrip() + "\n\n" + decisions_trailer(
+        fields, overrides, str(body.get("at") or "now"))
     return {"text": text, "model": azoai_client.model,
             "disclaimer": "AI-assisted draft — verify before use"}
 

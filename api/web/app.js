@@ -1205,7 +1205,8 @@ async function requestSummary(it) {
   try {
     const res = await fetch(`/api/verify/${rid}/summary`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ decision: "PASS", at: ovStamp(), application: it.app }),
+      body: JSON.stringify({ decision: "PASS", at: ovStamp(), application: it.app,
+        overrides: { whole: it.override || null, fields: it.fieldOverrides || {} } }),
     });
     if (res.status !== 200) {
       it.summaryPending = false;
@@ -1247,7 +1248,7 @@ function renderSummaryCard(container, it) {
   card.innerHTML = `<div class="summary-head"><strong>Draft summary</strong>
       <span class="badge badge-soft badge-sm">AI-assisted — verify before use</span>
       <button type="button" class="btn btn-xs btn-outline" data-copy>Copy</button></div>
-    <p>${esc(it.summary.text)}</p>
+    ${it.summary.text.split(/\n\n+/).map((para) => `<p>${esc(para)}</p>`).join("")}
     <p class="cite">model: ${esc(it.summary.model || "?")} · drafted from the recorded
       result; statuses above are authoritative.</p>`;
   card.querySelector("[data-copy]").addEventListener("click", async (e) => {

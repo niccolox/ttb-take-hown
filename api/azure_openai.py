@@ -128,6 +128,12 @@ class AzureOpenAIClient:
         try:
             body = self._post({"model": self.model, "input": messages,
                                "max_output_tokens": cap})
+            # reasoning models can exhaust the budget mid-answer — one retry
+            # with a doubled cap rather than shipping a truncated record
+            if body.get("status") == "incomplete" and cap < 6000:
+                self._dbg("incomplete at cap=%d — retrying with %d", cap, cap * 2)
+                body = self._post({"model": self.model, "input": messages,
+                                   "max_output_tokens": min(cap * 2, 6000)})
             text = self._responses_text(body)
             self._fails = 0
             self._dbg("text (%d chars): %s", len(text or ""), (text or "")[:200])

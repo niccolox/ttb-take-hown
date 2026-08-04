@@ -97,7 +97,7 @@ def test_pass_summary_endpoint(monkeypatch):
         model = "gpt-test"
         def available(self): return True
         def complete(self, system, user):
-            assert "FIXED FACTS" in system
+            assert "FIXED FACT" in system
             assert "<untrusted>" in user and "PASS" in user
             return "All checks matched; the warning was verified against the statutory text."
 
@@ -239,3 +239,86 @@ def test_responses_endpoint_autodetected(monkeypatch):
     c = AzureOpenAIClient()
     assert c._dialect == "responses"
     assert c.complete("s", "u") == "hi"
+
+
+def test_prompt_v2_quality_and_overrides():
+    from api.summary import build_user_prompt, quality_facts
+    fields = [
+        {"field": "brand_name", "status": "MATCH", "note": "",
+         "evidence": {"panel": 0}},
+        {"field": "government_warning", "status": "MISMATCH",
+         "note": "title case", "reason_code": None, "evidence": {"panel": 1}},
+        {"field": "net_contents", "status": "NEEDS_REVIEW",
+         "reason_code": "not_visible_in_image", "note": "check the bottle"},
+    ]
+    result = {"fields": fields, "timing_ms": {"total": 5100}}
+    overrides = {"whole": {"value": "PASS", "original": "Needs correction"},
+                 "fields": {"government_warning": {"value": "PASS", "at": "t"},
+                            "net_contents": {"value": "PASS", "at": "t"}}}
+    p = build_user_prompt(fields, {"brand_name": "X"}, "t",
+                          overrides=overrides, result=result)
+    assert "Panels submitted: 2" in p
+    assert "Machine-verified clean: 1 of 3 checks" in p
+    assert "statement not visible (may be molded into the container)" in p
+    assert p.count("AGENT OVERRIDE: decided PASS") == 2
+    assert "Machine state at decision time: Needs correction." in p
+    assert "First screening answer in 5.1 s" in p
+    # clean submission phrasing
+    clean = quality_facts({"fields": [{"field": "a", "status": "MATCH"}]})
+    assert any("none — all statements located and readable" in f for f in clean)
+
+
+def test_summary_endpoint_rejects_oversized_overrides(monkeypatch):
+    from fastapi.testclient import TestClient
+    from api import main
+
+    class FakeClient:
+        model = "m"
+        def available(self): return True
+        def complete(self, s, u): return "ok summary"
+
+    store, _ = _fake_store_result([{"field": "brand_name", "status": "MATCH"}])
+    monkeypatch.setattr(main, "store", store)
+    monkeypatch.setattr(main, "azoai_client", FakeClient())
+    client = TestClient(main.app)
+    bad = {"decision": "PASS",
+           "overrides": {"fields": {f"f{i}": {"value": "PASS"} for i in range(25)}}}
+    assert client.post("/api/verify/sum-1/summary", json=bad).status_code == 400
+    ok = {"decision": "PASS",
+          "overrides": {"whole": {"value": "PASS", "original": "All clear"},
+                        "fields": {"brand_name": {"value": "PASS", "at": "t"}}}}
+    assert client.post("/api/verify/sum-1/summary", json=ok).status_code == 200
+
+
+def test_responses_incomplete_retries_with_doubled_cap(monkeypatch):
+    monkeypatch.setenv("AZ_OPENAI_URI", "https://r.x/openai/responses?api-version=v")
+    monkeypatch.setenv("AZ_OPENAI_API_KEY", "k9")
+    monkeypatch.setenv("AZ_OPENAI_MODEL", "m")
+    caps = []
+
+    def fake_urlopen(req, timeout=0):
+        payload = json.loads(req.data)
+        caps.append(payload["max_output_tokens"])
+        if len(caps) == 1:
+            return io.BytesIO(json.dumps(
+                {"status": "incomplete", "output_text": "truncated…"}).encode())
+        return io.BytesIO(json.dumps(
+            {"status": "completed", "output_text": "Full two-paragraph record."}).encode())
+    monkeypatch.setattr(azure_openai.urllib.request, "urlopen", fake_urlopen)
+    c = AzureOpenAIClient()
+    assert c.complete("s", "u") == "Full two-paragraph record."
+    assert caps == [azure_openai.MAX_OUTPUT_TOKENS,
+                    min(azure_openai.MAX_OUTPUT_TOKENS * 2, 6000)]
+
+
+def test_decisions_trailer_deterministic():
+    from api.summary import decisions_trailer
+    fields = [{"field": "government_warning", "status": "MISMATCH"}]
+    ov = {"whole": {"value": "PASS", "original": "Needs correction"},
+          "fields": {"government_warning": {"value": "PASS", "at": "t"}}}
+    tr = decisions_trailer(fields, ov, "2026-08-03 20:20")
+    assert "Government Warning — machine found MISMATCH, agent decided PASS" in tr
+    assert "machine state at decision time: Needs correction" in tr
+    # clean pass, no overrides → just the whole-label line
+    tr2 = decisions_trailer([{"field": "a", "status": "MATCH"}], {}, "t")
+    assert tr2 == "Agent decisions on record: Whole label: PASS recorded t."
