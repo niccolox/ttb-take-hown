@@ -17,4 +17,4 @@ uvicorn
 python-multipart
 # Azure OpenAI / Foundry SDK — CLI + future J4 use; the in-app client
 # stays stdlib-urllib on purpose (no SDK in the verdict-adjacent path)
-openai
+openai==2.53.0

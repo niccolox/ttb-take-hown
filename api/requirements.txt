@@ -6,4 +6,4 @@ pillow
 pytest
 colacloud==0.4.4
 duckdb==1.5.5
-openai
+openai==2.53.0
