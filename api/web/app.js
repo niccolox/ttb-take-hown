@@ -336,13 +336,15 @@ function packOverride(it) {
   const hasFields = it.fieldOverrides && Object.keys(it.fieldOverrides).length;
   if (!it.override && !hasFields && !it.summary) return null;
   return { whole: it.override || null, fields: hasFields ? it.fieldOverrides : {},
-           summary: it.summary || null };          // PASS draft survives reload
+           summary: it.summary || null,            // draft survives reload
+           summary_error: it.summaryError || null };   // and so does the debug message
 }
 
 function unpackOverride(it, raw) {
   if (raw && typeof raw === "object" && ("whole" in raw || "fields" in raw)) {
     it.override = raw.whole || null;
     it.summary = raw.summary || null;
+    it.summaryError = raw.summary_error || null;
     it.fieldOverrides = raw.fields || {};
   } else {                                        // legacy: whole-label only
     it.override = raw || null;
@@ -1212,9 +1214,21 @@ async function requestSummary(it) {
     });
     if (res.status !== 200) {
       it.summaryPending = false;
+      const skip = res.headers.get("X-Summary-Skip");
       if (res.status === 404) it.summaryError =
         "Draft summary unavailable — this result has expired (restored session). " +
-        "Re-check the label, then PASS again to draft one.";
+        "Re-check the label, then decide again to draft one.";
+      else if (res.status === 204) it.summaryError =
+        "Draft summary unavailable — " + ({
+          flag_off: "summaries are disabled (LABELCHECK_SUMMARY=off).",
+          unavailable: "the Azure OpenAI client is not configured or is cooling down after failures.",
+          no_text: "the model returned no text (see server logs; OPENAI_DEBUG=true traces the call).",
+          contradiction: "the draft contradicted the recorded verdicts and was withheld.",
+        }[skip] || `no content (reason: ${skip || "unknown"}).`);
+      else it.summaryError =
+        `Draft summary failed — HTTP ${res.status}${skip ? " (" + skip + ")" : ""}.`;
+      console.warn("[summary]", res.status, skip || "", "for", rid);
+      markSessionDirty(); schedulePersist();      // the debug message survives return
       if (sel() === it) renderDetail();
       return;
     }
@@ -1225,7 +1239,12 @@ async function requestSummary(it) {
     markSessionDirty();
     schedulePersist();                        // the draft rides the session save
     if (sel() === it) renderDetail();
-  } catch { it.summaryPending = false; /* silent — a draft is never worth an error */ }
+  } catch (e) {
+    it.summaryPending = false;
+    it.summaryError = `Draft summary failed — network error (${e?.message || e}).`;
+    console.warn("[summary] network error", e);
+    if (sel() === it) renderDetail();
+  }
 }
 
 function summaryProgressHtml(it) {
@@ -1235,15 +1254,29 @@ function summaryProgressHtml(it) {
   if (dec !== "PASS" && dec !== "FAIL") return "";
   if (it.summaryPending && !it.summary?.text)
     return '<div class="summary-card summary-pending"><span class="loading loading-dots loading-xs"></span> Drafting AI summary…</div>';
-  if (it.summaryError && !it.summary?.text)
-    return `<div class="summary-card summary-pending">${esc(it.summaryError)}</div>`;
   return "";
 }
 
 function renderSummaryCard(container, it) {
   const dec = ovValue(it);
   if (dec !== "PASS" && dec !== "FAIL") return;
-  if (!it.summary?.text) return;
+  if (!it.summary?.text) {
+    if (it.summaryError && !it.summaryPending) {
+      const err = document.createElement("div");
+      err.className = "summary-card summary-pending";
+      err.innerHTML = `<div class="summary-head"><strong>Draft summary</strong>
+          <span class="badge badge-soft badge-sm">not available</span>
+          <button type="button" class="btn btn-xs btn-outline" data-retry>Retry</button></div>
+        <p>${esc(it.summaryError)}</p>`;
+      err.querySelector("[data-retry]").addEventListener("click", () => {
+        it.summaryError = null;
+        requestSummary(it);
+        renderDetail();
+      });
+      container.appendChild(err);
+    }
+    return;
+  }
   const card = document.createElement("div");
   card.className = "summary-card";
   card.innerHTML = `<div class="summary-head"><strong>Draft summary</strong>
