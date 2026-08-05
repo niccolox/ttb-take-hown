@@ -1,0 +1,2574 @@
+{
+ "measured_at": "2026-08-05 00:29:07",
+ "j3_max_fields": 3,
+ "per_corpus": {
+  "golden": {
+   "apps": 15,
+   "apps_with_troubled": 8,
+   "fields": 91,
+   "troubled": 9,
+   "eligible_today": 3,
+   "eligible_widened": 3,
+   "unreachable": 3,
+   "fire_today": 3,
+   "fire_widened": 6,
+   "displaced": 0,
+   "reasons_today": {
+    "ambiguous": 1,
+    "weight_contrast_suspect": 1,
+    "possible_ocr_misread": 1
+   },
+   "reasons_widened": {
+    "statutory_text_differs": 2,
+    "value_differs": 1
+   },
+   "reasons_unreachable": {
+    "not_visible_in_image": 3
+   }
+  },
+  "colacloud/beer": {
+   "apps": 26,
+   "apps_with_troubled": 26,
+   "fields": 156,
+   "troubled": 66,
+   "eligible_today": 17,
+   "eligible_widened": 13,
+   "unreachable": 36,
+   "fire_today": 17,
+   "fire_widened": 30,
+   "displaced": 0,
+   "reasons_today": {
+    "unreadable": 8,
+    "format_nonstandard": 5,
+    "engine_disagreement": 2,
+    "possible_ocr_misread": 1,
+    "ambiguous": 1
+   },
+   "reasons_widened": {
+    "statutory_text_differs": 7,
+    "value_differs": 6
+   },
+   "reasons_unreachable": {
+    "not_visible_in_image": 24,
+    "not_found_in_image": 12
+   }
+  },
+  "colacloud/champagne": {
+   "apps": 20,
+   "apps_with_troubled": 10,
+   "fields": 140,
+   "troubled": 15,
+   "eligible_today": 4,
+   "eligible_widened": 5,
+   "unreachable": 6,
+   "fire_today": 4,
+   "fire_widened": 9,
+   "displaced": 0,
+   "reasons_today": {
+    "engine_disagreement": 4
+   },
+   "reasons_widened": {
+    "statutory_text_differs": 3,
+    "weight_contrast_violation": 1,
+    "value_differs": 1
+   },
+   "reasons_unreachable": {
+    "not_found_in_image": 2,
+    "name_address_not_found": 2,
+    "not_visible_in_image": 2
+   }
+  },
+  "colacloud/imported_wine": {
+   "apps": 22,
+   "apps_with_troubled": 17,
+   "fields": 154,
+   "troubled": 33,
+   "eligible_today": 7,
+   "eligible_widened": 8,
+   "unreachable": 18,
+   "fire_today": 7,
+   "fire_widened": 15,
+   "displaced": 0,
+   "reasons_today": {
+    "engine_disagreement": 3,
+    "weight_contrast_suspect": 2,
+    "unreadable": 1,
+    "possible_ocr_misread": 1
+   },
+   "reasons_widened": {
+    "statutory_text_differs": 4,
+    "value_differs": 3,
+    "weight_contrast_violation": 1
+   },
+   "reasons_unreachable": {
+    "not_found_in_image": 12,
+    "not_visible_in_image": 5,
+    "sulfite_declaration_not_found": 1
+   }
+  },
+  "colacloud/kentucky_whisky": {
+   "apps": 4,
+   "apps_with_troubled": 4,
+   "fields": 21,
+   "troubled": 9,
+   "eligible_today": 5,
+   "eligible_widened": 1,
+   "unreachable": 3,
+   "fire_today": 5,
+   "fire_widened": 6,
+   "displaced": 0,
+   "reasons_today": {
+    "unreadable": 3,
+    "possible_ocr_misread": 2
+   },
+   "reasons_widened": {
+    "statutory_text_differs": 1
+   },
+   "reasons_unreachable": {
+    "not_found_in_image": 2,
+    "not_found": 1
+   }
+  },
+  "colacloud/napa_zinfandel": {
+   "apps": 8,
+   "apps_with_troubled": 8,
+   "fields": 56,
+   "troubled": 17,
+   "eligible_today": 8,
+   "eligible_widened": 2,
+   "unreachable": 7,
+   "fire_today": 8,
+   "fire_widened": 10,
+   "displaced": 0,
+   "reasons_today": {
+    "unreadable": 4,
+    "engine_disagreement": 2,
+    "weight_contrast_suspect": 2
+   },
+   "reasons_widened": {
+    "statutory_text_differs": 1,
+    "weight_contrast_violation": 1
+   },
+   "reasons_unreachable": {
+    "not_found_in_image": 6,
+    "name_address_not_found": 1
+   }
+  },
+  "colacloud/spirits": {
+   "apps": 15,
+   "apps_with_troubled": 14,
+   "fields": 79,
+   "troubled": 27,
+   "eligible_today": 11,
+   "eligible_widened": 4,
+   "unreachable": 12,
+   "fire_today": 11,
+   "fire_widened": 15,
+   "displaced": 0,
+   "reasons_today": {
+    "possible_ocr_misread": 4,
+    "unreadable": 4,
+    "weight_contrast_suspect": 2,
+    "engine_disagreement": 1
+   },
+   "reasons_widened": {
+    "statutory_text_differs": 3,
+    "value_differs": 1
+   },
+   "reasons_unreachable": {
+    "not_found_in_image": 8,
+    "not_visible_in_image": 3,
+    "not_found": 1
+   }
+  },
+  "colacloud/wine": {
+   "apps": 24,
+   "apps_with_troubled": 19,
+   "fields": 168,
+   "troubled": 37,
+   "eligible_today": 9,
+   "eligible_widened": 5,
+   "unreachable": 23,
+   "fire_today": 9,
+   "fire_widened": 14,
+   "displaced": 0,
+   "reasons_today": {
+    "engine_disagreement": 3,
+    "unreadable": 3,
+    "weight_contrast_suspect": 2,
+    "possible_ocr_misread": 1
+   },
+   "reasons_widened": {
+    "statutory_text_differs": 3,
+    "value_differs": 2
+   },
+   "reasons_unreachable": {
+    "not_visible_in_image": 12,
+    "not_found_in_image": 11
+   }
+  }
+ },
+ "totals": {
+  "apps": 134,
+  "apps_with_troubled": 106,
+  "fields": 865,
+  "troubled": 213,
+  "eligible_today": 64,
+  "eligible_widened": 41,
+  "unreachable": 108,
+  "fire_today": 64,
+  "fire_widened": 105,
+  "displaced": 0
+ },
+ "reasons": {
+  "today": {
+   "unreadable": 23,
+   "engine_disagreement": 15,
+   "possible_ocr_misread": 10,
+   "weight_contrast_suspect": 9,
+   "format_nonstandard": 5,
+   "ambiguous": 2
+  },
+  "widened": {
+   "statutory_text_differs": 24,
+   "value_differs": 14,
+   "weight_contrast_violation": 3
+  },
+  "unreachable": {
+   "not_found_in_image": 53,
+   "not_visible_in_image": 49,
+   "name_address_not_found": 3,
+   "not_found": 2,
+   "sulfite_declaration_not_found": 1
+  }
+ },
+ "transcription_helpable": {
+  "today": 23,
+  "widened": 14,
+  "unreachable": 0
+ },
+ "apps": [
+  {
+   "id": "golden/spirits_clean",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "golden/malt_clean",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "golden/wine_no_abv_table",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "brand_name",
+     "status": "NEEDS_REVIEW",
+     "reason": "ambiguous",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "golden/trap_titlecase_warning",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "golden/trap_word_substitution",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "golden/trap_all_bold_warning",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "weight_contrast_suspect",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "golden/trap_missing_warning",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "golden/trap_abv_within_band",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "golden/trap_abv_outside_band",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "alcohol_content",
+     "status": "MISMATCH",
+     "reason": "value_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "golden/photo_skew",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "golden/photo_glare",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "golden/photo_blur_dark",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "golden/photo_curved",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "golden/photo_lowres",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "possible_ocr_misread",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "golden/decorative_font",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "beer/26209001000505",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "brand_name",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "beer/26209001000517",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "brand_name",
+     "status": "MISMATCH",
+     "reason": "value_differs",
+     "bbox": true
+    },
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "net_contents",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 2
+  },
+  {
+   "id": "beer/26209001000443",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "net_contents",
+     "status": "MISMATCH",
+     "reason": "value_differs",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 2
+  },
+  {
+   "id": "beer/26209001000419",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "beer/26209001000387",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "brand_name",
+     "status": "NEEDS_REVIEW",
+     "reason": "possible_ocr_misread",
+     "bbox": true
+    },
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 2,
+   "fire_widened": 2
+  },
+  {
+   "id": "beer/26209001000383",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "brand_name",
+     "status": "NEEDS_REVIEW",
+     "reason": "ambiguous",
+     "bbox": true
+    },
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 2,
+   "fire_widened": 2
+  },
+  {
+   "id": "beer/26209001000375",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "alcohol_content",
+     "status": "NEEDS_REVIEW",
+     "reason": "format_nonstandard",
+     "bbox": true
+    },
+    {
+     "field": "net_contents",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    }
+   ],
+   "fire_today": 2,
+   "fire_widened": 2
+  },
+  {
+   "id": "beer/26209001000372",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "alcohol_content",
+     "status": "NEEDS_REVIEW",
+     "reason": "format_nonstandard",
+     "bbox": true
+    },
+    {
+     "field": "net_contents",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 2
+  },
+  {
+   "id": "beer/26209001000370",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "alcohol_content",
+     "status": "NEEDS_REVIEW",
+     "reason": "format_nonstandard",
+     "bbox": true
+    },
+    {
+     "field": "net_contents",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    }
+   ],
+   "fire_today": 2,
+   "fire_widened": 2
+  },
+  {
+   "id": "beer/26209001000366",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "alcohol_content",
+     "status": "NEEDS_REVIEW",
+     "reason": "format_nonstandard",
+     "bbox": true
+    },
+    {
+     "field": "net_contents",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    }
+   ],
+   "fire_today": 2,
+   "fire_widened": 2
+  },
+  {
+   "id": "beer/26209001000365",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "alcohol_content",
+     "status": "NEEDS_REVIEW",
+     "reason": "format_nonstandard",
+     "bbox": true
+    },
+    {
+     "field": "net_contents",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 2
+  },
+  {
+   "id": "beer/26209001000350",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "beer/26209001000322",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "net_contents",
+     "status": "MISMATCH",
+     "reason": "value_differs",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "beer/26209001000315",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "net_contents",
+     "status": "MISMATCH",
+     "reason": "value_differs",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "beer/26209001000311",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "brand_name",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "net_contents",
+     "status": "MISMATCH",
+     "reason": "value_differs",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 2
+  },
+  {
+   "id": "beer/26209001000303",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "brand_name",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "net_contents",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "beer/26209001000301",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "brand_name",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "net_contents",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "beer/26209001000299",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "brand_name",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "net_contents",
+     "status": "MISMATCH",
+     "reason": "value_differs",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 2
+  },
+  {
+   "id": "beer/26209001000024",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "beer/26209001000021",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "beer/26208001000766",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "brand_name",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "net_contents",
+     "status": "NEEDS_REVIEW",
+     "reason": "engine_disagreement",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "beer/26208001000305",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "beer/26208001000269",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "beer/26208001000261",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "net_contents",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "beer/26194001000726",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "net_contents",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "beer/26194001000717",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    },
+    {
+     "field": "net_contents",
+     "status": "NEEDS_REVIEW",
+     "reason": "engine_disagreement",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 2,
+   "fire_widened": 3
+  },
+  {
+   "id": "champagne/26203001000300",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "engine_disagreement",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "champagne/26203001000266",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "engine_disagreement",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "champagne/26203001000245",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "champagne/26203001000187",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "champagne/26203001000134",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "champagne/26203001000082",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "champagne/26203001000078",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "champagne/26202001000801",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "name_address",
+     "status": "NEEDS_REVIEW",
+     "reason": "name_address_not_found",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "champagne/26202001000765",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "champagne/26202001000755",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "champagne/26202001000752",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "engine_disagreement",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "champagne/26202001000747",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "champagne/26202001000745",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "weight_contrast_violation",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "champagne/26202001000741",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "champagne/26202001000740",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "alcohol_content",
+     "status": "MISMATCH",
+     "reason": "value_differs",
+     "bbox": true
+    },
+    {
+     "field": "name_address",
+     "status": "NEEDS_REVIEW",
+     "reason": "name_address_not_found",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "champagne/26202001000738",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "champagne/26208001000246",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "alcohol_content",
+     "status": "NEEDS_REVIEW",
+     "reason": "engine_disagreement",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 2
+  },
+  {
+   "id": "champagne/26208001000126",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "champagne/26208001000091",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "champagne/26208001000088",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "imported_wine/26203001000300",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "engine_disagreement",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "imported_wine/26203001000266",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "engine_disagreement",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "imported_wine/26203001000245",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "imported_wine/26203001000235",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "imported_wine/26203001000231",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "imported_wine/26203001000225",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "imported_wine/26203001000222",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "imported_wine/26203001000220",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "imported_wine/26203001000216",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "MISMATCH",
+     "reason": "value_differs",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "imported_wine/26203001000193",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "weight_contrast_suspect",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "imported_wine/26203001000187",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "imported_wine/26203001000134",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "imported_wine/26203001000130",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "possible_ocr_misread",
+     "bbox": true
+    },
+    {
+     "field": "alcohol_content",
+     "status": "MISMATCH",
+     "reason": "value_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 2
+  },
+  {
+   "id": "imported_wine/26203001000106",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "weight_contrast_suspect",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "imported_wine/26203001000082",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "imported_wine/26203001000078",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "imported_wine/26203001000059",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "imported_wine/26203001000028",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "weight_contrast_violation",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "imported_wine/26203001000026",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "alcohol_content",
+     "status": "MISMATCH",
+     "reason": "value_differs",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "engine_disagreement",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 2
+  },
+  {
+   "id": "imported_wine/26203001000018",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "imported_wine/26203001000016",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "imported_wine/26203001000010",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "sulfite_declaration",
+     "status": "NEEDS_REVIEW",
+     "reason": "sulfite_declaration_not_found",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "kentucky_whisky/26204001000427",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "kentucky_whisky/26204001000377",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "possible_ocr_misread",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 2
+  },
+  {
+   "id": "kentucky_whisky/26204001000322",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "alcohol_content",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "kentucky_whisky/26204001000117",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "possible_ocr_misread",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    }
+   ],
+   "fire_today": 2,
+   "fire_widened": 2
+  },
+  {
+   "id": "napa_zinfandel/26204001000725",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "engine_disagreement",
+     "bbox": true
+    }
+   ],
+   "fire_today": 2,
+   "fire_widened": 2
+  },
+  {
+   "id": "napa_zinfandel/26202001000749",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "weight_contrast_suspect",
+     "bbox": true
+    }
+   ],
+   "fire_today": 2,
+   "fire_widened": 2
+  },
+  {
+   "id": "napa_zinfandel/26194001000695",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "napa_zinfandel/26195001000655",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "napa_zinfandel/26205001000533",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "net_contents",
+     "status": "NEEDS_REVIEW",
+     "reason": "engine_disagreement",
+     "bbox": true
+    },
+    {
+     "field": "name_address",
+     "status": "NEEDS_REVIEW",
+     "reason": "name_address_not_found",
+     "bbox": false
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "napa_zinfandel/26196001000922",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "weight_contrast_violation",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "napa_zinfandel/26197001000004",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "weight_contrast_suspect",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "napa_zinfandel/26196001000813",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "spirits/26204001000555",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "brand_name",
+     "status": "NEEDS_REVIEW",
+     "reason": "possible_ocr_misread",
+     "bbox": true
+    },
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 2
+  },
+  {
+   "id": "spirits/26204001000568",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "brand_name",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "spirits/26204001000551",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "possible_ocr_misread",
+     "bbox": true
+    },
+    {
+     "field": "alcohol_content",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found",
+     "bbox": false
+    },
+    {
+     "field": "net_contents",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "spirits/26204001000547",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "possible_ocr_misread",
+     "bbox": true
+    },
+    {
+     "field": "net_contents",
+     "status": "NEEDS_REVIEW",
+     "reason": "engine_disagreement",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 2,
+   "fire_widened": 2
+  },
+  {
+   "id": "spirits/26204001000542",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "spirits/26204001000539",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "MISMATCH",
+     "reason": "value_differs",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 2
+  },
+  {
+   "id": "spirits/26204001000535",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "weight_contrast_suspect",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "spirits/26204001000521",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "spirits/26204001000498",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "spirits/26204001000464",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "spirits/26204001000427",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "spirits/26208001000518",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "spirits/26208001000500",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "spirits/26208001000483",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "possible_ocr_misread",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "weight_contrast_suspect",
+     "bbox": true
+    }
+   ],
+   "fire_today": 2,
+   "fire_widened": 2
+  },
+  {
+   "id": "spirits/26208001000470",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "wine/26203001000245",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "wine/26203001000266",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "engine_disagreement",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "wine/26203001000300",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "engine_disagreement",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "wine/26205001000356",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "wine/26203001000235",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "wine/26203001000231",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "wine/26203001000225",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "wine/26203001000222",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "wine/26203001000220",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "wine/26203001000216",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "MISMATCH",
+     "reason": "value_differs",
+     "bbox": true
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "wine/26203001000193",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "weight_contrast_suspect",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "wine/26203001000187",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "wine/26203001000134",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "wine/26203001000130",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "possible_ocr_misread",
+     "bbox": true
+    },
+    {
+     "field": "alcohol_content",
+     "status": "MISMATCH",
+     "reason": "value_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 2
+  },
+  {
+   "id": "wine/26203001000106",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "weight_contrast_suspect",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "wine/26203001000082",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "wine/26203001000078",
+   "settled": true,
+   "troubled": [],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "wine/26203001000073",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "net_contents",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "wine/26203001000070",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "wine/26203001000069",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "net_contents",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "wine/26205001000043",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "class_type",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_found_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "MISMATCH",
+     "reason": "statutory_text_differs",
+     "bbox": true
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 1
+  },
+  {
+   "id": "wine/26209001000500",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "net_contents",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    }
+   ],
+   "fire_today": 0,
+   "fire_widened": 0
+  },
+  {
+   "id": "wine/26209001000492",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "net_contents",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "unreadable",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  },
+  {
+   "id": "wine/26209001000482",
+   "settled": true,
+   "troubled": [
+    {
+     "field": "net_contents",
+     "status": "NEEDS_REVIEW",
+     "reason": "not_visible_in_image",
+     "bbox": false
+    },
+    {
+     "field": "government_warning",
+     "status": "NEEDS_REVIEW",
+     "reason": "engine_disagreement",
+     "bbox": true
+    }
+   ],
+   "fire_today": 1,
+   "fire_widened": 1
+  }
+ ]
+}

@@ -30,6 +30,46 @@ transcription), STOP and re-plan — a second reader can't help those.
 Output: a table in this plan (incidence, reason buckets, expected
 mm-read fire rate).
 
+### D-0 RESULTS (measured 2026-08-05 — api/eval/measure_troubled.py, GATE: PASS)
+
+134 apps (golden 15 + COLA Cloud 119) through the full live pipeline
+(Nemotron S1 → rules S2 → J1/J2 settle). 213 troubled fields total.
+
+| Corpus | Apps | Troubled | Eligible today (NR∧bbox) | Widened (MM∧bbox) | Unreachable (no bbox) | Fire/app today→widened |
+|---|---|---|---|---|---|---|
+| golden | 15 | 9 | 3 | 3 | 3 | 0.20→0.40 |
+| colacloud/beer | 26 | 66 | 17 | 13 | 36 | 0.65→1.15 |
+| colacloud/champagne | 20 | 15 | 4 | 5 | 6 | 0.20→0.45 |
+| colacloud/imported_wine | 22 | 33 | 7 | 8 | 18 | 0.32→0.68 |
+| colacloud/kentucky_whisky | 4 | 9 | 5 | 1 | 3 | 1.25→1.50 |
+| colacloud/napa_zinfandel | 8 | 17 | 8 | 2 | 7 | 1.00→1.25 |
+| colacloud/spirits | 15 | 27 | 11 | 4 | 12 | 0.73→1.00 |
+| colacloud/wine | 24 | 37 | 9 | 5 | 23 | 0.38→0.58 |
+| **TOTAL** | **134** | **213** | **64** | **41** | **108** | **0.48→0.78** |
+
+Reason codes — eligible today: unreadable 23, engine_disagreement 15,
+possible_ocr_misread 10, weight_contrast_suspect 9, format_nonstandard 5,
+ambiguous 2. Widened: statutory_text_differs 24, value_differs 14,
+weight_contrast_violation 3. Unreachable: not_found/not_visible 107,
+misc 1.
+
+**Gate verdict — BUILD PROCEEDS, with three data-backed conclusions:**
+1. **Incidence is real**: 105 crop-reachable troubled fields; 80 of 134
+   apps (60%) fire ≥1 second read under the widened rule (0.78/app).
+2. **The reads are helpable**: 75% of today's eligible rows and 93% of
+   widened rows carry transcription-class reason codes (unreadable,
+   engine_disagreement, possible_ocr_misread, statutory_text_differs,
+   value_differs). The typography/format rows (17) are correctly
+   excluded by the judge's narrowed-verdict design (amendment 21).
+3. **Amendment 17 (MISMATCH widening) is validated**: it adds 41 rows at
+   the HIGHEST helpable ratio — the sides_with_application population.
+   Cap displacement = 0: J3_MAX_FIELDS=3 never binds; no cap change needed.
+   Structural limit confirmed: 51% of troubled rows have no bbox and are
+   unreachable by ANY crop reader — that remains locate-layer work
+   (TODOS: warning best-candidate-wins), not mm-read scope.
+
+Raw data: api/eval/results/d0-troubled-incidence.json.
+
 ## Deltas (each small, each independently shippable)
 
 ### D-1 · `transcribe_crop()` on the existing VLM client (~half day)
