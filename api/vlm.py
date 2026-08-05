@@ -26,9 +26,11 @@ import base64
 import json
 import logging
 import os
+import threading
 import time
 import urllib.error
 import urllib.request
+from dataclasses import dataclass
 
 log = logging.getLogger("uvicorn.error")
 
@@ -38,6 +40,33 @@ MAX_CROP_BYTES = 180_000        # data-URL budget; crops are small by design
 
 BREAKER_FAILS = 3
 BREAKER_COOLOFF_S = 30.0
+
+# Transcription mode (mm-ocr-augment D-1). The statutory warning alone is
+# ~45 words — read_crop's 160-token cap would truncate it into a false
+# "differs" (eng finding F5), hence the mode-specific cap. The short
+# timeout is the budget-gated-fallback contract (amendment 18): run_j3
+# must be able to afford a question-mode fallback inside its 45 s job.
+TRANSCRIBE_MAX_TOKENS = 600
+TRANSCRIBE_TIMEOUT_S = 12
+TRANSCRIBE_PROMPT = ("Transcribe every word printed in this image verbatim, "
+                     "exactly as written. Output only the transcribed text — "
+                     "no commentary, no translation, no corrections.")
+# `unreadable` is reserved for the model SAYING it can't read (amendment
+# 22's constrained contract) — matched conservatively; everything else
+# that came back as text gets judged.
+REFUSAL_MARKERS = ("i cannot", "i can't", "unable to", "cannot read",
+                   "no text", "not legible", "illegible", "i'm sorry")
+
+
+@dataclass
+class MMRead:
+    """transcribe_crop result. status: ok | unreadable | error.
+    `cause` names the error class for the debug block (amendment 8):
+    unconfigured | breaker_open | oversized | timeout | transport |
+    schema | truncated."""
+    status: str
+    text: str | None = None
+    cause: str | None = None
 
 
 class NanoVLClient:
@@ -56,15 +85,50 @@ class NanoVLClient:
                                         DEFAULT_NVIDIA_MODEL)
             self.api_key = api_key if api_key is not None \
                 else os.environ.get("NVIDIA_API_KEY", "")
-        self._fails = 0
-        self._cool_until = 0.0
+        # per-mode breaker (eng amendment 20): transcription failures must
+        # never cool off the shipped question-mode assist. "question" is
+        # the legacy mode — the _fails/_cool_until properties alias it so
+        # read_crop's code path (and its tests) stay byte-identical. The
+        # lock guards the NEW transcribe entries; the question path keeps
+        # its shipped unguarded read-modify-write untouched on purpose.
+        self._breaker_lock = threading.Lock()
+        self._breaker = {"question": {"fails": 0, "cool_until": 0.0},
+                         "transcribe": {"fails": 0, "cool_until": 0.0}}
 
-    def available(self) -> bool:
+    # -- legacy breaker attribute aliases (question mode) ------------------
+    @property
+    def _fails(self) -> int:
+        return self._breaker["question"]["fails"]
+
+    @_fails.setter
+    def _fails(self, v: int) -> None:
+        self._breaker["question"]["fails"] = v
+
+    @property
+    def _cool_until(self) -> float:
+        return self._breaker["question"]["cool_until"]
+
+    @_cool_until.setter
+    def _cool_until(self, v: float) -> None:
+        self._breaker["question"]["cool_until"] = v
+
+    @property
+    def engine_label(self) -> str:
+        """Provenance label for suggestions/chips — derived, never
+        hardcoded (fixes the 'nano-vl-8b' literal in layers, amendment 4)."""
+        return self.model or self.provider
+
+    def available(self, mode: str = "question") -> bool:
+        """Default keeps the shipped semantics (question-mode breaker).
+        Callers on the new path ask available("transcribe"). The chain-site
+        union (amendment 20) is wired where MM_READ is known (T3/T4) —
+        with MM off the transcribe breaker never trips, so today's call
+        sites behave byte-identically."""
         if self.provider == "off":
             return False
         if not self.api_key or not self.endpoint:
             return False
-        return time.monotonic() >= self._cool_until
+        return time.monotonic() >= self._breaker[mode]["cool_until"]
 
     def _messages(self, question: str, data_url: str) -> list[dict]:
         if self.provider == "azure":
@@ -111,3 +175,72 @@ class NanoVLClient:
                 log.info("VLM breaker tripped for %.0fs", BREAKER_COOLOFF_S)
             log.info("VLM assist unavailable (silent no-op): %r", e)
             return None
+
+    # -- transcription mode (mm-ocr-augment D-1) ---------------------------
+
+    def _trip(self, mode: str) -> None:
+        with self._breaker_lock:
+            b = self._breaker[mode]
+            b["fails"] += 1
+            if b["fails"] >= BREAKER_FAILS:
+                b["cool_until"] = time.monotonic() + BREAKER_COOLOFF_S
+                b["fails"] = 0
+                log.info("VLM %s breaker tripped for %.0fs", mode,
+                         BREAKER_COOLOFF_S)
+
+    def _reset(self, mode: str) -> None:
+        with self._breaker_lock:
+            self._breaker[mode]["fails"] = 0
+
+    def transcribe_crop(self, crop_jpeg: bytes) -> MMRead:
+        """Verbatim transcription of one crop, judged elsewhere — this
+        method reports honestly and never raises. Unlike read_crop's
+        silent-None posture, every failure carries a cause so the debug
+        block can show WHY there is no second read (amendment 8)."""
+        if self.provider == "off" or not self.api_key or not self.endpoint:
+            return MMRead("error", cause="unconfigured")
+        if not self.available("transcribe"):
+            return MMRead("error", cause="breaker_open")
+        if len(crop_jpeg) > MAX_CROP_BYTES:
+            return MMRead("error", cause="oversized")
+        data_url = "data:image/jpeg;base64," + base64.b64encode(crop_jpeg).decode()
+        payload = {
+            "model": self.model,
+            "messages": self._messages(TRANSCRIBE_PROMPT, data_url),
+            "max_tokens": TRANSCRIBE_MAX_TOKENS,
+            "temperature": 0.0,
+        }
+        headers = {"Content-Type": "application/json",
+                   "Authorization": f"Bearer {self.api_key}"}
+        if self.provider == "azure":
+            headers["api-key"] = self.api_key
+        req = urllib.request.Request(
+            self.endpoint, data=json.dumps(payload).encode(), method="POST",
+            headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=TRANSCRIBE_TIMEOUT_S) as resp:
+                body = json.load(resp)
+        except (urllib.error.URLError, OSError, TimeoutError,
+                json.JSONDecodeError) as e:
+            self._trip("transcribe")
+            timed_out = isinstance(e, TimeoutError) or "timed out" in str(e).lower()
+            log.info("VLM transcribe failed (%s): %r",
+                     "timeout" if timed_out else "transport", e)
+            return MMRead("error", cause="timeout" if timed_out else "transport")
+        try:
+            choice = body["choices"][0]
+            text = choice["message"]["content"]
+        except (KeyError, IndexError, TypeError):
+            self._trip("transcribe")
+            log.info("VLM transcribe schema drift: %s", str(body)[:200])
+            return MMRead("error", cause="schema")
+        self._reset("transcribe")          # transport+schema succeeded
+        if choice.get("finish_reason") == "length":
+            # a truncated transcription must never reach the judge — it
+            # would produce a false `differs` (eng finding F5 / invariant 8)
+            return MMRead("error", cause="truncated")
+        text = (text or "").strip()
+        low = text.lower()
+        if not text or any(m in low for m in REFUSAL_MARKERS):
+            return MMRead("unreadable", text=text or None)
+        return MMRead("ok", text=text)
