@@ -42,6 +42,10 @@ rate_limiter = RateLimiter()
 inflight_gate = InflightGate()
 extractor = build_extractor()
 PRIMARY_ENGINE = os.environ.get("LABELCHECK_EXTRACTOR", "paddle")
+# env mode (DevSecOps plan config matrix): prod hides demo surfaces and
+# feature-flags the registry pipelines OFF server-side; batch import and
+# the full screening flow stay fully enabled in every mode.
+LABELCHECK_ENV = os.environ.get("LABELCHECK_ENV", "dev").strip().lower()
 # AD-24: the GPU profile constructs and warms BOTH engines — paddle is the
 # AD-1 fallback fast path and the J1 QA engine. CPU profile: single engine,
 # no background layers.
@@ -246,7 +250,7 @@ def healthz():
         state, ready = "loading", False
     return {"status": "ready" if ready else ("wedged" if state == "down"
                                              else "loading models"),
-            "ready": ready, "state": state,
+            "ready": ready, "state": state, "env": LABELCHECK_ENV,
             "queue": {"depth": jobq.depth(), "oldest_age_s": jobq.oldest_age_s()},
             "rss_mb": _rss_mb(),
             # R2: nonzero means calibration/usage telemetry is being dropped
@@ -256,6 +260,8 @@ def healthz():
 
 @app.get("/api/samples")
 def samples():
+    if LABELCHECK_ENV == "prod":
+        return []                    # demo surface off in prod (config matrix)
     out = []
     for k, v in SAMPLES.items():
         row = {"id": k, "label": v["label"], "shows": v["shows"],
@@ -692,6 +698,12 @@ def pipelines():
 
 @app.post("/api/pipelines/{tname}/run")
 def run_pipeline(tname: str, per_type: int = 4, query: str | None = None):
+    if LABELCHECK_ENV == "prod":
+        # feature-flagged OFF in prod (config matrix): registry pulls are a
+        # dev/test corpus tool, and the only egress this app can initiate
+        return JSONResponse({"error": "registry pipelines are disabled in "
+                             "production", "code": "disabled_in_prod"},
+                            status_code=403)
     if tname not in PIPELINES:
         return JSONResponse(
             {"error": "unknown pipeline — see GET /api/pipelines for the list"},

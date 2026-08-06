@@ -82,6 +82,35 @@ function progressBar(done, total) {
   else p.value = done;
 }
 
+// env mode (DevSecOps config matrix): prod hides the demo surfaces —
+// Samples, Eval sets, and the registry Pipelines (also refused server-side)
+// — while "Add labels" INCLUDING the CSV batch import stays fully enabled:
+// batch screening is the production workday, not a demo. Non-prod shows a
+// mode badge so nobody mistakes a test box for the real thing.
+fetch("/healthz").then((r) => r.json()).then((h) => {
+  const env = h.env || "dev";
+  if (env === "prod") {
+    for (const id of ["menu-samples", "menu-evalsets"])
+      $(id)?.style && ($(id).style.display = "none");
+    const pip = $("pipelines");
+    if (pip) {
+      pip.style.display = "none";
+      const note = $("pipelines-note");
+      if (note) note.style.display = "none";
+      const lbl = document.getElementById("menu-pipelines-label");
+      if (lbl) lbl.textContent = "Session";
+    }
+  } else {
+    const badge = document.createElement("span");
+    badge.className = "badge badge-warning badge-sm";
+    badge.style.marginLeft = "8px";
+    badge.textContent = env.toUpperCase();
+    badge.title = `Environment: ${env} — not production`;
+    document.querySelector("header .navlink")?.parentElement
+      ? document.querySelector("header")?.appendChild(badge) : null;
+  }
+}).catch(() => {});
+
 // megamenu dropdowns (details-based) don't close on outside click natively —
 // close any open panel when clicking elsewhere, but never while clicking
 // inside a panel (loading several eval sets in a row stays one gesture)

@@ -134,3 +134,32 @@ def test_fixture_end_to_end_into_mm_reread(monkeypatch):
     assert fields["brand_name"]["mm_reread"]["verdict"] == "sides_with_application"
     assert fields["brand_name"]["mm_reread"]["model"] == "fixture"
     assert fields["alcohol_content"]["status"] == "NEEDS_REVIEW"  # suggestion-only
+
+
+# ── env mode: prod gates (DevSecOps config matrix) ───────────────────────
+
+def test_prod_gates_pipelines_and_samples_but_not_verify(monkeypatch):
+    """Prod: samples empty, pipeline runs 403 — but the screening path
+    (incl. batch import's POST /api/verify) stays fully enabled."""
+    from fastapi.testclient import TestClient
+    from api import main
+    monkeypatch.setattr(main, "LABELCHECK_ENV", "prod")
+    client = TestClient(main.app)
+    assert client.get("/api/samples").json() == []
+    r = client.post("/api/pipelines/wine/run")
+    assert r.status_code == 403 and r.json()["code"] == "disabled_in_prod"
+    # verify stays open (400 no_image = reached the handler, not a gate)
+    assert client.post("/api/verify").status_code in (400, 503)
+    assert client.get("/healthz").json()["env"] == "prod"
+
+
+def test_dev_mode_keeps_everything(monkeypatch):
+    from fastapi.testclient import TestClient
+    from api import main
+    monkeypatch.setattr(main, "LABELCHECK_ENV", "dev")
+    client = TestClient(main.app)
+    assert client.get("/healthz").json()["env"] == "dev"
+    assert client.get("/api/samples").json() != []
+    # unknown name → 404 from the handler itself: proves the prod gate is
+    # NOT in the way, without kicking off a real registry pull from a test
+    assert client.post("/api/pipelines/nope/run").status_code == 404
