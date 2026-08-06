@@ -228,8 +228,13 @@ for real against the subscription. Standing so far:
   original resolve failure was simply a never-created vault) holding
   AZ-GPT-4-1-KEY, AZ-GPT-5-1-SOL-KEY, AZ-OPENAI-API-KEY,
   COLACLOUD-API-KEY, FOUNDRY-API-KEY.
-- **Step 4 ✓ — LIVE:**
-  **https://labelcheck-dev.thankfulflower-7042e768.eastus.azurecontainerapps.io**
+- **Step 4 — RETIRED (2026-08-05, late):** the eastus CPU-shape
+  deployment (`labelcheck-dev` app + `labelcheck-dev-env`) was deleted
+  after the westus3 GPU stack went live and green — one region, one
+  digest, no drift. The eastus vault (`labelcheck-dev-kv`), ACR
+  (`labelcheckacr`), and storage account remain (shared by the west
+  stack / near-zero cost). Original record of the eastus deployment:
+  **https://labelcheck-dev.thankfulflower-7042e768.eastus.azurecontainerapps.io** (now 404)
   — ACA env `labelcheck-dev-env` + app `labelcheck-dev` running the
   pinned digest: single replica (DuckDB single-writer), 2 CPU / 4 Gi
   paddle-primary CPU shape, fixture-provider mm demo, managed-identity
