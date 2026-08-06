@@ -17,24 +17,6 @@
     </div>
     <div class="navbar-center flex-1 justify-start">
       <ul class="ttbnav">
-        <li>
-          <details class="dropdown">
-            <summary class="navlink">Add labels</summary>
-            <div class="dropdown-content megapanel w-96">
-              <label for="files" class="filebtn" id="filebtn">Choose label image(s)</label>
-              <input type="file" id="files" accept="image/png,image/jpeg" multiple
-                     style="position:absolute;left:-9999px">
-              <label for="pair" class="filebtn" style="margin-top:8px">Front + back of one label</label>
-              <input type="file" id="pair" accept="image/png,image/jpeg" multiple
-                     style="position:absolute;left:-9999px">
-              <p class="note" style="margin:4px 0 0">Pick 2 images (front first) — scanned together
-                as one label; the Government Warning is usually on the back.</p>
-              <label for="csv" class="filebtn" style="margin-top:8px">Import CSV manifest (batch)</label>
-              <input type="file" id="csv" accept=".csv,text/csv" style="position:absolute;left:-9999px">
-              <button class="secondary" id="tpl" type="button" style="width:100%;margin-top:8px">Download CSV template</button>
-            </div>
-          </details>
-        </li>
         <li id="menu-samples">
           <details class="dropdown">
             <summary class="navlink">Samples</summary>
@@ -71,6 +53,15 @@
       </ul>
     </div>
   </nav>
+<!-- add-label inputs: the menu is gone (hero + footer are the affordances);
+     the inputs and template button stay, hidden, because app.js binds them -->
+<label for="files" style="position:absolute;left:-9999px">Choose label image(s)</label>
+<input type="file" id="files" accept="image/png,image/jpeg" multiple style="position:absolute;left:-9999px">
+<label for="pair" style="position:absolute;left:-9999px">Front and back of one label (pick 2 images, front first)</label>
+<input type="file" id="pair" accept="image/png,image/jpeg" multiple style="position:absolute;left:-9999px">
+<label for="csv" style="position:absolute;left:-9999px">Import CSV manifest (batch)</label>
+<input type="file" id="csv" accept=".csv,text/csv" style="position:absolute;left:-9999px">
+<button id="tpl" type="button" style="position:absolute;left:-9999px" tabindex="-1" aria-hidden="true">Download CSV template</button>
 </header>
 <div class="subnav" id="subnav" style="display:none">
     <div class="commodities" id="commodities" role="group" aria-label="Commodity">
@@ -146,6 +137,7 @@
     <a class="link link-hover" href="#" data-act="files">Add label images</a>
     <a class="link link-hover" href="#" data-act="pair">Front + back of one label</a>
     <a class="link link-hover" href="#" data-act="csv">Import CSV batch</a>
+    <a class="link link-hover" href="#" data-act="tpl">Download CSV template</a>
     <a class="link link-hover" href="#" data-act="export">Export results (CSV)</a>
   </nav>
   <nav>
@@ -166,7 +158,7 @@
        target="_blank" rel="noopener">27 CFR part 16 — health warning</a>
   </nav>
 </footer>
-<script src="app.js?v=n10.5"></script><!-- bump ?v= on app.js changes: browsers
+<script src="app.js?v=n10.6"></script><!-- bump ?v= on app.js changes: browsers
   heuristically cache un-versioned statics and can keep pre-refinement code
   running against the new API -->
 </body>

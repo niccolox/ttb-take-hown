@@ -486,13 +486,13 @@ function renderList() {
       <button type="button" class="btn btn-primary btn-block" data-hero="files">Choose label image(s)</button>
       <button type="button" class="btn btn-outline btn-primary btn-block mt-2" data-hero="sample">Try a sample</button>
       <button type="button" class="btn btn-ghost btn-block mt-2" data-hero="tour">▶ Watch a guided sample check (90 s)</button>
-      <p class="cite" style="margin-top:10px">Batches: Add labels → Import CSV manifest.
+      <p class="cite" style="margin-top:10px">Batches: “Import CSV batch” in the footer.
         Eval sets and registry pipelines live in the top navigation.</p>`;
     hero.querySelector('[data-hero="files"]').addEventListener("click", () => $("files").click());
     hero.querySelector('[data-hero="tour"]').addEventListener("click", () => startTour());
     hero.querySelector('[data-hero="sample"]').addEventListener("click", (e) => {
       e.stopPropagation();  // same: don't let the outside-click closer undo the open
-      const d = document.querySelectorAll("header details")[1];
+      const d = document.querySelectorAll("header details")[0];  // Samples (Add-labels menu removed)
       d?.setAttribute("open", "");
       d?.querySelector("#samples button")?.focus();
     });
@@ -769,7 +769,7 @@ document.querySelector("footer").addEventListener("click", (e) => {
   if (!act) return;
   e.preventDefault();
   e.stopPropagation();      // the outside-click menu closer must not see this click
-  const MENUS = { "menu-samples": 1, "menu-evalsets": 2, "menu-pipelines": 3 };
+  const MENUS = { "menu-samples": 0, "menu-evalsets": 1, "menu-pipelines": 2 };  // Add-labels menu removed — indexes shifted
   if (act in MENUS) {
     window.scrollTo({ top: 0, behavior: "smooth" });
     const d = document.querySelectorAll("header details")[MENUS[act]];
