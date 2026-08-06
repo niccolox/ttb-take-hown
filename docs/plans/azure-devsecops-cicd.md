@@ -210,7 +210,16 @@ additions) for the container. Two deliberate exceptions when copying
 the emitted config into step 4: drop `NEMOTRON_OCR_URL` (localhost is
 meaningless in ACA — set it only with the GPU upgrade) and drop
 `OPENAI_DEBUG` (prompts contain application values; dev-only on
-laptops). **3b · Vault recovery** — when the seeding loop fails with
+laptops). **3a · Prove the vault path first:** `RG=$RG LOC=$LOC
+./scripts/hello_azure_keyvault.sh` — creates a disposable vault, waits
+for real DNS, round-trips a secret, deletes AND purges. Run live on
+this subscription it caught both failure classes in order: the
+name-resolution miss (3b below) and the RBAC-mode 403 (fixed durably
+with the data-plane role at the RESOURCE-GROUP scope, so every future
+vault in the RG inherits it):
+`az role assignment create --assignee $(az ad signed-in-user show --query id -o tsv) --role "Key Vault Secrets Officer" --scope $(az group show -n $RG --query id -o tsv)`
+
+**3b · Vault recovery** — when the seeding loop fails with
 `Failed to resolve '<vault>.vault.azure.net'`: the vault does not exist
 at that name. Key Vault names are **globally** unique across all of
 Azure — `$APP-kv` can be taken by anyone, or held by a soft-deleted
