@@ -1117,7 +1117,8 @@ function renderResult(container, it) {
         <div class="note">${esc(f.note || "")}</div>
         ${f.citation ? `<div class="cite">${esc(f.citation)}</div>` : ""}
         ${(f.sub_results || []).map((s) => `<div class="sub"><strong>${esc(s.check.replace(/_/g, " "))}:</strong> ${esc(s.outcome.toUpperCase())} — ${esc(s.detail)}</div>`).join("")}
-        ${f.vlm ? `<div class="sub" style="border-left:3px solid #b58900;padding-left:6px;margin-top:4px"><strong>Vision model suggests:</strong> ${esc(f.vlm.suggestion)}<div class="cite">${esc(f.vlm.disclaimer)} · ${esc(f.vlm.engine)}</div></div>` : ""}`}
+        ${f.vlm ? `<div class="sub" style="border-left:3px solid #b58900;padding-left:6px;margin-top:4px"><strong>Vision model suggests:</strong> ${esc(f.vlm.suggestion)}<div class="cite">${esc(f.vlm.disclaimer)} · ${esc(f.vlm.engine)}</div></div>` : ""}
+        ${mmRereadHtml(f)}`}
       </div>
       <div class="cropcell"></div>`;
     rowsHost.appendChild(row);
@@ -1307,6 +1308,36 @@ function renderSummaryCard(container, it, where = "top") {
           e.target.textContent = "Copied ✓"; } catch { /* clipboard denied */ }
   });
   container.appendChild(card);
+}
+
+// mm second read (mm-ocr-augment D-4): headline chips for agrees /
+// sides-with-application ONLY — plain differs/unreadable/error verdicts
+// live in the debug details (asymmetric semantics: the second reader is
+// weaker than the primary OCR, raw disagreement is noise). Transcription
+// text is model-controlled: escaped, control-stripped, capped (T15).
+// Fixture-provider chips are visibly demos (amendment 26).
+function mmRereadHtml(f) {
+  const mm = f.mm_reread;
+  if (!mm) return "";
+  const clean = (s, n) =>
+    esc(String(s || "").replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, n));
+  const fixture = mm.model === "fixture";
+  const head = mm.verdict === "agrees"
+    ? `<strong>Second read: agrees</strong> — ${clean(mm.text, 120)}`
+    : mm.verdict === "sides_with_application"
+      ? `<strong class="sum-diff">Second read: sides with the application</strong> — ${clean(mm.text, 120)}`
+      : "";
+  const debug = `<details class="cite"><summary>Second-read debug</summary>
+      verdict: ${esc(mm.verdict)}${mm.cause ? ` · cause: ${esc(mm.cause)}` : ""}
+      · model: ${esc(String(mm.model || "?"))} · ${mm.elapsed_ms ?? "?"} ms
+      ${mm.note ? `<div>${clean(mm.note, 240)}</div>` : ""}
+      ${mm.text && !head ? `<div>text: ${clean(mm.text, 240)}</div>` : ""}</details>`;
+  if (!head) return `<div class="sub">${debug}</div>`;
+  const border = mm.verdict === "sides_with_application" ? "#b58900" : "#2e7d32";
+  return `<div class="sub" style="border-left:3px solid ${border};padding-left:6px;margin-top:4px">
+      ${head}${fixture ? ' <span class="badge badge-soft badge-sm">fixture demo</span>' : ""}
+      <div class="cite">AI second read — suggestion only; the screening verdict above is unchanged.</div>
+      ${debug}</div>`;
 }
 
 // Troubled-application AI review: auto-triggered server-side when ≥50% of
