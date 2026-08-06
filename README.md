@@ -16,16 +16,30 @@ in the export and in the AI-drafted decision summaries).
 
 ---
 
-## ⚡ Run it
+## ⚡ Setup & run
+
+**Prerequisites:** Docker with **~4 GB memory** (exit 137 during warmup =
+raise the limit). Optional: an NVIDIA GPU for the Nemotron shape; a free
+[COLA Cloud](https://app.colacloud.us) key for registry pulls; Azure OpenAI
+keys for the AI layers. **None are required** — the core screener runs fully
+offline.
 
 ```bash
-docker compose up                       # CPU shape → http://localhost:8123
-docker compose -f docker-compose.gpu.yml up   # GPU shape: Nemotron OCR sidecar
+# 1 · run (pick a shape)
+docker compose up                              # CPU shape → http://localhost:8123
+docker compose -f docker-compose.gpu.yml up    # GPU shape: Nemotron OCR sidecar
+docker compose -f docker-compose.dev.yml up    # dev: live-reload bind mounts
+
+# 2 · optional keys (gitignored; both compose files read it automatically)
+cp .env.example .env    # then fill in only what you want enabled
+
+# 3 · verify
+curl localhost:8123/healthz    # {"ready":true,...} when warm (~1-3 min first boot)
+make smoke                     # end-to-end gate: clean sample all-green in <5s
 ```
 
-First boot warms models; `/healthz` reports `ready`. **No API keys required.
-No outbound ML calls by default** — verified: the container boots to ready and
-returns correct verdicts with networking removed entirely
+**No outbound ML calls by default** — verified: the container boots to ready
+and returns correct verdicts with networking removed entirely
 (`docker run --network none labelcheck`). Every AI layer is opt-in per env
 var and fails silent-closed; absence of a key is byte-identical behavior.
 
@@ -39,10 +53,51 @@ up --force-recreate`, open the **Bad photo** sample →
 ```bash
 uv venv .venv && uv pip install --python .venv/bin/python -r api/requirements.txt fastapi uvicorn python-multipart
 make serve        # http://localhost:8123
-make test         # 297 tests, no OCR needed
+make test         # 299 tests, no OCR needed
 make smoke        # end-to-end: clean sample must go all-green in <5s
 ```
 </details>
+
+## 🧭 Approach, tools used, and assumptions
+
+**Approach** — five commitments, each test-enforced:
+
+1. 📜 **Deterministic verdicts.** Compliance calls come from a pure-Python,
+   CFR-cited rules engine over *verbatim* OCR text — no model ever decides.
+2. ⏱️ **Two tiers.** A provisional answer inside the 5-second promise, then a
+   background cross-check (second engine, warning re-read, AI second read)
+   that settles without ever reopening a settled verdict.
+3. 👀 **Many readers, one judge.** Independent readers multiply (Nemotron,
+   Paddle, an optional vision model); the judge doesn't.
+4. 📏 **Evidence-gated shipping.** Each AI layer passed a measured gate
+   before default-on (value incidence, 100% disagreement precision,
+   adversarial trap corpus) — numbers over vibes.
+5. 🙋 **Honest failure.** The failure mode everywhere is NEEDS REVIEW with a
+   reason and an evidence crop — never a confident wrong answer.
+
+**Tools used:**
+
+| Category | Choice |
+|---|---|
+| API / runtime | FastAPI + uvicorn, single process; stdlib HTTP clients (no SDK in verdict-adjacent paths) |
+| OCR engines | **Nemotron OCR v2** (GPU sidecar, primary, detector @1536) · **PaddleOCR 3.2** (CPU, QA shadow + fallback) |
+| AI assists (opt-in) | Azure OpenAI **gpt-5.6-sol** (text: summaries/triage) · **gpt-4.1** (vision second read, pinned by latency A/B) · **Mistral Document AI** (grounded OCR alternative) |
+| UI | Vanilla JS single page + Tailwind/DaisyUI, compiled offline and vendored (no CDN) |
+| Persistence | DuckDB (sessions, single-writer) · rotated JSONL telemetry |
+| Testing / evals | pytest (299 hermetic tests) · golden trap corpus · TTB's own examples as fixtures · live eval tiers behind env flags |
+| Supply chain / CI | pip hash-lock · CycloneDX SBOM · digest-pinned images · GitHub Actions (tests, no-egress proof, axe) |
+| Cloud | Azure Container Apps (CPU + T4 GPU profiles) · ACR · Key Vault · Azure Files — executed live per the [playbook](docs/plans/azure-devsecops-cicd.md) |
+
+**Assumptions made:** application data is agent-entered or loaded from COLA
+Cloud registry pulls (the registry record as ground truth); English labels;
+up to 4 panels per application (the warning usually lives on the back);
+bold-weight measurement is conservative by contract (equal-weight never
+reads "ok"); physical-scale rules a photo can't prove are labeled *not
+checked* with their citation; sessions persist to a local single-writer
+DuckDB store; cloud AI layers see synthetic/golden data only until the
+model-placement standard clears real pre-approval images; production mode
+(`LABELCHECK_ENV=prod`) keeps batch screening fully enabled and gates the
+demo surfaces + registry egress.
 
 ## 🏗️ Architecture — two tiers, many eyes, one judge
 
@@ -238,11 +293,4 @@ curl -F "image=@api/eval/golden/spirits_clean.jpg" \
      http://localhost:8123/api/verify
 ```
 
-## 🧭 Assumptions & honest edges
 
-English labels; up to 4 panels per application; bold-weight measurement is
-conservative by contract (equal-weight never reads "ok"); physical-scale
-rules a photo can't prove are labeled *not checked* with their citation.
-Sessions (images + decisions) persist to a local DuckDB store —
-single-writer by design. The honest failure mode everywhere is **NEEDS
-REVIEW with a reason and a crop** — never a confident wrong answer.
