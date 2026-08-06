@@ -976,6 +976,54 @@ function bannerFor(fields, it = null) {
  *  always sees where the case stands and what happens next. The last step
  *  belongs to the AGENT: a machine all-clear never fills it (human primacy,
  *  docs/ai-risk-statement.md). */
+// U1 — live cross-check sub-progress: the result payload already carries
+// per-layer job states; name them so the wait is legible, not a spinner.
+const LAYER_NAMES = { "second-engine-check": "engine 2",
+                      "warning-reread": "warning re-read",
+                      "vlm-assist": "AI second read" };
+function crossCheckSub(r) {
+  return (r.jobs || []).map((j) => {
+    const g = j.state === "done" ? "✓"
+      : j.state === "running" ? "⏳"
+      : j.state === "pending" ? "·" : "!";
+    return `${LAYER_NAMES[j.layer] || j.layer} ${g}`;
+  }).join(" · ");
+}
+
+// U2 — "what changed at settle": computed from the recorded refinements
+// and guard states, so the most opaque moment becomes the most legible.
+function settleDigest(fields) {
+  let confirmed = 0, upgraded = 0, downgraded = 0, discovered = 0, mm = 0;
+  for (const f of fields || []) {
+    const g = f.guard?.state;
+    if (g === "agreed" || g === "agreed_after_reread") confirmed++;
+    const v = f.mm_reread?.verdict;
+    if (v === "agrees" || v === "sides_with_application") mm++;
+    for (const rf of f.refinements || []) {
+      if (!rf.applied) continue;
+      if (rf.kind === "upgrade") upgraded++;
+      else if (rf.kind === "downgrade") downgraded++;
+      else if (rf.kind === "discovery") discovered++;
+    }
+  }
+  const bits = [];
+  if (confirmed) bits.push(`${confirmed} field${confirmed > 1 ? "s" : ""} confirmed by the second engine`);
+  if (upgraded) bits.push(`${upgraded} upgraded after re-read`);
+  if (downgraded) bits.push(`${downgraded} held for review (engines disagree)`);
+  if (discovered) bits.push(`${discovered} found on re-read`);
+  if (mm) bits.push(`${mm} second-read chip${mm > 1 ? "s" : ""}`);
+  return bits.join(" · ");
+}
+
+// U5 — honest ETA from this session's measured settles (falls back to the
+// audited p50 of ~4s); shown in the preliminary banner.
+const settleTimes = [];
+function settleEtaNote() {
+  const arr = settleTimes.slice(-20).sort((a, b) => a - b);
+  const p50 = arr.length >= 3 ? arr[Math.floor(arr.length / 2)] / 1000 : 4;
+  return ` (usually ~${Math.max(1, Math.round(p50))}s)`;
+}
+
 function renderJourney(container, it) {
   const st = itemState(it);
   const r = it.result;
@@ -1004,7 +1052,8 @@ function renderJourney(container, it) {
   // 3 · Cross-checked (background QA: second engine, warning re-read)
   const twoStage = r && (r.settled === false || it.settleMs != null
     || (r.jobs || []).length > 0);
-  if (r && r.settled === false) add("●", "Cross-checking…", "step-running");
+  if (r && r.settled === false)
+    add("●", "Cross-checking… " + crossCheckSub(r), "step-running");
   else if (twoStage) add("✓", it.settleMs != null
     ? `Cross-checked ${(it.settleMs / 1000).toFixed(1)}s` : "Cross-checked",
     "step-primary");
@@ -1030,16 +1079,23 @@ function renderJourney(container, it) {
 function renderResult(container, it) {
   const r = it.result;
   // N3 provisional state (AD-12 lean): a verdict with checks still running
-  // must never read as the settled answer — name the running layers.
+  // must never read as the settled answer — name the running layers with
+  // their live states (U1: the payload already carries jobs[]).
   if (r.settled === false) {
-    const pending = (r.pending || []).map((j) => ({
-      "second-engine-check": "cross-checking with second engine",
-      "warning-reread": "re-reading warning text at full resolution",
-    }[j.layer] || j.layer)).join("; ");
     const prov = document.createElement("div");
     prov.className = "timing";
-    prov.textContent = `⏳ Preliminary result — ${pending || "additional checks"} still running. Details below may upgrade in a few seconds.`;
+    prov.textContent = `⏳ Preliminary result — ${crossCheckSub(r) || "additional checks running"}. `
+      + `Details below may upgrade in a few seconds${settleEtaNote()}.`;
     container.appendChild(prov);
+  } else if ((r.jobs || []).length) {
+    // U2: the settle moment gets a visible digest instead of a silent swap
+    const digest = settleDigest(r.fields);
+    if (digest) {
+      const done = document.createElement("div");
+      done.className = "timing";
+      done.textContent = `✓ Cross-check complete — ${digest}.`;
+      container.appendChild(done);
+    }
   }
   // timing/stage display lives in the journey stepper (renderJourney),
   // which renders above the label image for every selected item
@@ -1502,6 +1558,12 @@ async function pollRefinements(it, resultId) {
       it.result = body;
       if (body.settled) {                    // total = stage 1 + cross-check wait
         it.settleMs = (it.elapsedMs || 0) + (performance.now() - pollStart);
+        settleTimes.push(performance.now() - pollStart);   // U5 ETA source
+        // U2: announce the settle for screen readers (dedicated region —
+        // #progress belongs to batch status)
+        const live = $("live");
+        if (live) live.textContent = "Cross-check complete. "
+          + (settleDigest(body.fields) || "No changes to the preliminary result.");
       }
       markSessionDirty(); renderList(); if (sel() === it) renderDetail();
       schedulePersist();

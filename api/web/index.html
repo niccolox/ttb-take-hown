@@ -97,6 +97,7 @@
 
   <section class="panel" aria-labelledby="apps-h">
     <h2 id="apps-h">Applications</h2>
+    <div id="live" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)"></div>
     <div class="status-note" id="progress" role="status" aria-live="polite">No labels yet — add images, a sample, or a CSV + images.</div>
     <progress id="progressbar" class="progress progress-primary w-full" max="100" style="display:none"></progress>
     <div id="list" role="group" aria-label="Uploaded labels"></div>
@@ -165,7 +166,7 @@
        target="_blank" rel="noopener">27 CFR part 16 — health warning</a>
   </nav>
 </footer>
-<script src="app.js?v=n10.0"></script><!-- bump ?v= on app.js changes: browsers
+<script src="app.js?v=n10.1"></script><!-- bump ?v= on app.js changes: browsers
   heuristically cache un-versioned statics and can keep pre-refinement code
   running against the new API -->
 </body>
