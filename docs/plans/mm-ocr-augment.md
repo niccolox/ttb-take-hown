@@ -176,6 +176,22 @@ held-out golden traps contributed n=1 (trap_titlecase_warning — content
 words present, typography wrong — judged correctly, exactly the designed
 narrowed-verdict case). Raw data: api/eval/results/mm-precision.json.
 
+### D-5 GATE RE-RUN UNDER SOL (2026-08-05 — PASS, with a coverage caveat)
+
+Provider switched to gpt-5.6-sol (one-value switch) and the gate re-run
+over the same 134 apps: 105 reads fired; **precision 17/17 = 100%**
+(floor 80%, n≥10 met) → PASS. BUT error rate 40/105 (mistral run: 3/105)
+— 10 timeouts at the 12 s cap plus ~30 inferred `truncated`
+(finish_reason=length: Sol spends output budget on reasoning for busy
+crops; the simple-crop probe at 2.9 s was the easy case). Judged
+coverage fell 102→65 reads. Remedies if Sol stays on the read path:
+raise TRANSCRIBE_MAX_TOKENS for gpt-5.x (output cost is trivial) and/or
+extend the transcribe timeout; else pin the read path back to
+mistral_doc or gpt-4.1 via LABELCHECK_VISION_MODEL. Observability nit
+found: the `truncated` cause doesn't log server-side (debug-block only).
+Raw data: api/eval/results/mm-precision.json (overwrites the mistral
+run; that one is preserved at commit d3c680a).
+
 ### D-6 · Operator docs (~1 hour)
 
 Extend docs/enable-azure-vlm.md: provider matrix, flag semantics

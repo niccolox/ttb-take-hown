@@ -1,16 +1,16 @@
 {
- "measured_at": "2026-08-05 19:33:53",
+ "measured_at": "2026-08-05 20:23:22",
  "apps": 134,
  "reads_fired": 105,
  "verdict_histogram": {
-  "agrees": 52,
-  "sides_with_application": 21,
-  "differs": 29,
+  "agrees": 38,
+  "sides_with_application": 17,
+  "differs": 10,
   "unreadable": 0,
-  "error": 3
+  "error": 40
  },
- "swa_n": 21,
- "swa_correct": 21,
+ "swa_n": 17,
+ "swa_correct": 17,
  "precision": 1.0,
  "floor": 0.8,
  "min_n": 10,
@@ -21,14 +21,14 @@
    "field": "government_warning",
    "tier": "held_out",
    "correct": true,
-   "text": "Government Warning: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy be"
+   "text": "Government Warning: (1) According to the Surgeon General, women should not drink alcoholic\nbeverages during pregnancy be"
   },
   {
    "id": "beer/26209001000517",
    "field": "brand_name",
    "tier": "calibration",
    "correct": true,
-   "text": "OLD NATION\nBREWING CO.\n1500 W. Grand River\nOCT 1996\n05"
+   "text": "OLD NATION\nBREWING CO.\n1500 W. Grand River\nOCT\nNOV\nDEC"
   },
   {
    "id": "beer/26209001000517",
@@ -38,130 +38,102 @@
    "text": "GOVERNMENT WARNING:\n(1) ACCORDING TO THE\nSURGEON GENERAL,\nWOMEN SHOULD NOT DRINK\nALCOHOLIC BEVERAGES DURING\nPREGNANCY BE"
   },
   {
-   "id": "beer/26209001000443",
+   "id": "beer/26194001000726",
    "field": "government_warning",
    "tier": "calibration",
    "correct": true,
-   "text": "GOVERNMENT WARNING:\n(1) ACCORDING TO THE SURGEON GENERAL, WOMEN SHOULD NOT DRINK ALCOHOLIC BEVERAGES DURING PREGNANCY BE"
-  },
-  {
-   "id": "beer/26209001000372",
-   "field": "government_warning",
-   "tier": "calibration",
-   "correct": true,
-   "text": "28\n29\n\nGOVERNMENT WARNING: (1) ACCORDING TO THE SURGEON GENERAL, WOMEN SHOULD NOT DRINK ALCOHOLIC BEVERAGES DURING PREGN"
-  },
-  {
-   "id": "beer/26209001000365",
-   "field": "government_warning",
-   "tier": "calibration",
-   "correct": true,
-   "text": "1981-2012\n\nGOVERNMENT WARNING: (1) ACCORDING TO THE SURGEON GENERAL, WOMEN SHOULD NOT DRINK ALCOHOLIC BEVERAGES DURING P"
+   "text": "CONTAINS FD&C YELLOW #5\nGOVERNMENT WARNING: (1)\nACCORDING TO THE SURGEON\nGENERAL, WOMEN SHOULD NOT\nDRINK ALCOHOLIC BEVER"
   },
   {
    "id": "champagne/26202001000745",
    "field": "government_warning",
    "tier": "calibration",
    "correct": true,
-   "text": "GOVERNMENT WARNING: (1) ACCORDING TO THE SURGEON GENERAL, WOMEN SHOULD NOT DRINK ALCOHOLIC BEVERAGES DURING PREGNANCY BE"
+   "text": "GOVERNMENT WARNING : (1) ACCORDING TO THE SURGEON GENERAL,\nWOMEN SHOULD NOT DRINK ALCOHOLIC BEVERAGES DURING PREGNANCY\nB"
   },
   {
    "id": "champagne/26208001000246",
    "field": "government_warning",
    "tier": "calibration",
    "correct": true,
-   "text": "GOVERNMENT WARNING:\n(1) ACCORDING TO THE SURGEON GENERAL, WOMEN SHOULD NOT DRINK ALCOHOLIC BEVERAGES DURING PREGNANCY BE"
+   "text": "GOVERNMENT WARNING:\n(1) ACCORDING TO THE SURGEON\nGENERAL, WOMEN SHOULD NOT\nDRINK ALCOHOLIC BEVERAGES\nDURING PREGNANCY BE"
+  },
+  {
+   "id": "champagne/26208001000091",
+   "field": "government_warning",
+   "tier": "calibration",
+   "correct": true,
+   "text": "GOVERNMENT WARNING: (1) ACCORDING\nTO THE SURGEON GENERAL, WOMEN\nSHOULD NOT DRINK ALCOHOLIC\nBEVERAGES DURING PREGNANCY\nBE"
   },
   {
    "id": "imported_wine/26203001000216",
    "field": "class_type",
    "tier": "calibration",
    "correct": true,
-   "text": "ROSE' WINE - B\n750 ML - AKC"
-  },
-  {
-   "id": "imported_wine/26203001000059",
-   "field": "government_warning",
-   "tier": "calibration",
-   "correct": true,
-   "text": "GOVERNMENT WARNING: (1) ACCORDING TO THE SURGEON GENERAL, WOMEN SHOULD NOT DRINK ALCOHOLIC BEVERAGES DURING PREGNANCY BE"
-  },
-  {
-   "id": "imported_wine/26203001000028",
-   "field": "government_warning",
-   "tier": "calibration",
-   "correct": true,
-   "text": "# INDICATIONS GEOGRAPHIC\n\nGOVERNMENT WARNING: (1) ACCORDING TO THE SURGEON GENERAL, WOMEN SHOULD NOT DRINK ALCOHOLIC BEV"
+   "text": "ROSE\u2019 WINE -"
   },
   {
    "id": "imported_wine/26203001000016",
    "field": "government_warning",
    "tier": "calibration",
    "correct": true,
-   "text": "RECEIVED BY MARVARD TO WILLIAMS, MRS., PE\n\n# GOVERNMENT WARNING :\n\n(1) ACCORDING TO THE SURGEON GENERAL, WOMEN SHOULD NO"
+   "text": "GOVERNMENT WARNING :\n(1) ACCORDING TO THE SURGEON GENERAL, WOMEN SHOULD NOT\nDRINK ALCOHOLIC BEVERAGES DURING PREGNANCY B"
   },
   {
    "id": "imported_wine/26203001000010",
    "field": "government_warning",
    "tier": "calibration",
    "correct": true,
-   "text": "GOVERNMENT WARNING: (1) ACCORDING TO THE SURGEON GENERAL, WOMEN SHOULD NOT DRINK ALCOHOLIC BEVERAGES DURING PREGNANCY BE"
+   "text": "IGP VAL DE LOIRE\nGOVERNMENT WARNING: (1) ACCORDING TO\nTHE SURGEON GENERAL, WOMEN SHOULD\nNOT DRINK ALCOHOLIC BEVERAGES DU"
   },
   {
    "id": "kentucky_whisky/26204001000377",
    "field": "government_warning",
    "tier": "calibration",
    "correct": true,
-   "text": "8 84400 51288 8\n\nGOVERNMENT WARNING: (1) ACCORDING TO THE SURGEON GENERAL, WOMEN SHOULD NOT DRINK ALCOHOLIC BEVERAGES DU"
-  },
-  {
-   "id": "napa_zinfandel/26194001000695",
-   "field": "government_warning",
-   "tier": "calibration",
-   "correct": true,
-   "text": "B-40051111 | PETMOTA, CALIFORNIA\n\nGOVERNMENT WARNING: (1) ACCORDING TO THE SURGEON GENERAL, WOMEN SHOULD NOT DRINK ALCOH"
+   "text": "8 84400 51288 8\n\nGOVERNMENT WARNING: (1) ACCORDING TO THE SURGEON\nGENERAL, WOMEN SHOULD NOT DRINK ALCOHOLIC BEVERAGES\nDU"
   },
   {
    "id": "napa_zinfandel/26196001000922",
    "field": "government_warning",
    "tier": "calibration",
    "correct": true,
-   "text": "GOVERNMENT WARNING: (1) ACCORDING TO THE SURGEON GENERAL, WOMEN SHOULD NOT DRINK ALCOHOLIC BEVERAGES DURING PREGNANCY BE"
+   "text": "GOVERNMENT WARNING: (1) ACCORDING TO THE\nSURGEON GENERAL, WOMEN SHOULD NOT DRINK\nALCOHOLIC BEVERAGES DURING PREGNANCY\nBE"
   },
   {
    "id": "spirits/26204001000555",
    "field": "government_warning",
    "tier": "calibration",
    "correct": true,
-   "text": "GOVERNMENT WARNING: (1) ACCORDING TO THE SURGEON GENERAL, WOMEN SHOULD NOT DRINK ALCOHOLIC BEVERAGES DURING PREGNANCY BE"
-  },
-  {
-   "id": "spirits/26204001000568",
-   "field": "government_warning",
-   "tier": "calibration",
-   "correct": true,
-   "text": "FERMENTED, BOTTLED AND DISTILLED BY THUNDER CANYON DISTILLERY - TUCSON, AZ\n\nGOVERNMENT WARNING: (1) According to the Sur"
+   "text": "GOVERNMENT WARNING: (1) ACCORDING TO THE SURGEON GENERAL, WOMEN\nSHOULD NOT DRINK ALCOHOLIC BEVERAGES DURING PREGNANCY BE"
   },
   {
    "id": "spirits/26204001000498",
    "field": "government_warning",
    "tier": "calibration",
    "correct": true,
-   "text": "GOVERNMENT WARNING: (1) ACCORDING TO THE SURGEON GENERAL, WOMEN SHOULD NOT DRINK ALCOHOLIC BEVERAGES DURING PREGNANCY BE"
+   "text": "GOVERNMENT WARNING: (1) ACCORDING TO\nTHE SURGEON GENERAL, WOMEN SHOULD NOT\nDRINK ALCOHOLIC BEVERAGES DURING PREGNANCY\nBE"
   },
   {
    "id": "wine/26205001000356",
    "field": "government_warning",
    "tier": "calibration",
    "correct": true,
-   "text": "11000 WHICHER RD, WASHINGTON, WY 7500\n\nGOVERNMENT WARNING: (1) ACCORDING TO THE SURGEON GENERAL, WOMEN SHOULD NOT DRINK "
+   "text": "GOVERNMENT WARNING: (1)ACCORDING TO THE SURGEON\nGENERAL, WOMEN SHOULD NOT DRINK ALCOHOLIC\nBEVERAGES DURING PREGNANCY BEC"
+  },
+  {
+   "id": "wine/26203001000220",
+   "field": "government_warning",
+   "tier": "calibration",
+   "correct": true,
+   "text": "Imported by:\nBENCIENNI IMPORTS LLC\nPOMPANO BEACH, FL\nRED WINE - PRODUCT OF ITALY\n750 ML - ALC. 13.5% BY VOL.\nCONTAINS SU"
   },
   {
    "id": "wine/26203001000216",
    "field": "class_type",
    "tier": "calibration",
    "correct": true,
-   "text": "ROSE' WINE - B\n750 ML - AKC"
+   "text": "ROSE\u2019 WINE -"
   }
  ]
 }
