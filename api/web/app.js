@@ -281,6 +281,11 @@ function passBlockers(it) {
   for (const f of it.result.fields) {
     const name = FIELD_LABELS[f.field] || f.field;
     if (isRefining(it, f)) { out.push(`${name} (still cross-checking)`); continue; }
+    // early-shown greens are DISPLAY, not decision: PASS waits for settle
+    if (shownEarly(it, f) && !fieldOv(it, f.field)) {
+      out.push(`${name} (preliminary — cross-check finishing)`);
+      continue;
+    }
     if (!PASSING_STATUSES.has(effStatus(it, f))) out.push(name);
   }
   return out;
@@ -310,9 +315,24 @@ function effStatus(it, f) {
 // statutory small print is exactly the read the refinement layers exist to
 // correct, so it must never render as a (red) verdict.
 const GUARD_FIELDS = new Set(["government_warning", "alcohol_content", "net_contents"]);
+// AD-12 relaxation (2026-08-05, user decision): an UNAMBIGUOUS green read
+// at ≥90% word confidence shows immediately instead of CHECKING. Reds and
+// review-class provisional reads stay withheld — the guard's core promise
+// ("never a red first read") is untouched, and PASS still waits for settle
+// (see passBlockers) so an early green can never mint an early decision.
+const EARLY_SHOW_STATUSES = new Set(["MATCH", "LIKELY_MATCH",
+                                     "WITHIN_TOLERANCE", "NOT_REQUIRED"]);
+const EARLY_SHOW_CONF = 0.90;
+function shownEarly(it, f) {
+  return !!(it.result && it.result.settled === false
+            && GUARD_FIELDS.has(f.field)
+            && EARLY_SHOW_STATUSES.has(f.status)
+            && (f.evidence?.region_quality ?? 0) >= EARLY_SHOW_CONF);
+}
 function isRefining(it, f) {
   return !!(it.result && it.result.settled === false && !it.stale
-            && GUARD_FIELDS.has(f.field) && !fieldOv(it, f.field));
+            && GUARD_FIELDS.has(f.field) && !fieldOv(it, f.field)
+            && !shownEarly(it, f));
 }
 
 let persistTimer = null;
@@ -1204,7 +1224,7 @@ function renderResult(container, it) {
     row.innerHTML = `
       <div class="fname">${esc(FIELD_LABELS[f.field] || f.field)}</div>
       <div>
-        <span class="chip ${fam}">${chipText}${fov ? " ·agent" : ""}</span>
+        <span class="chip ${fam}"${shownEarly(it, f) && !fov ? ' title="High-confidence preliminary read (≥90%) — the cross-check is still finishing; PASS unlocks at settle."' : ""}>${chipText}${fov ? " ·agent" : shownEarly(it, f) ? " ·prelim" : ""}</span>
         ${fov ? `<div class="ov-note" style="font-size:12px">${esc(origChip.replace(/^[^A-Za-z]+/, "").toLowerCase())} overridden on ${esc(fov.at)}</div>` : ""}
         <div class="fieldov btns" style="margin-top:4px">
           ${["PASS", "NEEDS REVIEW", "FAIL"].map((v) =>
