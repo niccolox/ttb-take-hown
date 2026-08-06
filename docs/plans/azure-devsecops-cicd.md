@@ -228,13 +228,18 @@ for real against the subscription. Standing so far:
   original resolve failure was simply a never-created vault) holding
   AZ-GPT-4-1-KEY, AZ-GPT-5-1-SOL-KEY, AZ-OPENAI-API-KEY,
   COLACLOUD-API-KEY, FOUNDRY-API-KEY.
-- **Step 4 ⏳** — ACA environment `labelcheck-dev-env` provisioning
-  (auto-generated Log Analytics workspace); app create queued behind it
-  with the pinned digest, single replica (DuckDB single-writer),
-  2 CPU / 4 Gi CPU shape (paddle-primary), fixture-provider mm demo,
-  managed-identity ACR pull; FQDN→ALLOWED_HOSTS and the healthz gate
-  follow. Steps 5–7 (Key Vault references, session storage, posture
-  pre-flight) pending.
+- **Step 4 ✓ — LIVE:**
+  **https://labelcheck-dev.thankfulflower-7042e768.eastus.azurecontainerapps.io**
+  — ACA env `labelcheck-dev-env` + app `labelcheck-dev` running the
+  pinned digest: single replica (DuckDB single-writer), 2 CPU / 4 Gi
+  paddle-primary CPU shape, fixture-provider mm demo, managed-identity
+  ACR pull, FQDN wired into LABELCHECK_ALLOWED_HOSTS. Smoke evidence:
+  `/healthz` `"ready":true` (rss ~913 MB, telemetry_drops 0) and a
+  golden verified END-TO-END on the live URL — spirits_clean settled
+  `no_mismatch_found` through the full two-tier pipeline in the cloud.
+  Steps 5–7 (Key Vault references, session storage, posture pre-flight)
+  pending; the URL is long-random-hostname-only until Entra fronts it
+  (deploy-security escape hatch, dev tier, synthetic data only).
 - **Rotation reminder:** the seeded AZ-* and FOUNDRY keys are the ones
   this workstream exposed fragments of — rotate in the portal, then
   re-run the step-3 seed loop; the vault updates in place.
