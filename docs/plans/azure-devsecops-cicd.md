@@ -178,13 +178,24 @@ assert and non-root checks — a failed bake never produces a digest.
 (M2 later promotes this to CI with cosign + SBOM-attach; the playbook
 gets you moving today.)
 
-**3 · Key Vault + secrets** (Principle 5 — `.env` stays on laptops).
+**3 · Key Vault + secrets** (Principle 5 — `.env` stays on laptops; the
+laptop file is the SOURCE, the vault is where the cloud reads).
 ```bash
 az keyvault create -n $APP-kv -g $RG
-az keyvault secret set --vault-name $APP-kv -n COLACLOUD-API-KEY --value "<dev key>"
+# read values straight from the local .env — nothing typed, nothing
+# echoed (`-o none` matters: without it az prints the secret bundle
+# INCLUDING the value into your terminal/CI log)
+set -a; source .env; set +a
+az keyvault secret set --vault-name $APP-kv -n COLACLOUD-API-KEY \
+  --value "$COLACLOUD_API_KEY" -o none
 # AI layers (dev tier, goldens only — placement standard):
-az keyvault secret set --vault-name $APP-kv -n AZ-OPENAI-API-KEY --value "<resource key>"
+az keyvault secret set --vault-name $APP-kv -n AZ-OPENAI-API-KEY \
+  --value "$AZ_OPENAI_API_KEY" -o none
+az keyvault secret set --vault-name $APP-kv -n MISTRAL-OCR-KEY \
+  --value "${MISTRAL_OCR_KEY:-$AZ_OPENAI_API_KEY}" -o none
 ```
+(The repo's `.env` is plain `KEY=value` lines — the loaders and this
+`source` both depend on that; keep comments on their own lines.)
 
 **4 · Container Apps environment + the app.** Dev-cloud runs the
 **CPU shape** (paddle-primary: `LABELCHECK_EXTRACTOR` unset) — the
