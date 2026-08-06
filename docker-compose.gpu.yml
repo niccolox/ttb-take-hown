@@ -62,7 +62,7 @@ services:
       # v2_english weights from the mounted clone: no runtime hub download,
       # and the 4 GB VRAM choice (multilingual needs 2.7-3.2 GiB).
       - NEMOTRON_MODEL_DIR=/workspace/v2_english
-      - NEMOTRON_INFER_LENGTH=${NEMOTRON_INFER_LENGTH:-}   # detector res override (default 1024; VRAM ~quadratic)
+      - NEMOTRON_INFER_LENGTH=${NEMOTRON_INFER_LENGTH:-1536}   # adopted 2026-08-05: kills the statutory small-print dropout (A/B: 9/9 goldens, traps hold, 1.3 GiB peak); set 1024 to revert
     ports:
       - "127.0.0.1:8200:8000"   # direct curl for debugging; app talks over the compose network
     working_dir: /workspace
