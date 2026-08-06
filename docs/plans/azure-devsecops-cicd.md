@@ -237,7 +237,10 @@ for real against the subscription. Standing so far:
   keys; the `labelcheck-gpu` app's identity holds Key Vault Secrets
   User on it, four keyvaultref-backed secretrefs + the one-value model
   config (AZ_BASE, AZ_OPENAI_MODEL=gpt-5.6-sol, MISTRAL_OCR_ENDPOINT)
-  applied — healthz re-verified on the new revision. The east vault
+  applied — healthz re-verified on the new revision. Vision read-path pinned
+  `LABELCHECK_VISION_MODEL=gpt-4.1` (2026-08-06, per the latency debug:
+  4.1 beat Sol on every crop with identical output; Sol stays the text
+  default). The east vault
   `labelcheck-dev-kv` is soft-deleted (recoverable ~90 days; `.env`
   remains the source of truth). Original record of the eastus deployment:
   **https://labelcheck-dev.thankfulflower-7042e768.eastus.azurecontainerapps.io** (now 404)
