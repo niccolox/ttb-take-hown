@@ -130,3 +130,42 @@ def test_engine_label_derived_from_client(monkeypatch):
     monkeypatch.setenv("AZURE_VLM_KEY", "k")
     monkeypatch.setenv("AZURE_VLM_MODEL", "gpt-4.1-vision")
     assert NanoVLClient().engine_label == "gpt-4.1-vision"
+
+
+def test_mistral_doc_dialect(monkeypatch):
+    monkeypatch.setenv("LABELCHECK_VLM_PROVIDER", "mistral_doc")
+    monkeypatch.setenv("MISTRAL_OCR_ENDPOINT",
+                       "https://r.services.ai.azure.com/providers/mistral/azure/ocr")
+    monkeypatch.setenv("MISTRAL_OCR_KEY", "mk1")
+    captured = {}
+
+    def fake_urlopen(req, timeout=0):
+        captured["payload"] = json.loads(req.data)
+        captured["headers"] = {k.lower(): v for k, v in req.header_items()}
+        return io.BytesIO(json.dumps({"pages": [
+            {"markdown": "# OLD TOM\n\n45% Alc./Vol."},
+            {"markdown": "GOVERNMENT WARNING: ..."}]}).encode())
+
+    monkeypatch.setattr(vlm.urllib.request, "urlopen", fake_urlopen)
+    c = NanoVLClient()
+    # OCR API is transcription-only: question mode gated off entirely
+    assert c.available("transcribe") is True and c.available() is False
+    assert c.read_crop(CROP, "Q?") is None
+    r = c.transcribe_crop(CROP)
+    assert r.status == "ok" and "45% Alc./Vol." in r.text \
+        and "GOVERNMENT WARNING" in r.text          # pages joined
+    assert captured["payload"]["document"]["type"] == "image_url"
+    assert "messages" not in captured["payload"]     # OCR shape, not chat
+    assert captured["headers"]["authorization"] == "Bearer mk1"
+    assert c.engine_label == "mistral-document-ai-2512"
+
+
+def test_mistral_doc_schema_drift_and_empty(monkeypatch):
+    monkeypatch.setenv("LABELCHECK_VLM_PROVIDER", "mistral_doc")
+    monkeypatch.setenv("MISTRAL_OCR_ENDPOINT", "https://r/ocr")
+    monkeypatch.setenv("MISTRAL_OCR_KEY", "mk1")
+    c = NanoVLClient()
+    _capture(monkeypatch, response={"unexpected": True})
+    assert c.transcribe_crop(CROP).cause == "schema"
+    _capture(monkeypatch, response={"pages": [{"markdown": "  "}]})
+    assert c.transcribe_crop(CROP).status == "unreadable"

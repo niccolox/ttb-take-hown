@@ -58,6 +58,7 @@ shipped J3 question assist).
 | set | unset ⇒ `nvidia` | absent | Zero egress entirely; startup line says INACTIVE |
 | set | `nvidia` | `NVIDIA_API_KEY` | Second read + question fallback via hosted Nano VL |
 | set | `azure` | `AZURE_VLM_ENDPOINT`+`AZURE_VLM_KEY` (+`AZURE_VLM_MODEL`) | Second read via your Azure vision deployment (GPT-4.1-class recommended — Gov-parity model class; Gov vision-input parity unverified) |
+| set | `mistral_doc` | `MISTRAL_OCR_ENDPOINT` (+`MISTRAL_OCR_KEY`, falls back to `AZ_OPENAI_API_KEY`) | Second read via Mistral Document AI on Foundry (transcription-only — question assist off; wire probed live 2026-08-05, `mistral-document-ai-2512`) |
 | set | `fixture` | none | Keyless demo: canned transcriptions, question mode disabled, chips badged |
 | set | `off` | any | Everything off — `off` beats `MM_READ` |
 | unset | `fixture` | none | Nothing (fixture is transcription-only and the flag is off) |

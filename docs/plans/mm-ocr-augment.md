@@ -102,6 +102,19 @@ fourth external service class and a non-OpenAI-compatible contract;
 revisit if the probe kills mistral_doc AND GPT-4.1 vision stays
 undeployed.
 
+**D-2 PROBE RESULT (2026-08-05) — DECIDED: IMPLEMENTED.** Deployment
+`mistral-document-ai-2512` answers at
+`https://niccolox-6191-resource.services.ai.azure.com/providers/mistral/azure/ocr`
+(Bearer auth, existing resource key). Wire: `{"model", "document":
+{type: image_url, image_url: data-url}}` → `{pages: [{markdown, ...}]}`.
+Transcription quality on the golden: full label read perfectly at 600 px,
+statutory warning verbatim. Caveat vs the research: word-level boxes are
+NOT in this response shape (block markdown only) — irrelevant to the mm
+layer, which judges text. Implemented as a transcription-only provider
+branch in the SAME transcribe_crop (question mode gated off — an OCR API
+has no chat dialect). Live crop→transcribe→judge chain verified: warning
+band crop → 357-char transcription → judge → agrees.
+
 ### D-3 · Transcribe-then-judge in run_j3 (~half day)
 
 When transcription mode is enabled, it **replaces** question mode for

@@ -89,6 +89,18 @@ class NanoVLClient:
             self.model = os.environ.get("AZURE_VLM_MODEL", "")
             self.api_key = api_key if api_key is not None \
                 else os.environ.get("AZURE_VLM_KEY", "")
+        elif self.provider == "mistral_doc":
+            # Mistral Document AI on Azure Foundry (D-2, wire probed
+            # 2026-08-05): POST /providers/mistral/azure/ocr, Bearer auth,
+            # {"model", "document": {type: image_url, image_url: data-url}}
+            # → {pages: [{markdown, ...}]}. An OCR API, not chat — so it is
+            # transcription-only: question mode is disabled under it.
+            self.endpoint = os.environ.get("MISTRAL_OCR_ENDPOINT", "")
+            self.model = os.environ.get("MISTRAL_OCR_MODEL",
+                                        "mistral-document-ai-2512")
+            self.api_key = api_key if api_key is not None \
+                else (os.environ.get("MISTRAL_OCR_KEY")
+                      or os.environ.get("AZ_OPENAI_API_KEY", ""))
         else:
             self.endpoint = os.environ.get("LABELCHECK_VLM_URL",
                                            DEFAULT_NVIDIA_ENDPOINT)
@@ -141,6 +153,8 @@ class NanoVLClient:
             return mode == "transcribe"    # question mode disabled under fixture
         if not self.api_key or not self.endpoint:
             return False
+        if self.provider == "mistral_doc" and mode != "transcribe":
+            return False                   # OCR API — no question dialect
         return time.monotonic() >= self._breaker[mode]["cool_until"]
 
     def _messages(self, question: str, data_url: str) -> list[dict]:
@@ -224,12 +238,17 @@ class NanoVLClient:
         if len(crop_jpeg) > MAX_CROP_BYTES:
             return MMRead("error", cause="oversized")
         data_url = "data:image/jpeg;base64," + base64.b64encode(crop_jpeg).decode()
-        payload = {
-            "model": self.model,
-            "messages": self._messages(TRANSCRIBE_PROMPT, data_url),
-            "max_tokens": TRANSCRIBE_MAX_TOKENS,
-            "temperature": 0.0,
-        }
+        if self.provider == "mistral_doc":
+            payload = {"model": self.model,
+                       "document": {"type": "image_url",
+                                    "image_url": data_url}}
+        else:
+            payload = {
+                "model": self.model,
+                "messages": self._messages(TRANSCRIBE_PROMPT, data_url),
+                "max_tokens": TRANSCRIBE_MAX_TOKENS,
+                "temperature": 0.0,
+            }
         headers = {"Content-Type": "application/json",
                    "Authorization": f"Bearer {self.api_key}"}
         if self.provider == "azure":
@@ -247,6 +266,19 @@ class NanoVLClient:
             log.info("VLM transcribe failed (%s): %r",
                      "timeout" if timed_out else "transport", e)
             return MMRead("error", cause="timeout" if timed_out else "transport")
+        if self.provider == "mistral_doc":
+            try:
+                text = "\n".join(p.get("markdown") or ""
+                                 for p in body["pages"])
+            except (KeyError, TypeError):
+                self._trip("transcribe")
+                log.info("mistral_doc schema drift: %s", str(body)[:200])
+                return MMRead("error", cause="schema")
+            self._reset("transcribe")
+            text = text.strip()
+            if not text:
+                return MMRead("unreadable")
+            return MMRead("ok", text=text)
         try:
             choice = body["choices"][0]
             text = choice["message"]["content"]
