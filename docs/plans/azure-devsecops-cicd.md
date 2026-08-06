@@ -244,6 +244,18 @@ for real against the subscription. Standing so far:
   `labelcheck-dev-kv` is soft-deleted (recoverable ~90 days; `.env`
   remains the source of truth). Original record of the eastus deployment:
   **https://labelcheck-dev.thankfulflower-7042e768.eastus.azurecontainerapps.io** (now 404)
+- **COLA Cloud pipelines fixed on Azure (2026-08-06):** pulls died at
+  `PermissionError: mkdir /app/api/eval/colacloud` — the pipeline
+  writes into the root-owned image tree while the container runs uid
+  1000, and the thread died before its first status update (stuck at
+  "starting…"). Fix: a SECOND Azure Files share (`colacloud` on
+  `lcgpuwestsa`) mounted at `/app/api/eval/colacloud` — the dir is
+  dockerignored so nothing was shadowed, and pulled corpora now
+  survive revision restarts (a Dockerfile chown would have made them
+  ephemeral). Verified live: wine pipeline `done — 4 approved labels`
+  pulled from the public registry through the mount. Ops note:
+  revision restarts reset the in-memory pipeline status map; a stuck
+  "running" clears on restart.
   — ACA env `labelcheck-dev-env` + app `labelcheck-dev` running the
   pinned digest: single replica (DuckDB single-writer), 2 CPU / 4 Gi
   paddle-primary CPU shape, fixture-provider mm demo, managed-identity
