@@ -178,24 +178,42 @@ assert and non-root checks — a failed bake never produces a digest.
 (M2 later promotes this to CI with cosign + SBOM-attach; the playbook
 gets you moving today.)
 
-**3 · Key Vault + secrets** (Principle 5 — `.env` stays on laptops; the
-laptop file is the SOURCE, the vault is where the cloud reads).
+**3 · Key Vault + secrets — the WHOLE `.env`, split correctly**
+(Principle 5 — the laptop file is the SOURCE; secrets land in the
+vault, non-secret config rides as plain env vars; nothing typed,
+nothing echoed).
 ```bash
-az keyvault create -n $APP-kv -g $RG
-# read values straight from the local .env — nothing typed, nothing
-# echoed (`-o none` matters: without it az prints the secret bundle
-# INCLUDING the value into your terminal/CI log)
-set -a; source .env; set +a
-az keyvault secret set --vault-name $APP-kv -n COLACLOUD-API-KEY \
-  --value "$COLACLOUD_API_KEY" -o none
-# AI layers (dev tier, goldens only — placement standard):
-az keyvault secret set --vault-name $APP-kv -n AZ-OPENAI-API-KEY \
-  --value "$AZ_OPENAI_API_KEY" -o none
-az keyvault secret set --vault-name $APP-kv -n MISTRAL-OCR-KEY \
-  --value "${MISTRAL_OCR_KEY:-$AZ_OPENAI_API_KEY}" -o none
+# parse rather than source — a stray placeholder like FOO=<bar> would
+# break `source`, and parsing executes nothing. Every variable whose
+# name contains KEY is a secret → Key Vault (names hyphenated; step 5's
+# secretrefs use the same mapping). `-o none` matters: without it az
+# prints the secret bundle INCLUDING the value into your terminal log.
+while IFS='=' read -r K V; do
+  [[ "$K" =~ ^[A-Z][A-Z0-9_]*$ && -n "$V" ]] || continue
+  if [[ "$K" == *KEY* ]]; then
+    az keyvault secret set --vault-name $APP-kv \
+      -n "${K//_/-}" --value "$V" -o none
+  fi
+done < .env
+# everything else is CONFIG, not secret — emit it as the --env-vars
+# fragment for steps 4/5 (URIs, model names, flags, endpoints):
+while IFS='=' read -r K V; do
+  [[ "$K" =~ ^[A-Z][A-Z0-9_]*$ && -n "$V" && "$K" != *KEY* ]] || continue
+  printf '%s=%s \\\n' "$K" "$V"
+done < .env
 ```
-(The repo's `.env` is plain `KEY=value` lines — the loaders and this
-`source` both depend on that; keep comments on their own lines.)
+Today that puts COLACLOUD_API_KEY, AZ_OPENAI_API_KEY, AZ_GPT_4_1_KEY,
+AZ_GPT_5_1_SOL_KEY, MISTRAL_OCR_KEY and FOUNDRY_API_KEY in the vault,
+and emits the config set (AZ_BASE, AZ_OPENAI_MODEL, AZ_*_URI,
+MISTRAL_OCR_ENDPOINT, LABELCHECK_* flags, NEMOTRON_* — plus any future
+additions) for the container. Two deliberate exceptions when copying
+the emitted config into step 4: drop `NEMOTRON_OCR_URL` (localhost is
+meaningless in ACA — set it only with the GPU upgrade) and drop
+`OPENAI_DEBUG` (prompts contain application values; dev-only on
+laptops). The repo's `.env` is plain `KEY=value` lines — the loaders, compose,
+and these parsers all depend on that; keep comments on their own lines
+(a live dry-run of this exact loop caught an unquoted `<placeholder>`
+line that would have broken `source` — hence parse, never source).
 
 **4 · Container Apps environment + the app.** Dev-cloud runs the
 **CPU shape** (paddle-primary: `LABELCHECK_EXTRACTOR` unset) — the
