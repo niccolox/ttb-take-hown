@@ -1,0 +1,351 @@
+{
+ "generated_at": "2026-08-05 21:00:01",
+ "all_time": {
+  "rows": 4208,
+  "j1_rows": 3841,
+  "j2_rows": 367,
+  "overall": {
+   "n": 3841,
+   "agree": 0.867,
+   "single_read": 0.031
+  },
+  "guard": {
+   "n": 1773,
+   "agree": 0.805,
+   "single_read": 0.022
+  },
+  "non_guard": {
+   "n": 2068,
+   "agree": 0.92,
+   "single_read": 0.039
+  },
+  "per_field": {
+   "alcohol_content": {
+    "n": 591,
+    "agree": 0.995,
+    "single_read": 0.0
+   },
+   "appellation": {
+    "n": 4,
+    "agree": 0.75,
+    "single_read": 0.0
+   },
+   "brand_name": {
+    "n": 591,
+    "agree": 0.92,
+    "single_read": 0.01
+   },
+   "class_type": {
+    "n": 591,
+    "agree": 0.949,
+    "single_read": 0.005
+   },
+   "fanciful_name": {
+    "n": 45,
+    "agree": 0.711,
+    "single_read": 0.067
+   },
+   "government_warning": {
+    "n": 591,
+    "agree": 0.53,
+    "single_read": 0.0
+   },
+   "grape_varietals": {
+    "n": 3,
+    "agree": 1.0,
+    "single_read": 0.0
+   },
+   "internal_consistency": {
+    "n": 148,
+    "agree": 0.98,
+    "single_read": 0.0
+   },
+   "name_address": {
+    "n": 393,
+    "agree": 0.911,
+    "single_read": 0.089
+   },
+   "net_contents": {
+    "n": 591,
+    "agree": 0.89,
+    "single_read": 0.066
+   },
+   "origin": {
+    "n": 45,
+    "agree": 0.911,
+    "single_read": 0.0
+   },
+   "sulfite_declaration": {
+    "n": 246,
+    "agree": 0.866,
+    "single_read": 0.134
+   },
+   "vintage": {
+    "n": 2,
+    "agree": 1.0,
+    "single_read": 0.0
+   }
+  },
+  "disagreement_direction": {
+   "green->review": 142,
+   "red->green": 114,
+   "review->red": 87,
+   "review->green": 72,
+   "red->review": 68,
+   "green->red": 29
+  },
+  "single_read_direction": {
+   "qa_read_primary_blank": 40,
+   "primary_read_qa_blank": 79
+  },
+  "j2_concurrence": {
+   "n": 367,
+   "agree_rate": 0.267,
+   "reread_status_mix": {
+    "NEEDS_REVIEW": 135,
+    "MATCH": 128,
+    "MISMATCH": 104
+   }
+  }
+ },
+ "golden_1024": {
+  "rows": 97,
+  "j1_rows": 85,
+  "j2_rows": 12,
+  "overall": {
+   "n": 85,
+   "agree": 0.824,
+   "single_read": 0.024
+  },
+  "guard": {
+   "n": 42,
+   "agree": 0.738,
+   "single_read": 0.024
+  },
+  "non_guard": {
+   "n": 43,
+   "agree": 0.907,
+   "single_read": 0.023
+  },
+  "per_field": {
+   "alcohol_content": {
+    "n": 14,
+    "agree": 1.0,
+    "single_read": 0.0
+   },
+   "brand_name": {
+    "n": 14,
+    "agree": 0.929,
+    "single_read": 0.0
+   },
+   "class_type": {
+    "n": 14,
+    "agree": 0.857,
+    "single_read": 0.0
+   },
+   "government_warning": {
+    "n": 14,
+    "agree": 0.286,
+    "single_read": 0.0
+   },
+   "internal_consistency": {
+    "n": 8,
+    "agree": 1.0,
+    "single_read": 0.0
+   },
+   "name_address": {
+    "n": 5,
+    "agree": 0.8,
+    "single_read": 0.2
+   },
+   "net_contents": {
+    "n": 14,
+    "agree": 0.929,
+    "single_read": 0.071
+   },
+   "sulfite_declaration": {
+    "n": 2,
+    "agree": 1.0,
+    "single_read": 0.0
+   }
+  },
+  "disagreement_direction": {
+   "red->green": 8,
+   "green->review": 4,
+   "review->green": 2,
+   "red->review": 1
+  },
+  "single_read_direction": {
+   "primary_read_qa_blank": 2
+  },
+  "j2_concurrence": {
+   "n": 12,
+   "agree_rate": 0.667,
+   "reread_status_mix": {
+    "MATCH": 8,
+    "MISMATCH": 2,
+    "NEEDS_REVIEW": 2
+   }
+  }
+ },
+ "golden_1536": {
+  "rows": 192,
+  "j1_rows": 176,
+  "j2_rows": 16,
+  "overall": {
+   "n": 176,
+   "agree": 0.875,
+   "single_read": 0.023
+  },
+  "guard": {
+   "n": 87,
+   "agree": 0.839,
+   "single_read": 0.023
+  },
+  "non_guard": {
+   "n": 89,
+   "agree": 0.91,
+   "single_read": 0.022
+  },
+  "per_field": {
+   "alcohol_content": {
+    "n": 29,
+    "agree": 1.0,
+    "single_read": 0.0
+   },
+   "brand_name": {
+    "n": 29,
+    "agree": 0.931,
+    "single_read": 0.0
+   },
+   "class_type": {
+    "n": 29,
+    "agree": 0.862,
+    "single_read": 0.0
+   },
+   "government_warning": {
+    "n": 29,
+    "agree": 0.586,
+    "single_read": 0.0
+   },
+   "internal_consistency": {
+    "n": 17,
+    "agree": 1.0,
+    "single_read": 0.0
+   },
+   "name_address": {
+    "n": 10,
+    "agree": 0.8,
+    "single_read": 0.2
+   },
+   "net_contents": {
+    "n": 29,
+    "agree": 0.931,
+    "single_read": 0.069
+   },
+   "sulfite_declaration": {
+    "n": 4,
+    "agree": 1.0,
+    "single_read": 0.0
+   }
+  },
+  "disagreement_direction": {
+   "red->green": 9,
+   "green->review": 8,
+   "review->green": 4,
+   "red->review": 1
+  },
+  "single_read_direction": {
+   "primary_read_qa_blank": 4
+  },
+  "j2_concurrence": {
+   "n": 16,
+   "agree_rate": 0.562,
+   "reread_status_mix": {
+    "MATCH": 9,
+    "MISMATCH": 4,
+    "NEEDS_REVIEW": 3
+   }
+  }
+ },
+ "golden_adopted_1536": {
+  "rows": 286,
+  "j1_rows": 267,
+  "j2_rows": 19,
+  "overall": {
+   "n": 267,
+   "agree": 0.899,
+   "single_read": 0.022
+  },
+  "guard": {
+   "n": 132,
+   "agree": 0.879,
+   "single_read": 0.023
+  },
+  "non_guard": {
+   "n": 135,
+   "agree": 0.919,
+   "single_read": 0.022
+  },
+  "per_field": {
+   "alcohol_content": {
+    "n": 44,
+    "agree": 1.0,
+    "single_read": 0.0
+   },
+   "brand_name": {
+    "n": 44,
+    "agree": 0.955,
+    "single_read": 0.0
+   },
+   "class_type": {
+    "n": 44,
+    "agree": 0.864,
+    "single_read": 0.0
+   },
+   "government_warning": {
+    "n": 44,
+    "agree": 0.705,
+    "single_read": 0.0
+   },
+   "internal_consistency": {
+    "n": 26,
+    "agree": 1.0,
+    "single_read": 0.0
+   },
+   "name_address": {
+    "n": 15,
+    "agree": 0.8,
+    "single_read": 0.2
+   },
+   "net_contents": {
+    "n": 44,
+    "agree": 0.932,
+    "single_read": 0.068
+   },
+   "sulfite_declaration": {
+    "n": 6,
+    "agree": 1.0,
+    "single_read": 0.0
+   }
+  },
+  "disagreement_direction": {
+   "green->review": 11,
+   "red->green": 9,
+   "review->green": 6,
+   "red->review": 1
+  },
+  "single_read_direction": {
+   "primary_read_qa_blank": 6
+  },
+  "j2_concurrence": {
+   "n": 19,
+   "agree_rate": 0.474,
+   "reread_status_mix": {
+    "MATCH": 9,
+    "MISMATCH": 6,
+    "NEEDS_REVIEW": 4
+   }
+  }
+ }
+}
