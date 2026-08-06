@@ -40,7 +40,7 @@ from dataclasses import dataclass
 
 log = logging.getLogger("uvicorn.error")
 
-DEFAULT_MODEL = "gpt-4.1"
+DEFAULT_MODEL = "gpt-5.6-sol"   # user decision 2026-08-05: Sol is the default
 MAX_OUTPUT_TOKENS = 2400         # summaries are short by design (plan E3) — the
                                  # ceiling leaves room for reasoning models that
                                  # think before answering (empty-output otherwise)
@@ -228,7 +228,11 @@ class AzureOpenAIClient:
 MAX_CROP_BYTES = 180_000
 VISION_BREAKER_FAILS = 3
 VISION_BREAKER_COOLOFF_S = 30.0
-TRANSCRIBE_MAX_TOKENS = 600      # the statutory warning alone is ~45 words
+TRANSCRIBE_MAX_TOKENS = 600
+# gpt-5.x models spend output budget on hidden reasoning BEFORE the answer —
+# measured on the Sol gate run: ~30/105 reads truncated at 600. The 5.x cap
+# leaves ~600 tokens for the transcription after typical reasoning.
+TRANSCRIBE_MAX_TOKENS_GPT5 = 2000      # the statutory warning alone is ~45 words
 TRANSCRIBE_TIMEOUT_S = 12        # budget-gated fallback contract (run_j3)
 QUESTION_MAX_TOKENS = 160
 QUESTION_TIMEOUT_S = 30
@@ -276,7 +280,7 @@ class AzureVisionClient:
             # LABELCHECK_VISION_MODEL overrides; otherwise the vision model
             # FOLLOWS AZ_OPENAI_MODEL — one env value switches text+vision
             self.model = (os.environ.get("LABELCHECK_VISION_MODEL")
-                          or os.environ.get("AZ_OPENAI_MODEL", "gpt-4.1"))
+                          or os.environ.get("AZ_OPENAI_MODEL", DEFAULT_MODEL))
             _base = os.environ.get("AZ_BASE", "").strip()
             self.endpoint = _azure_chat_url(_base, self.model) if _base \
                 else os.environ.get("AZ_GPT_4_1_URI", "")
@@ -387,8 +391,11 @@ class AzureVisionClient:
                         req, timeout=TRANSCRIBE_TIMEOUT_S) as resp:
                     body = json.load(resp)
             else:
+                cap = (TRANSCRIBE_MAX_TOKENS_GPT5
+                       if self.model.startswith("gpt-5")
+                       else TRANSCRIBE_MAX_TOKENS)
                 body = self._chat(TRANSCRIBE_PROMPT, data_url,
-                                  TRANSCRIBE_MAX_TOKENS, TRANSCRIBE_TIMEOUT_S)
+                                  cap, TRANSCRIBE_TIMEOUT_S)
         except (urllib.error.URLError, OSError, TimeoutError,
                 json.JSONDecodeError) as e:
             self._trip("transcribe")
@@ -416,6 +423,7 @@ class AzureVisionClient:
                 return MMRead("error", cause="schema")
             if choice.get("finish_reason") == "length":
                 self._reset("transcribe")
+                log.info("vision transcribe truncated (model=%s)", self.model)
                 return MMRead("error", cause="truncated")
         self._reset("transcribe")
         text = (text or "").strip()

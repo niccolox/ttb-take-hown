@@ -36,9 +36,17 @@ def _load() -> None:
     # compose mounts the HF clone at /workspace, so startup needs zero egress.
     model_dir = os.environ.get("NEMOTRON_MODEL_DIR", "/workspace/v2_english")
     if os.path.isdir(model_dir):
-        ocr = NemotronOCRV2(model_dir=model_dir)
+        # NEMOTRON_INFER_LENGTH: detector input resolution override (default
+        # 1024 from model_config.json). Dense statutory small print drops
+        # characters at 1024 — raising it trades VRAM+latency on EVERY panel
+        # for fast-path warning fidelity (J2's crop re-OCR is the surgical
+        # alternative). 4 GB VRAM note: ~quadratic memory in this value.
+        _il = int(os.environ.get("NEMOTRON_INFER_LENGTH", "0")) or None
+        ocr = NemotronOCRV2(model_dir=model_dir, infer_length=_il)
     else:
-        ocr = NemotronOCRV2(lang=os.environ.get("NEMOTRON_LANG", "en"))
+        _il = int(os.environ.get("NEMOTRON_INFER_LENGTH", "0")) or None
+        ocr = NemotronOCRV2(lang=os.environ.get("NEMOTRON_LANG", "en"),
+                            infer_length=_il)
     sample = "ocr-example-input-1.png"            # ships in the HF repo root
     if os.path.exists(sample):
         _predict(ocr, sample)                     # first-inference warmup

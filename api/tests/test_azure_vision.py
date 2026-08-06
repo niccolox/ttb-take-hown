@@ -166,7 +166,7 @@ def test_gpt5_payload_shape(monkeypatch):
     cap = _capture(monkeypatch)
     r = AzureVisionClient().transcribe_crop(CROP)
     assert r.status == "ok"
-    assert cap["payload"]["max_completion_tokens"] == 600
+    assert cap["payload"]["max_completion_tokens"] == 2000   # 5.x reasoning headroom
     assert "max_tokens" not in cap["payload"]
     assert "temperature" not in cap["payload"]
     # 4.x keeps the legacy shape

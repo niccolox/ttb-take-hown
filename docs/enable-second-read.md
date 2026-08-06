@@ -68,7 +68,10 @@ shipped J3 question assist).
 `AZ_OPENAI_MODEL` selects the Azure deployment for the text layers AND
 the vision second read (endpoints are constructed; the resource key is
 shared). `LABELCHECK_VISION_MODEL` overrides vision separately. Live-
-verified with `gpt-5.6-sol`: 2.9 s crop transcription, judge agrees.
+verified with `gpt-5.6-sol` (the DEFAULT model): 2.9 s crop
+transcription, judge agrees; gpt-5.x transcriptions run with a 2000-token
+cap (reasoning headroom — the 600 cap truncated ~30/105 reads on the
+gate run).
 Note the Gov caveat: no GPT-5.x in Azure Government — pin
 `LABELCHECK_VISION_MODEL=gpt-4.1` for Gov-parity work.
 
