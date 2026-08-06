@@ -401,3 +401,21 @@ def test_no_text_falls_back_to_deterministic_record(monkeypatch):
     assert "Whole label: FAIL recorded t" in body["text"]       # trailer still appended
     assert "AI draft unavailable" in body["disclaimer"]
     assert "recorded facts" in body["model"]
+
+
+def test_gpt5_chat_payload_shape_upfront(monkeypatch):
+    """5.x models get max_completion_tokens + reasoning_effort=low in the
+    FIRST request — no adaptive 400 round trip (measured latency fix)."""
+    _env(monkeypatch)
+    monkeypatch.setenv("AZ_OPENAI_MODEL", "gpt-5.6-sol")
+    monkeypatch.delenv("AZ_REASONING_EFFORT", raising=False)
+    cap = _capture(monkeypatch)
+    AzureOpenAIClient().complete("s", "u")
+    p = cap["payload"]
+    assert p["max_completion_tokens"] == azure_openai.MAX_OUTPUT_TOKENS
+    assert p["reasoning_effort"] == "low"
+    assert "max_tokens" not in p and "temperature" not in p
+    monkeypatch.setenv("AZ_REASONING_EFFORT", "medium")
+    cap = _capture(monkeypatch)
+    AzureOpenAIClient().complete("s", "u")
+    assert cap["payload"]["reasoning_effort"] == "medium"

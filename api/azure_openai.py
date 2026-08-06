@@ -112,8 +112,18 @@ class AzureOpenAIClient:
         cap = min(max_tokens, MAX_OUTPUT_TOKENS)
         if self._dialect == "responses":
             return self._complete_responses(messages, cap)
-        payload = {"model": self.model, "messages": messages,
-                   "max_tokens": cap, "temperature": 0.0}
+        if self.model.startswith("gpt-5"):
+            # 5.x chat: max_completion_tokens + pinned temperature UPFRONT
+            # (the adaptive 400-retry cost a full round trip per call), and
+            # reasoning_effort=low — measured 2026-08-05 on gpt-5.6-sol:
+            # trivial call 2.66s -> 1.71s; "minimal" is rejected (400).
+            payload = {"model": self.model, "messages": messages,
+                       "max_completion_tokens": cap,
+                       "reasoning_effort":
+                           os.environ.get("AZ_REASONING_EFFORT", "low")}
+        else:
+            payload = {"model": self.model, "messages": messages,
+                       "max_tokens": cap, "temperature": 0.0}
         try:
             body = self._post(payload)
             answer = body["choices"][0]["message"]["content"]
