@@ -1,0 +1,500 @@
+{
+ "label": "infer1024",
+ "measured_at": "2026-08-05 20:46:47",
+ "promise_5s": {
+  "provisional_max_ms": 589,
+  "violations": 0
+ },
+ "provisional_ms": {
+  "p50": 329,
+  "max": 589
+ },
+ "settle_s": {
+  "p50": 3.6,
+  "max": 7.1
+ },
+ "expectation_failures": [],
+ "rows": [
+  {
+   "id": "spirits_clean",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "no_mismatch_found",
+   "provisional_wall_ms": 364,
+   "server_total_ms": 30,
+   "settle_wall_s": 3.1,
+   "revision": 12,
+   "provisional_statuses": {
+    "brand_name": "MATCH",
+    "class_type": "MATCH",
+    "alcohol_content": "MATCH",
+    "internal_consistency": "MATCH",
+    "net_contents": "MATCH",
+    "government_warning": "MISMATCH"
+   },
+   "provisional_warning": {
+    "status": "MISMATCH",
+    "reason": "statutory_text_differs"
+   },
+   "refinements": {
+    "upgrade": 2
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed_after_reread"
+   },
+   "mm": {}
+  },
+  {
+   "id": "malt_clean",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "no_mismatch_found",
+   "provisional_wall_ms": 287,
+   "server_total_ms": 25,
+   "settle_wall_s": 3.0,
+   "revision": 12,
+   "provisional_statuses": {
+    "brand_name": "MATCH",
+    "class_type": "MATCH",
+    "alcohol_content": "MATCH",
+    "net_contents": "MATCH",
+    "name_address": "MATCH",
+    "government_warning": "MISMATCH"
+   },
+   "provisional_warning": {
+    "status": "MISMATCH",
+    "reason": "statutory_text_differs"
+   },
+   "refinements": {
+    "upgrade": 2
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed_after_reread"
+   },
+   "mm": {}
+  },
+  {
+   "id": "wine_no_abv_table",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "screening_incomplete",
+   "provisional_wall_ms": 343,
+   "server_total_ms": 26,
+   "settle_wall_s": 5.6,
+   "revision": 13,
+   "provisional_statuses": {
+    "brand_name": "NEEDS_REVIEW",
+    "class_type": "NEEDS_REVIEW",
+    "alcohol_content": "NOT_REQUIRED",
+    "net_contents": "MATCH",
+    "sulfite_declaration": "MATCH",
+    "name_address": "MATCH",
+    "government_warning": "MISMATCH"
+   },
+   "provisional_warning": {
+    "status": "MISMATCH",
+    "reason": "statutory_text_differs"
+   },
+   "refinements": {
+    "mm-reread": 1,
+    "upgrade": 3
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed_after_reread"
+   },
+   "mm": {
+    "brand_name": "agrees"
+   }
+  },
+  {
+   "id": "trap_titlecase_warning",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "mismatch_found",
+   "provisional_wall_ms": 344,
+   "server_total_ms": 27,
+   "settle_wall_s": 5.6,
+   "revision": 13,
+   "provisional_statuses": {
+    "brand_name": "MATCH",
+    "class_type": "MATCH",
+    "alcohol_content": "MATCH",
+    "internal_consistency": "MATCH",
+    "net_contents": "MATCH",
+    "government_warning": "MISMATCH"
+   },
+   "provisional_warning": {
+    "status": "MISMATCH",
+    "reason": "statutory_text_differs"
+   },
+   "refinements": {
+    "same": 1,
+    "mm-reread": 1
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed"
+   },
+   "mm": {
+    "government_warning": "sides_with_application"
+   }
+  },
+  {
+   "id": "trap_word_substitution",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "mismatch_found",
+   "provisional_wall_ms": 329,
+   "server_total_ms": 29,
+   "settle_wall_s": 5.6,
+   "revision": 13,
+   "provisional_statuses": {
+    "brand_name": "MATCH",
+    "class_type": "MATCH",
+    "alcohol_content": "MATCH",
+    "internal_consistency": "MATCH",
+    "net_contents": "MATCH",
+    "government_warning": "MISMATCH"
+   },
+   "provisional_warning": {
+    "status": "MISMATCH",
+    "reason": "statutory_text_differs"
+   },
+   "refinements": {
+    "same": 1,
+    "mm-reread": 1
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed"
+   },
+   "mm": {
+    "government_warning": "agrees"
+   }
+  },
+  {
+   "id": "trap_all_bold_warning",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "screening_incomplete",
+   "provisional_wall_ms": 322,
+   "server_total_ms": 29,
+   "settle_wall_s": 6.1,
+   "revision": 13,
+   "provisional_statuses": {
+    "brand_name": "MATCH",
+    "class_type": "MATCH",
+    "alcohol_content": "MATCH",
+    "internal_consistency": "MATCH",
+    "net_contents": "MATCH",
+    "government_warning": "NEEDS_REVIEW"
+   },
+   "provisional_warning": {
+    "status": "NEEDS_REVIEW",
+    "reason": "weight_contrast_suspect"
+   },
+   "refinements": {
+    "same": 2,
+    "mm-reread": 1
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "disagreed"
+   },
+   "mm": {
+    "government_warning": "agrees"
+   }
+  },
+  {
+   "id": "trap_missing_warning",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "screening_incomplete",
+   "provisional_wall_ms": 312,
+   "server_total_ms": 4,
+   "settle_wall_s": 2.5,
+   "revision": 8,
+   "provisional_statuses": {
+    "brand_name": "MATCH",
+    "class_type": "MATCH",
+    "alcohol_content": "MATCH",
+    "internal_consistency": "MATCH",
+    "net_contents": "MATCH",
+    "government_warning": "NEEDS_REVIEW"
+   },
+   "provisional_warning": {
+    "status": "NEEDS_REVIEW",
+    "reason": "not_visible_in_image"
+   },
+   "refinements": {},
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed"
+   },
+   "mm": {}
+  },
+  {
+   "id": "trap_abv_within_band",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "no_mismatch_found",
+   "provisional_wall_ms": 297,
+   "server_total_ms": 24,
+   "settle_wall_s": 3.6,
+   "revision": 12,
+   "provisional_statuses": {
+    "brand_name": "MATCH",
+    "class_type": "MATCH",
+    "alcohol_content": "WITHIN_TOLERANCE",
+    "net_contents": "MATCH",
+    "government_warning": "MISMATCH"
+   },
+   "provisional_warning": {
+    "status": "MISMATCH",
+    "reason": "statutory_text_differs"
+   },
+   "refinements": {
+    "upgrade": 2
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed_after_reread"
+   },
+   "mm": {}
+  },
+  {
+   "id": "trap_abv_outside_band",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "mismatch_found",
+   "provisional_wall_ms": 338,
+   "server_total_ms": 27,
+   "settle_wall_s": 7.1,
+   "revision": 13,
+   "provisional_statuses": {
+    "brand_name": "MATCH",
+    "class_type": "MATCH",
+    "alcohol_content": "MISMATCH",
+    "internal_consistency": "MATCH",
+    "net_contents": "MATCH",
+    "government_warning": "MISMATCH"
+   },
+   "provisional_warning": {
+    "status": "MISMATCH",
+    "reason": "statutory_text_differs"
+   },
+   "refinements": {
+    "mm-reread": 1,
+    "upgrade": 2
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed_after_reread"
+   },
+   "mm": {
+    "alcohol_content": "agrees"
+   }
+  },
+  {
+   "id": "photo_skew",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "no_mismatch_found",
+   "provisional_wall_ms": 589,
+   "server_total_ms": 33,
+   "settle_wall_s": 4.5,
+   "revision": 12,
+   "provisional_statuses": {
+    "brand_name": "MATCH",
+    "class_type": "MATCH",
+    "alcohol_content": "MATCH",
+    "internal_consistency": "MATCH",
+    "net_contents": "MATCH",
+    "government_warning": "MISMATCH"
+   },
+   "provisional_warning": {
+    "status": "MISMATCH",
+    "reason": "statutory_text_differs"
+   },
+   "refinements": {
+    "upgrade": 2
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed_after_reread"
+   },
+   "mm": {}
+  },
+  {
+   "id": "photo_glare",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "no_mismatch_found",
+   "provisional_wall_ms": 330,
+   "server_total_ms": 25,
+   "settle_wall_s": 3.0,
+   "revision": 12,
+   "provisional_statuses": {
+    "brand_name": "MATCH",
+    "class_type": "MATCH",
+    "alcohol_content": "MATCH",
+    "internal_consistency": "MATCH",
+    "net_contents": "MATCH",
+    "government_warning": "MISMATCH"
+   },
+   "provisional_warning": {
+    "status": "MISMATCH",
+    "reason": "statutory_text_differs"
+   },
+   "refinements": {
+    "upgrade": 2
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed_after_reread"
+   },
+   "mm": {}
+  },
+  {
+   "id": "photo_blur_dark",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "screening_incomplete",
+   "provisional_wall_ms": 309,
+   "server_total_ms": 8,
+   "settle_wall_s": 2.5,
+   "revision": 8,
+   "provisional_statuses": {
+    "brand_name": "MATCH",
+    "class_type": "MATCH",
+    "alcohol_content": "MATCH",
+    "net_contents": "MATCH",
+    "name_address": "MATCH",
+    "government_warning": "NEEDS_REVIEW"
+   },
+   "provisional_warning": {
+    "status": "NEEDS_REVIEW",
+    "reason": "not_visible_in_image"
+   },
+   "refinements": {},
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed"
+   },
+   "mm": {}
+  },
+  {
+   "id": "photo_curved",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "no_mismatch_found",
+   "provisional_wall_ms": 296,
+   "server_total_ms": 22,
+   "settle_wall_s": 3.0,
+   "revision": 12,
+   "provisional_statuses": {
+    "brand_name": "MATCH",
+    "class_type": "MATCH",
+    "alcohol_content": "MATCH",
+    "net_contents": "MATCH",
+    "name_address": "MATCH",
+    "government_warning": "MISMATCH"
+   },
+   "provisional_warning": {
+    "status": "MISMATCH",
+    "reason": "statutory_text_differs"
+   },
+   "refinements": {
+    "upgrade": 2
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed_after_reread"
+   },
+   "mm": {}
+  },
+  {
+   "id": "photo_lowres",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "screening_incomplete",
+   "provisional_wall_ms": 332,
+   "server_total_ms": 6,
+   "settle_wall_s": 5.0,
+   "revision": 13,
+   "provisional_statuses": {
+    "brand_name": "MATCH",
+    "class_type": "NEEDS_REVIEW",
+    "alcohol_content": "NOT_CHECKED",
+    "net_contents": "MATCH",
+    "sulfite_declaration": "MATCH",
+    "name_address": "MATCH",
+    "government_warning": "MISMATCH"
+   },
+   "provisional_warning": {
+    "status": "MISMATCH",
+    "reason": "statutory_text_differs"
+   },
+   "refinements": {
+    "mm-reread": 1,
+    "upgrade": 1,
+    "same": 1
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed_single_read",
+    "government_warning": "disagreed"
+   },
+   "mm": {
+    "class_type": "agrees"
+   }
+  },
+  {
+   "id": "decorative_font",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "no_mismatch_found",
+   "provisional_wall_ms": 321,
+   "server_total_ms": 25,
+   "settle_wall_s": 3.0,
+   "revision": 12,
+   "provisional_statuses": {
+    "brand_name": "MATCH",
+    "class_type": "MATCH",
+    "alcohol_content": "MATCH",
+    "internal_consistency": "MATCH",
+    "net_contents": "MATCH",
+    "government_warning": "MISMATCH"
+   },
+   "provisional_warning": {
+    "status": "MISMATCH",
+    "reason": "statutory_text_differs"
+   },
+   "refinements": {
+    "upgrade": 2
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed_after_reread"
+   },
+   "mm": {}
+  }
+ ]
+}

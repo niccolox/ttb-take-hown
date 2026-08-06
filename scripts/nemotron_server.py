@@ -41,10 +41,10 @@ def _load() -> None:
         # characters at 1024 — raising it trades VRAM+latency on EVERY panel
         # for fast-path warning fidelity (J2's crop re-OCR is the surgical
         # alternative). 4 GB VRAM note: ~quadratic memory in this value.
-        _il = int(os.environ.get("NEMOTRON_INFER_LENGTH", "0")) or None
+        _il = int(os.environ.get("NEMOTRON_INFER_LENGTH") or 0) or None
         ocr = NemotronOCRV2(model_dir=model_dir, infer_length=_il)
     else:
-        _il = int(os.environ.get("NEMOTRON_INFER_LENGTH", "0")) or None
+        _il = int(os.environ.get("NEMOTRON_INFER_LENGTH") or 0) or None
         ocr = NemotronOCRV2(lang=os.environ.get("NEMOTRON_LANG", "en"),
                             infer_length=_il)
     sample = "ocr-example-input-1.png"            # ships in the HF repo root

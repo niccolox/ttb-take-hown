@@ -100,6 +100,12 @@ def check(gid: str, body: dict) -> tuple[bool, str]:
 
 
 def main():
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out", default=None,
+                    help="results path (default api/eval/results/golden-perf-audit.json)")
+    ap.add_argument("--label", default="default")
+    args = ap.parse_args()
     goldens = next(items for name, items in corpora() if name == "golden")
     rows, prov_ms, settle_s = [], [], []
     for item in goldens:
@@ -110,6 +116,11 @@ def main():
         if first is None:
             rows.append({"id": gid, "error": "verify failed"})
             continue
+        # provisional reads BEFORE any refinement — the fast-path question
+        prov_fields = {f["field"]: f.get("status")
+                       for f in first.get("fields", [])}
+        prov_warn = next((f for f in first.get("fields", [])
+                          if f["field"] == "government_warning"), {})
         body, wall_settle = wait_settled(first["result_id"])
         body = body or first
         ok, why = check(gid, body)
@@ -133,12 +144,16 @@ def main():
             "server_total_ms": (first.get("timing_ms") or {}).get("total"),
             "settle_wall_s": round(wall_settle, 1),
             "revision": body.get("revision"),
+            "provisional_statuses": prov_fields,
+            "provisional_warning": {"status": prov_warn.get("status"),
+                                    "reason": prov_warn.get("reason_code")},
             "refinements": refin, "guards": guards, "mm": mm,
         })
         print(f"{gid}: ok={ok} prov={wall_prov:.0f}ms settle={wall_settle:.1f}s "
               f"sr={body.get('screening_result')} mm={mm} ({why})")
 
     out = {
+        "label": args.label,
         "measured_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "promise_5s": {"provisional_max_ms": round(max(prov_ms)),
                        "violations": sum(1 for v in prov_ms if v > 5000)},
@@ -149,7 +164,8 @@ def main():
         "expectation_failures": [r for r in rows if not r.get("ok", True)],
         "rows": rows,
     }
-    dest = REPO / "api" / "eval" / "results" / "golden-perf-audit.json"
+    dest = Path(args.out) if args.out \
+        else REPO / "api" / "eval" / "results" / "golden-perf-audit.json"
     dest.write_text(json.dumps(out, indent=1))
     print(f"\nwrote {dest}")
     print(f"provisional p50={out['provisional_ms']['p50']}ms "
