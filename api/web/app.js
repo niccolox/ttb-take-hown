@@ -1024,6 +1024,35 @@ function settleEtaNote() {
   return ` (usually ~${Math.max(1, Math.round(p50))}s)`;
 }
 
+// U3 — the application-level evidence trail: which layers ran, and what
+// each one did per field (the row-level mm debug block, promoted).
+function renderCrossCheckDrawer(container, r) {
+  const rows = [];
+  rows.push(`<div>Layers: ${(r.jobs || []).map((j) =>
+    `${esc(LAYER_NAMES[j.layer] || j.layer)} — ${esc(j.state)}`).join(" · ")}</div>`);
+  for (const f of r.fields || []) {
+    const bits = [];
+    if (f.guard?.state) bits.push(`guard ${f.guard.state.replace(/_/g, " ")}`);
+    for (const rf of f.refinements || []) {
+      const delta = rf.from !== rf.to ? ` ${rf.from}→${rf.to}` : "";
+      bits.push(`${LAYER_NAMES[rf.layer] || rf.layer} (${rf.engine}): `
+        + `${rf.kind}${delta}${rf.applied ? "" : " — not applied"}`);
+    }
+    if (f.mm_reread)
+      bits.push(`second read (${f.mm_reread.model || "?"}): `
+        + `${f.mm_reread.verdict}${f.mm_reread.elapsed_ms != null
+            ? ` in ${(f.mm_reread.elapsed_ms / 1000).toFixed(1)}s` : ""}`);
+    if (bits.length)
+      rows.push(`<div><strong>${esc(FIELD_LABELS[f.field] || f.field)}</strong>`
+        + ` — ${esc(bits.join("; "))}</div>`);
+  }
+  if (rows.length <= 1) return;
+  const det = document.createElement("details");
+  det.className = "cite";
+  det.innerHTML = "<summary>How this was cross-checked</summary>" + rows.join("");
+  container.appendChild(det);
+}
+
 function renderJourney(container, it) {
   const st = itemState(it);
   const r = it.result;
@@ -1096,6 +1125,7 @@ function renderResult(container, it) {
       done.textContent = `✓ Cross-check complete — ${digest}.`;
       container.appendChild(done);
     }
+    renderCrossCheckDrawer(container, r);   // U3: the evidence trail
   }
   // timing/stage display lives in the journey stepper (renderJourney),
   // which renders above the label image for every selected item
@@ -1167,7 +1197,7 @@ function renderResult(container, it) {
       </div>
       <div>
         ${refining
-          ? `<div class="note">Verifying with second engine — the preliminary read is withheld until the cross-check settles (a few seconds).</div>`
+          ? `<div class="note" title="Statutory and numeric fields never ship on one engine's read — this verdict waits for two-engine agreement."><span class="loading loading-dots loading-xs" aria-hidden="true"></span> Verifying with second engine — withheld until the cross-check settles${settleEtaNote()}.</div>`
           : `${f.label_value ? `<div class="vals"><span class="lbl">Label says:</span> ${esc(f.label_value)}</div>` : ""}
         ${f.application_value ? `<div class="vals"><span class="lbl">Application says:</span> ${esc(f.application_value)}</div>` : ""}
         <div class="note">${esc(f.note || "")}</div>
