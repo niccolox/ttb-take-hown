@@ -16,6 +16,8 @@ in the export and in the AI-drafted decision summaries).
 
 ---
 
+![Label Check screening a batch on Azure — applications list with per-label decisions, the application form, the journey stepper (Received → Screened 0.8s → Cross-checked → Decided PASS), and an AI draft summary citing every machine check](docs/images/labelcheck-ui.png)
+
 ## ⚡ Setup & run
 
 **Prerequisites:** Docker with **~4 GB memory** (exit 137 during warmup =
