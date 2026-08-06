@@ -201,13 +201,17 @@ The engine swap is an env var by design (PLAN.md posture) — what makes
 flipping it the RIGHT default is that every known weakness of the primary
 is somebody else's job in this architecture:
 
-- **Known failure mode, designed counter.** Nemotron's single-scale
-  `infer_length=1024` drops characters on dense statutory small print —
-  its provisional Government Warning read is routinely wrong. That is
-  precisely what J2 (warning-band crop re-OCR) exists to correct, and
-  AD-12 keeps guard fields showing “CHECKING” instead of a red first
-  read. The rollup fix (screening_result recomputed on every read) closed
-  the last place the provisional read could leak into a settled payload.
+- **Known failure mode, now countered at the source.** Nemotron's
+  single-scale detector at `infer_length=1024` dropped characters on
+  dense statutory small print — the provisional Government Warning read
+  was routinely wrong, by design left to J2 to correct. Adopted
+  2026-08-05: **`NEMOTRON_INFER_LENGTH=1536`** (A/B on all 15 goldens:
+  the 9 dropout-affected warning reads flip to correct provisionally,
+  all four warning traps still catch, VRAM peaks 1.3 GiB on the 4 GB
+  card, ~+150 ms/panel). J2 (warning-band crop re-OCR) remains the
+  safety net for the residue, AD-12 still shows “CHECKING” on guard
+  fields, and the rollup fix keeps any provisional read out of settled
+  payloads.
 - **Nothing settles on one engine's word.** J1 shadows every guard field
   with paddle; agreement confirms, disagreement locks the field amber
   with both reads shown (AD-20). The green + no-read rule and shadow
