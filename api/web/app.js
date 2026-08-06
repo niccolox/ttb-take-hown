@@ -2019,3 +2019,7 @@ $("restoreBtn").addEventListener("click", async () => {
   refreshSessionUI();
 })();
 renderPipelines();
+
+// the pre-JS loading state (index.html #appload) ends exactly when this
+// script has parsed and executed to its last line
+document.getElementById("appload")?.remove();

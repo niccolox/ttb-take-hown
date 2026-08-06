@@ -84,6 +84,16 @@
     </div>
 </div>
 <main>
+  <!-- pre-JS loading state: visible from first paint, removed by app.js's
+       last line; degrades to an actionable message if the script never
+       arrives (slow link / cold container) -->
+  <div id="appload" role="status" aria-live="polite"
+       style="display:flex;align-items:center;gap:10px;justify-content:center;padding:48px 0">
+    <span class="loading loading-spinner loading-md" aria-hidden="true"></span>
+    <span id="appload-msg">Loading Label Check…</span>
+  </div>
+  <script>setTimeout(function(){var m=document.getElementById("appload-msg");
+    if(m) m.textContent="Still loading — a cold server can take a minute. If this persists, refresh.";},20000);</script>
   <div class="inline-error" id="err" role="alert" style="grid-column:1 / -1"></div>
 
   <section class="panel" aria-labelledby="apps-h">
@@ -158,7 +168,7 @@
        target="_blank" rel="noopener">27 CFR part 16 — health warning</a>
   </nav>
 </footer>
-<script src="app.js?v=n10.6"></script><!-- bump ?v= on app.js changes: browsers
+<script src="app.js?v=n10.7"></script><!-- bump ?v= on app.js changes: browsers
   heuristically cache un-versioned statics and can keep pre-refinement code
   running against the new API -->
 </body>
