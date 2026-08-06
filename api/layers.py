@@ -24,11 +24,13 @@ from __future__ import annotations
 import io
 import json
 import logging
+import os
 import tempfile
 import threading
 import time
 from pathlib import Path
 
+from . import mm_judge
 from .merge import GREEN, merge_refinement
 from .verify import CONF_FLOOR_BY_ENGINE, verify_multi
 
@@ -258,6 +260,18 @@ DEFAULT_VLM_QUESTION = ("What text is printed in this label crop? Answer with "
                         "just the printed text.")
 J3_MAX_FIELDS = 3               # hosted free tier is rate-limited; cap per label
 
+# mm second read (mm-ocr-augment D-3): transcribe-then-judge, gated by its
+# OWN flag so the shipped question-mode assist is untouched when off and an
+# ambient NVIDIA key can never activate the new path (amendment 10).
+MM_FALLBACK_MIN_BUDGET_S = 20.0   # question fallback only with this much left
+TERMINAL_NOT_DONE = frozenset({"timed_out", "cancelled", "failed",
+                               "shed", "lost"})
+
+
+def _mm_enabled() -> bool:
+    return os.environ.get("LABELCHECK_MM_READ", "").strip().lower() \
+        in ("1", "true", "on", "yes")
+
 
 def run_j3(rid: str, store, vlm_client) -> None:
     """VLM fallback reader (N5). Reads the CROPS of fields still flagged
@@ -267,9 +281,22 @@ def run_j3(rid: str, store, vlm_client) -> None:
     from PIL import Image
 
     entry = store.get(rid)
-    if entry is None or entry.cancelled or not vlm_client.available():
+    if entry is None or entry.cancelled:
+        return
+    # mm second read requires: the flag, a transcription-capable client,
+    # and that mode's breaker closed (per-mode semantics, amendment 20)
+    mm_on = (_mm_enabled() and hasattr(vlm_client, "transcribe_crop")
+             and vlm_client.available("transcribe"))
+    question_ok = vlm_client.available()
+    if not mm_on and not question_ok:      # union at the point of use
         return
     meta = entry.meta
+    # budget for the whole run — the question-mode fallback after a failed
+    # transcription is allowed only while enough of the job's 45 s deadline
+    # remains (amendment 18: never two full-timeout calls back to back)
+    job = entry.jobs.get("vlm-assist")
+    deadline_at = (job.submitted_at + job.deadline_s) if job is not None \
+        else time.monotonic() + 45.0
     targets = []
     for f in entry.result.get("fields", []):
         ev = f.get("evidence") or {}
@@ -277,13 +304,19 @@ def run_j3(rid: str, store, vlm_client) -> None:
         # stored panel jpegs are the PROCESSED frame — use the pre-mapping
         # coords captured for J2 when present, else skip (crops only, never
         # a full panel)
-        if f["status"] == "NEEDS_REVIEW" and ev.get("bbox"):
+        # eligibility (amendment 17): MISMATCH rows join ONLY under the mm
+        # flag — that's where sides_with_application lives; selection is
+        # unchanged when the flag is off
+        wanted = ("NEEDS_REVIEW", "MISMATCH") if mm_on else ("NEEDS_REVIEW",)
+        if f["status"] in wanted and ev.get("bbox"):
             targets.append(f)
         if len(targets) >= J3_MAX_FIELDS:
             break
     if not targets:
         return
+    engine = getattr(vlm_client, "engine_label", "nano-vl-8b")
     suggestions = {}
+    mm_results = {}
     for f in targets:
         ev = f["evidence"]
         p = ev.get("panel") or 0
@@ -302,26 +335,84 @@ def run_j3(rid: str, store, vlm_client) -> None:
         crop = img.crop(box)
         buf = io.BytesIO()
         crop.save(buf, "JPEG", quality=85)
-        q = VLM_QUESTIONS.get(f["field"], DEFAULT_VLM_QUESTION)
-        answer = vlm_client.read_crop(buf.getvalue(), q)
-        if answer:
-            suggestions[f["field"]] = {"suggestion": answer[:300], "question": q,
-                                       "engine": "nano-vl-8b",
-                                       "disclaimer": "AI-suggested — verify "
-                                                     "against the label crop"}
 
-    if not suggestions:
+        transcribed_ok = False
+        if mm_on:
+            t0 = time.monotonic()
+            r = vlm_client.transcribe_crop(buf.getvalue())
+            elapsed_ms = round((time.monotonic() - t0) * 1000)
+            if r.status == "error" and r.cause == "oversized":
+                pass                       # registry posture: skip silently
+            elif r.status == "ok":
+                transcribed_ok = True
+                try:
+                    verdict, note = mm_judge.judge(
+                        f["field"], f["status"], r.text,
+                        meta.get("app_data") or {}, f.get("label_value"))
+                except Exception as exc:   # judge bug ≠ dead layer (S2 map)
+                    log.warning("mm judge failed for %s/%s: %r",
+                                rid, f["field"], exc)
+                    verdict, note = "error", "judge_exception"
+                mm_results[f["field"]] = {
+                    "text": r.text[:500], "verdict": verdict, "note": note,
+                    "model": engine, "elapsed_ms": elapsed_ms}
+            else:                          # unreadable | error(with cause)
+                mm_results[f["field"]] = {
+                    "verdict": r.status, "cause": r.cause,
+                    "text": (r.text or "")[:500] or None,
+                    "model": engine, "elapsed_ms": elapsed_ms}
+
+        # question mode: the shipped path when mm is off; under mm it is
+        # the ONE budget-gated fallback for NEEDS_REVIEW rows whose
+        # transcription didn't produce judgeable text (never for the
+        # widened MISMATCH rows — those are mm-only by design)
+        want_question = (f["status"] == "NEEDS_REVIEW" and question_ok
+                         and (not mm_on
+                              or (not transcribed_ok
+                                  and deadline_at - time.monotonic()
+                                  >= MM_FALLBACK_MIN_BUDGET_S)))
+        if want_question:
+            q = VLM_QUESTIONS.get(f["field"], DEFAULT_VLM_QUESTION)
+            answer = vlm_client.read_crop(buf.getvalue(), q)
+            if answer:
+                suggestions[f["field"]] = {"suggestion": answer[:300],
+                                           "question": q, "engine": engine,
+                                           "disclaimer": "AI-suggested — verify "
+                                                         "against the label crop"}
+
+    if not suggestions and not mm_results:
+        return
+
+    def terminal_not_done() -> bool:
+        e2 = store.get(rid)
+        j = e2.jobs.get("vlm-assist") if e2 is not None else None
+        return j is not None and j.state in TERMINAL_NOT_DONE
+
+    # late-mutation guard (amendment 19): a run that outlived its deadline
+    # must not surface new verdicts on a result the user already saw settle
+    if terminal_not_done():
         return
 
     def apply(entry):
+        j = entry.jobs.get("vlm-assist")
+        if j is not None and j.state in TERMINAL_NOT_DONE:
+            return                          # raced the watchdog: no-op
         for f in entry.result.get("fields", []):
             sug = suggestions.get(f["field"])
+            mm = mm_results.get(f["field"])
             if sug:
                 f["vlm"] = sug
                 f.setdefault("refinements", []).append(
-                    {"layer": "vlm-assist", "engine": "nano-vl-8b",
+                    {"layer": "vlm-assist", "engine": engine,
                      "from": f["status"], "to": f["status"], "kind": "annotation",
                      "applied": False, "note": "suggestion attached, no status change"})
+            if mm:
+                f["mm_reread"] = mm
+                f.setdefault("refinements", []).append(
+                    {"layer": "vlm-assist", "engine": engine,
+                     "from": f["status"], "to": f["status"], "kind": "mm-reread",
+                     "applied": False,
+                     "note": f"second read: {mm['verdict']} — no status change"})
 
     store.mutate(rid, apply)
 
