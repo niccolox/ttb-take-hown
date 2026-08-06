@@ -214,12 +214,30 @@ additions) for the container. Two deliberate exceptions when copying
 the emitted config into step 4: drop `NEMOTRON_OCR_URL` (localhost is
 meaningless in ACA — set it only with the GPU upgrade) and drop
 `OPENAI_DEBUG` (prompts contain application values; dev-only on
-laptops). **Live state (2026-08-05):** this exact flow ran against the
-subscription — vault **`labelcheck-dev-kv`** exists (the plain name was
-free; the original resolve failure was simply that it had never been
-created) holding AZ-GPT-4-1-KEY, AZ-GPT-5-1-SOL-KEY, AZ-OPENAI-API-KEY,
-COLACLOUD-API-KEY, FOUNDRY-API-KEY, with Key Vault Secrets Officer
-granted at the RG scope.
+laptops). **Live state (2026-08-05, evening):** the playbook is being executed
+for real against the subscription. Standing so far:
+- **Step 1 ✓** — RG `labelcheck-dev` (eastus); ACR **`labelcheckacr`**
+  (Premium; plain name was free).
+- **Step 2 ✓** — image built at commit 1945092 with the post-bake
+  model-integrity + non-root gates, pushed, pinned at digest
+  `sha256:4cb4ef829041e0243953e7ed5da1700b945034172ed993bf2727f1e730c88cc4`
+  — the only artifact that moves forward.
+- **Step 3a ✓** — Key Vault hello world green (it caught the RBAC-mode
+  403; Key Vault Secrets Officer now granted at RG scope).
+- **Step 3 ✓** — vault **`labelcheck-dev-kv`** (plain name free; the
+  original resolve failure was simply a never-created vault) holding
+  AZ-GPT-4-1-KEY, AZ-GPT-5-1-SOL-KEY, AZ-OPENAI-API-KEY,
+  COLACLOUD-API-KEY, FOUNDRY-API-KEY.
+- **Step 4 ⏳** — ACA environment `labelcheck-dev-env` provisioning
+  (auto-generated Log Analytics workspace); app create queued behind it
+  with the pinned digest, single replica (DuckDB single-writer),
+  2 CPU / 4 Gi CPU shape (paddle-primary), fixture-provider mm demo,
+  managed-identity ACR pull; FQDN→ALLOWED_HOSTS and the healthz gate
+  follow. Steps 5–7 (Key Vault references, session storage, posture
+  pre-flight) pending.
+- **Rotation reminder:** the seeded AZ-* and FOUNDRY keys are the ones
+  this workstream exposed fragments of — rotate in the portal, then
+  re-run the step-3 seed loop; the vault updates in place.
 
 **3a · Prove the vault path first:** `RG=$RG LOC=$LOC
 ./scripts/hello_azure_keyvault.sh` — creates a disposable vault, waits
