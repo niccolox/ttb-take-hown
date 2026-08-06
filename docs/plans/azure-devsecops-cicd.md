@@ -231,9 +231,15 @@ for real against the subscription. Standing so far:
 - **Step 4 — RETIRED (2026-08-05, late):** the eastus CPU-shape
   deployment (`labelcheck-dev` app + `labelcheck-dev-env`) was deleted
   after the westus3 GPU stack went live and green — one region, one
-  digest, no drift. The eastus vault (`labelcheck-dev-kv`), ACR
-  (`labelcheckacr`), and storage account remain (shared by the west
-  stack / near-zero cost). Original record of the eastus deployment:
+  digest, no drift. The ACR (`labelcheckacr`) and storage
+  accounts remain. Secrets MOVED west (2026-08-05): vault
+  **`labelcheck-west-kv`** (westus3) seeded from `.env` with all five
+  keys; the `labelcheck-gpu` app's identity holds Key Vault Secrets
+  User on it, four keyvaultref-backed secretrefs + the one-value model
+  config (AZ_BASE, AZ_OPENAI_MODEL=gpt-5.6-sol, MISTRAL_OCR_ENDPOINT)
+  applied — healthz re-verified on the new revision. The east vault
+  `labelcheck-dev-kv` is soft-deleted (recoverable ~90 days; `.env`
+  remains the source of truth). Original record of the eastus deployment:
   **https://labelcheck-dev.thankfulflower-7042e768.eastus.azurecontainerapps.io** (now 404)
   — ACA env `labelcheck-dev-env` + app `labelcheck-dev` running the
   pinned digest: single replica (DuckDB single-writer), 2 CPU / 4 Gi
