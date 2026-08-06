@@ -3,10 +3,12 @@ client (after the OCR sidecar adapter and the VLM client), and the building
 block for the J4-summary layer (docs/plans/azure-enrichment-layers.md E3).
 
 Config (all env, read per-instance):
-- AZ_OPENAI_URI   — full chat-completions URL. Works with either surface:
+- AZ_GPT_4_1_URI (primary) / AZ_OPENAI_URI (fallback) — full chat-completions
+  URL. Works with either surface:
     Foundry model inference:  https://<res>.services.ai.azure.com/models/chat/completions?api-version=…
     Azure OpenAI v1:          https://<res>.openai.azure.com/openai/v1/chat/completions
-- AZ_OPENAI_API_KEY — sent as BOTH `api-key` and `Authorization: Bearer`
+- AZ_GPT_4_1_KEY (primary) / AZ_OPENAI_API_KEY (fallback) — sent as BOTH
+  `api-key` and `Authorization: Bearer`
   (the two surfaces prefer different headers; sending both is harmless).
 - AZ_OPENAI_MODEL — deployment/model name for the request body.
 
@@ -48,10 +50,15 @@ class AzureOpenAIClient:
     def __init__(self, api_key: str | None = None):
         self.debug = os.environ.get("OPENAI_DEBUG", "").strip().lower() \
             in ("1", "true", "yes", "on")
-        self.endpoint = os.environ.get("AZ_OPENAI_URI", "")
+        # AZ_GPT_4_1_* (the gpt-4.1 deployment, 2026-08-05) is primary;
+        # AZ_OPENAI_* is the fallback so older configs — including a
+        # running container that predates the new vars — keep working
+        self.endpoint = os.environ.get("AZ_GPT_4_1_URI") \
+            or os.environ.get("AZ_OPENAI_URI", "")
         self.model = os.environ.get("AZ_OPENAI_MODEL", DEFAULT_MODEL)
         self.api_key = api_key if api_key is not None \
-            else os.environ.get("AZ_OPENAI_API_KEY", "")
+            else (os.environ.get("AZ_GPT_4_1_KEY")
+                  or os.environ.get("AZ_OPENAI_API_KEY", ""))
         self._fails = 0
         self._cool_until = 0.0
         # a /responses endpoint declares its dialect — skip the chat round
