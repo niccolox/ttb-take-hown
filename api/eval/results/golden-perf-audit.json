@@ -1,0 +1,318 @@
+{
+ "measured_at": "2026-08-05 20:25:32",
+ "promise_5s": {
+  "provisional_max_ms": 414,
+  "violations": 0
+ },
+ "provisional_ms": {
+  "p50": 245,
+  "max": 414
+ },
+ "settle_s": {
+  "p50": 3.0,
+  "max": 8.1
+ },
+ "expectation_failures": [],
+ "rows": [
+  {
+   "id": "spirits_clean",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "no_mismatch_found",
+   "provisional_wall_ms": 266,
+   "server_total_ms": 16,
+   "settle_wall_s": 2.5,
+   "revision": 12,
+   "refinements": {
+    "upgrade": 2
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed_after_reread"
+   },
+   "mm": {}
+  },
+  {
+   "id": "malt_clean",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "no_mismatch_found",
+   "provisional_wall_ms": 245,
+   "server_total_ms": 13,
+   "settle_wall_s": 2.5,
+   "revision": 12,
+   "refinements": {
+    "upgrade": 2
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed_after_reread"
+   },
+   "mm": {}
+  },
+  {
+   "id": "wine_no_abv_table",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "screening_incomplete",
+   "provisional_wall_ms": 230,
+   "server_total_ms": 15,
+   "settle_wall_s": 4.5,
+   "revision": 13,
+   "refinements": {
+    "mm-reread": 1,
+    "upgrade": 3
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed_after_reread"
+   },
+   "mm": {
+    "brand_name": "agrees"
+   }
+  },
+  {
+   "id": "trap_titlecase_warning",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "mismatch_found",
+   "provisional_wall_ms": 253,
+   "server_total_ms": 16,
+   "settle_wall_s": 5.0,
+   "revision": 13,
+   "refinements": {
+    "same": 1,
+    "mm-reread": 1
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed"
+   },
+   "mm": {
+    "government_warning": "sides_with_application"
+   }
+  },
+  {
+   "id": "trap_word_substitution",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "mismatch_found",
+   "provisional_wall_ms": 244,
+   "server_total_ms": 15,
+   "settle_wall_s": 5.0,
+   "revision": 13,
+   "refinements": {
+    "same": 1,
+    "mm-reread": 1
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed"
+   },
+   "mm": {
+    "government_warning": "agrees"
+   }
+  },
+  {
+   "id": "trap_all_bold_warning",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "screening_incomplete",
+   "provisional_wall_ms": 252,
+   "server_total_ms": 16,
+   "settle_wall_s": 5.1,
+   "revision": 13,
+   "refinements": {
+    "same": 2,
+    "mm-reread": 1
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "disagreed"
+   },
+   "mm": {
+    "government_warning": "agrees"
+   }
+  },
+  {
+   "id": "trap_missing_warning",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "screening_incomplete",
+   "provisional_wall_ms": 221,
+   "server_total_ms": 2,
+   "settle_wall_s": 2.0,
+   "revision": 8,
+   "refinements": {},
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed"
+   },
+   "mm": {}
+  },
+  {
+   "id": "trap_abv_within_band",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "no_mismatch_found",
+   "provisional_wall_ms": 260,
+   "server_total_ms": 16,
+   "settle_wall_s": 2.5,
+   "revision": 12,
+   "refinements": {
+    "upgrade": 2
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed_after_reread"
+   },
+   "mm": {}
+  },
+  {
+   "id": "trap_abv_outside_band",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "mismatch_found",
+   "provisional_wall_ms": 235,
+   "server_total_ms": 16,
+   "settle_wall_s": 8.1,
+   "revision": 13,
+   "refinements": {
+    "mm-reread": 1,
+    "upgrade": 2
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed_after_reread"
+   },
+   "mm": {
+    "alcohol_content": "agrees"
+   }
+  },
+  {
+   "id": "photo_skew",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "no_mismatch_found",
+   "provisional_wall_ms": 414,
+   "server_total_ms": 16,
+   "settle_wall_s": 4.0,
+   "revision": 12,
+   "refinements": {
+    "upgrade": 2
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed_after_reread"
+   },
+   "mm": {}
+  },
+  {
+   "id": "photo_glare",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "no_mismatch_found",
+   "provisional_wall_ms": 231,
+   "server_total_ms": 17,
+   "settle_wall_s": 3.0,
+   "revision": 12,
+   "refinements": {
+    "upgrade": 2
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed_after_reread"
+   },
+   "mm": {}
+  },
+  {
+   "id": "photo_blur_dark",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "screening_incomplete",
+   "provisional_wall_ms": 218,
+   "server_total_ms": 6,
+   "settle_wall_s": 2.5,
+   "revision": 8,
+   "refinements": {},
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed"
+   },
+   "mm": {}
+  },
+  {
+   "id": "photo_curved",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "no_mismatch_found",
+   "provisional_wall_ms": 264,
+   "server_total_ms": 16,
+   "settle_wall_s": 3.0,
+   "revision": 12,
+   "refinements": {
+    "upgrade": 2
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed_after_reread"
+   },
+   "mm": {}
+  },
+  {
+   "id": "photo_lowres",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "screening_incomplete",
+   "provisional_wall_ms": 240,
+   "server_total_ms": 4,
+   "settle_wall_s": 5.6,
+   "revision": 13,
+   "refinements": {
+    "mm-reread": 1,
+    "upgrade": 1,
+    "same": 1
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed_single_read",
+    "government_warning": "disagreed"
+   },
+   "mm": {
+    "class_type": "agrees"
+   }
+  },
+  {
+   "id": "decorative_font",
+   "ok": true,
+   "why": "as expected",
+   "screening_result": "no_mismatch_found",
+   "provisional_wall_ms": 257,
+   "server_total_ms": 17,
+   "settle_wall_s": 3.0,
+   "revision": 12,
+   "refinements": {
+    "upgrade": 2
+   },
+   "guards": {
+    "alcohol_content": "agreed",
+    "net_contents": "agreed",
+    "government_warning": "agreed_after_reread"
+   },
+   "mm": {}
+  }
+ ]
+}
