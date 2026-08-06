@@ -390,8 +390,25 @@ az containerapp env workload-profile add -n labelcheck-gpu-env -g $RG \
   the reason the app moves with it.
 - **Cost note:** T4 consumption bills only while replicas run; the A100
   profile and the A10 VM (Spot $0.59/hr, quota-gated) are the scale-up
-  options per the hosting-economics research. Until a GPU route is
-  taken, dev-cloud is paddle-primary and the J-layer QA story holds.
+  options per the hosting-economics research.
+- **GPU deployment live state (2026-08-05, in progress):**
+  - **Env ✓** — `labelcheck-gpu-env` (westus3) with `Consumption` +
+    `gpu-t4` (Consumption-GPU-NC8as-T4) workload profiles.
+  - **Image ✓** — `infra/nemotron-t4.Dockerfile` built at commit
+    8c4836f: SM 7.5+8.6 C++ compile clean (~158 s), server script +
+    v2_english weights baked in, vendor tree via named build context
+    (three live build failures fixed in sequence: dockerignored COPY
+    source → missing hatchling backend → wrong package subdir).
+  - **Push ⏳** — `nemotron-ocr:t4-…` uploading to `labelcheckacr`
+    (multi-GB nvcr base). Queued behind it in one gated chain: sidecar
+    create (gpu-t4 profile, INTERNAL ingress only, 4 CPU/16 Gi,
+    NEMOTRON_INFER_LENGTH=1536) → replica-running gate → app
+    `labelcheck-gpu` from the SAME pinned app digest (Consumption
+    profile, external ingress, LABELCHECK_EXTRACTOR=nemotron,
+    NEMOTRON_OCR_URL=http://nemotron-ocr, fixture mm demo) →
+    FQDN→ALLOWED_HOSTS → healthz gate (first cold start = GPU-node
+    image pull + model load; budgeted ~20 min) → golden verified
+    end-to-end on the GPU URL.
 
 **What day one explicitly is NOT:** not test/stage/prod (those follow
 the gated pipeline above), not real data (synthetic/golden only), not
