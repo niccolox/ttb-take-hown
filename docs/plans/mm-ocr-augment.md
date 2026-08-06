@@ -164,6 +164,18 @@ only after D-5's precision floor passes (below).
   (proposal: ≥80% of `sides_with_application` verdicts correct on
   goldens) before D-4 defaults on anywhere.**
 
+### D-5 PRECISION GATE RESULT (measured live 2026-08-05 — GATE: PASS)
+
+Provider: mistral_doc (mistral-document-ai-2512) over all 134 corpus
+apps. 105 second reads fired; verdicts: agrees 52, sides_with_application
+21, differs 29 (debug-only), unreadable 0, error 3.
+**sides_with_application precision: 21/21 = 100%** (floor 80%, min n 10)
+→ D-4 may default on. Honest caveat: 20 of the 21 positives are
+calibration-tier (approved COLA labels, correct by construction); the
+held-out golden traps contributed n=1 (trap_titlecase_warning — content
+words present, typography wrong — judged correctly, exactly the designed
+narrowed-verdict case). Raw data: api/eval/results/mm-precision.json.
+
 ### D-6 · Operator docs (~1 hour)
 
 Extend docs/enable-azure-vlm.md: provider matrix, flag semantics
