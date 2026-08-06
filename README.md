@@ -56,6 +56,9 @@ make smoke        # end-to-end: clean sample must go all-green in <5s
    local OCR reads what's printed, so this prototype catches it — with a
    word-level diff in plain English.
 4. **Bad photo** — degrades honestly to NEEDS REVIEW with actionable copy; never a false verdict.
+   With the keyless demo on (`LABELCHECK_MM_READ=1 LABELCHECK_VLM_PROVIDER=fixture`),
+   this sample also shows the multimodal **second read** chip —
+   see `docs/enable-second-read.md` for the 60-second demo.
 5. **Table wine with no ABV** — legally compliant (27 CFR §4.36(a)) → **NOT REQUIRED**, not a mismatch.
 
 Or poke the API directly (`/docs` for Swagger):

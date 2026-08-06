@@ -1,5 +1,10 @@
 # Enabling the Azure VLM (J3 field assist)
 
+> **See also:** `docs/enable-second-read.md` — the provider-neutral
+> guide to the multimodal second read (LABELCHECK_MM_READ), including the
+> keyless fixture demo and the full flag matrix. This page covers the
+> Azure specifics of the J3 question assist.
+
 Operational guide, 2026-08-03. Companion to
 docs/plans/azure-enrichment-layers.md (the design) and
 docs/research/azure-frontier-models.md (the model-placement standard that
