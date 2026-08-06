@@ -1,6 +1,7 @@
 # Label Check — Systems Architecture
 
-As built, 2026-08-03 (nemotron-default). One process, two tiers: a fast
+As built, 2026-08-05 (nemotron-default; Sol vision layer). One process,
+two tiers: a fast
 synchronous screening path that answers inside the 5-second promise, and a
 background enrichment tier that cross-checks, upgrades, and annotates
 without ever reopening a settled verdict. Every external integration is
@@ -11,6 +12,13 @@ anything outside its own compose network (proven in CI).
 (`LABELCHECK_EXTRACTOR=nemotron`, set in `.env` and pinned in the GPU
 compose); PaddleOCR remains in-process as the J1 QA shadow and the AD-1
 fallback. Rationale in “Why Nemotron as the default” below.
+
+**Vision default:** the multimodal second read and the J3 question
+assist run on `AzureVisionClient` (api/azure_openai.py) against the
+**gpt-5.6-sol** chat deployment, selected by the one-value switch
+(`AZ_BASE` once + `AZ_OPENAI_MODEL`). `mistral_doc` and the keyless
+`fixture` demo are sibling providers; `NanoVLClient` (api/vlm.py) is
+deprecated. Rationale in “The Sol vision layer” below.
 
 ## System context
 
@@ -39,8 +47,8 @@ flowchart LR
 
     subgraph External["External (all opt-in, silent-degrade)"]
         COLA["COLA Cloud registry<br/>(pipelines; API key; dev fetch)"]
-        NVLM["NVIDIA hosted VLM<br/>J3 · crops only"]
-        AOAI["Azure OpenAI / VLM<br/>J4 + planned layers · flag-off"]
+        VISION["AzureVisionClient<br/>gpt-5.6-sol (default) · mistral_doc · fixture<br/>mm second read + J3 assist · crops only"]
+        AOAI["AzureOpenAIClient (TEXT only)<br/>summaries + ai_review triage<br/>gpt-5.6-sol via one-value switch"]
     end
 
     UI -->|multipart images + application JSON| API
@@ -52,8 +60,9 @@ flowchart LR
     API --> DUCK
     JOBQ --> E4
     API -.->|Pipelines menu| COLA
-    JOBQ -.->|J3 crops| NVLM
-    JOBQ -.->|J4 stub| AOAI
+    JOBQ -.->|"crops → transcribe-then-judge<br/>(LABELCHECK_MM_READ)"| VISION
+    JOBQ -.->|"post-settle triage (≥50% troubled)"| AOAI
+    API -.->|"PASS/FAIL summary draft"| AOAI
 ```
 
 Solid arrows are the default deployment; dashed arrows exist only when
@@ -72,7 +81,8 @@ D3, enforced by the no-egress CI check).
 | Location | `locator` — line grouping, fuzzy field search, warning block reconstruction | vertical-word isolation + column discipline (BAM/anatomy audit fixes) |
 | Jobs | stdlib ThreadPool + custom JobQueue/ResultStore | bounded, watchdogged, revision-monotonic polling |
 | Persistence | DuckDB (sessions incl. images) + rotated JSONL (telemetry) | single-writer rule: docker and native must not share api/data |
-| Assist models | NVIDIA-hosted Nano VL (J3, crops-only); Azure OpenAI (J4, stub) | suggestion-only — cannot change a field status (test-enforced) |
+| Vision assist | `AzureVisionClient`: gpt-5.6-sol default · mistral_doc · fixture (keyless demo); per-mode breakers | mm second read (transcribe-then-judge, deterministic `mm_judge`) + J3 question assist; suggestion-only, crops-only (test-enforced); NanoVLClient deprecated |
+| Text reasoning | `AzureOpenAIClient` (TEXT only — never sees pixels) | PASS/FAIL summary drafts + ai_review triage (≥50% troubled); deterministic fallbacks at every failure point |
 | Supply chain | pip hash lock (1,119 hashes) · CycloneDX SBOM · digest-pinned bases · non-root images | EO 14028 posture; weekly trivy; PRC-origin annotations |
 | CI | GitHub Actions: tests + no-egress proof + axe; weekly image build/scan | gates on every push once the repo is pushed |
 
@@ -101,8 +111,10 @@ sequenceDiagram
         Q->>S: merge: agree→confirm · disagree→lock amber with both reads
         Q->>Q: J2 warning-band crop re-OCR (dropout fix)
         Q->>S: merge: refresh/upgrade per AD-20
-        opt key present
-            Q->>Q: J3 VLM crops → suggestions only
+        opt vision configured (MM_READ + provider)
+            Q->>Q: mm second read: crop → verbatim transcription<br/>→ deterministic judge (agrees / sides-with-application / differs)
+            Q->>Q: question-mode fallback (budget-gated, NEEDS_REVIEW rows)
+            Q->>S: attach mm_reread + suggestions (never a status change)
         end
     end
 
@@ -111,7 +123,12 @@ sequenceDiagram
         API->>S: read revision
         API-->>UI: settled=true, pending=[] (AD-34 finality)
     end
+    opt ≥50% of checked rows troubled at settle
+        Q->>Q: ai_review triage (text LLM over structured result)
+        Q->>S: enrichments.ai_review (debug shown in UI)
+    end
     Agent->>UI: per-field ✓/👁/✗ → whole-label decision<br/>(PASS locked until every field passes)
+    UI->>API: POST /summary on PASS/FAIL → bullet record (deterministic trailer)
     UI->>API: save session (decisions + provenance)
     API->>API: DuckDB write
 ```
@@ -132,7 +149,7 @@ flowchart TB
     EDGE["Deploy edge (planned)<br/>TLS · Entra/PIV auth · WAF<br/>docs/deploy-security.md"]
     BROWSER["Agent browser"]
     COLA2["COLA Cloud<br/>(dev corpus pulls; key in .env)"]
-    HOSTED["Hosted models<br/>NVIDIA VLM · Azure OpenAI"]
+    HOSTED["Azure models<br/>gpt-5.6-sol (vision+text) · mistral_doc OCR"]
 
     BROWSER --> EDGE --> APP
     APP -.->|"opt-in, crops/JSON only,<br/>silent-degrade, breaker"| HOSTED
@@ -143,6 +160,40 @@ Rules that hold at every boundary: full label images never leave the
 process (crops only, and only to the VLM path); assistive output never
 mutates a status; secrets live in `.env`/Key Vault and are never logged;
 absence of any key produces byte-identical behavior.
+
+## The Sol vision layer (mm second read)
+
+Division of labor, held by tests: **OCR grounds** (words + boxes — the
+only evidence source), **the vision model transcribes** (verbatim, no
+opinions), **the rules engine judges** (`api/mm_judge.py`, pure
+functions — an adversarial transcription can only be compared, never
+obeyed). Rows that settle troubled (NEEDS_REVIEW, plus MISMATCH under
+`LABELCHECK_MM_READ`) get their evidence crop re-read; verdicts are
+asymmetric because the second reader is statistically weaker than the
+primary OCR: **agrees** and **sides-with-application** are headline
+chips, plain **differs** stays in the debug block.
+
+- **Model selection is one env value:** `AZ_BASE` names the resource
+  once; `AZ_OPENAI_MODEL` picks the deployment for BOTH the vision
+  layer and the text layers (endpoints are constructed;
+  `LABELCHECK_VISION_MODEL` overrides vision separately — pin
+  `gpt-4.1` there for Gov-parity work, since Azure Government has no
+  GPT-5.x).
+- **Evidence gates, not vibes:** the layer shipped through a measured
+  D-0 value gate (0.78 eligible reads/app over 134 corpus apps; 51% of
+  troubled rows are bbox-less and unreachable by ANY crop reader) and a
+  live precision ship-gate (sides_with_application ≥80%, n≥10 — passed
+  21/21 under mistral_doc; re-validated per provider on switch).
+- **Failure is typed and visible:** per-mode breakers (a transcription
+  outage never cools the question assist — nor the text client:
+  separate classes, separate breakers), `error≠unreadable` taxonomy
+  with causes in the row's debug block, a boot-time config line
+  ("mm second read: enabled provider=… key=present|ABSENT"), and a
+  keyless `fixture` provider so an evaluator sees the layer work with
+  zero credentials.
+- **Measured on Sol:** 2.9 s crop transcription (12 s budget), verbatim
+  statutory-warning read, gpt-5.x payload shape handled natively
+  (max_completion_tokens, pinned temperature — no wasted 400).
 
 ## Why Nemotron as the default
 
