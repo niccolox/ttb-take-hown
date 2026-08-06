@@ -85,7 +85,7 @@ sequenceDiagram
     Agent->>API: POST /api/verify (panels + application)
     API->>OCR: words + boxes (~250ms)
     API-->>Agent: provisional verdict (p50 ~0.5s)
-    Note over Agent: unambiguous ≥90%-confidence greens show immediately;<br/>everything else says CHECKING — never a red first read
+    Note over Agent: unambiguous ≥90%-confidence greens show immediately<br/>everything else says CHECKING — never a red first read
     par background
         Q->>Q: J1 second engine · J2 warning re-read
         Q->>Q: 🔍 mm second read: crop → verbatim transcription → deterministic judge
