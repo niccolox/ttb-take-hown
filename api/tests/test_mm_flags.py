@@ -163,3 +163,51 @@ def test_dev_mode_keeps_everything(monkeypatch):
     # unknown name → 404 from the handler itself: proves the prod gate is
     # NOT in the way, without kicking off a real registry pull from a test
     assert client.post("/api/pipelines/nope/run").status_code == 404
+
+
+# ── batch-uploaded eval sets (dev/test tool) ─────────────────────────────
+
+def _upload(client, name="my-set", csv=None, files=None):
+    csv = csv if csv is not None else (
+        "filename,beverage_type,brand_name,class_type,alcohol_content,net_contents,back_filename\r\n"
+        "a.jpg,wine,BRAND A,Red Wine,12.5%,750 mL,\r\n"
+        "b.jpg,wine,BRAND B,Red Wine,13%,750 mL,b_back.jpg\r\n")
+    files = files if files is not None else ["a.jpg", "b.jpg", "b_back.jpg"]
+    parts = [("images", (f, b"\xff\xd8fake", "image/jpeg")) for f in files]
+    return client.post("/api/evalsets/upload", data={"name": name},
+                       files=[("csv", ("m.csv", csv.encode(), "text/csv"))] + parts)
+
+
+def test_evalset_upload_happy_path(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+    from api import main
+    monkeypatch.setattr(main, "LABELCHECK_ENV", "dev")
+    monkeypatch.setattr(main, "_EVAL", tmp_path)
+    client = TestClient(main.app)
+    r = _upload(client)
+    assert r.status_code == 200, r.text
+    assert r.json() == {"name": "upload_my-set", "count": 2}
+    corpora = client.get("/api/corpora").json()
+    names = corpora if isinstance(corpora, list) else list(corpora)
+    assert any("upload_my-set" in str(n) for n in [names])
+    import json as _json
+    man = _json.loads((tmp_path / "uploads" / "my-set" / "manifest.json").read_text())
+    assert man[1]["files"][1] == {"file": "b_back.jpg", "panel": "back"}
+    # replace-by-name: uploading again succeeds and stays at 2
+    assert _upload(client).json()["count"] == 2
+
+
+def test_evalset_upload_gates_and_validation(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+    from api import main
+    monkeypatch.setattr(main, "_EVAL", tmp_path)
+    client = TestClient(main.app)
+    monkeypatch.setattr(main, "LABELCHECK_ENV", "prod")
+    assert _upload(client).status_code == 403          # prod refuses
+    monkeypatch.setattr(main, "LABELCHECK_ENV", "stage")
+    assert _upload(client).status_code == 403          # stage too
+    monkeypatch.setattr(main, "LABELCHECK_ENV", "dev")
+    assert _upload(client, name="Bad Name!").status_code == 400
+    assert _upload(client, csv="filename\r\nmissing.jpg\r\n").status_code == 400
+    r = _upload(client, files=["a.jpg", "../evil.jpg"])
+    assert r.status_code == 400                        # unsafe filename

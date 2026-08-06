@@ -92,6 +92,7 @@ fetch("/healthz").then((r) => r.json()).then((h) => {
   if (env === "prod") {
     for (const id of ["menu-samples", "menu-evalsets"])
       $(id)?.style && ($(id).style.display = "none");
+    $("evalupload")?.remove();          // dev/test tool — gone in prod
     const pip = $("pipelines");
     if (pip) {
       pip.style.display = "none";
@@ -168,6 +169,29 @@ $("pair").addEventListener("change", async (e) => {
   if (!added) { err("This label is already imported (same front image)."); return; }
   if (selectedId === null) select(added.id);
   renderList();
+});
+
+// batch-upload an eval set (dev/test): CSV + images → persisted corpus
+$("evgo")?.addEventListener("click", async () => {
+  const name = $("evname").value.trim();
+  const csvF = $("evcsv").files[0];
+  const imgs = [...$("evimgs").files];
+  const st = $("evstatus");
+  if (!name || !csvF || !imgs.length) {
+    st.textContent = "need a name, a CSV, and at least one image"; return;
+  }
+  const fd = new FormData();
+  fd.append("name", name); fd.append("csv", csvF);
+  for (const f of imgs) fd.append("images", f);
+  st.textContent = "uploading…";
+  try {
+    const r = await fetch("/api/evalsets/upload", { method: "POST", body: fd });
+    const b = await r.json();
+    if (!r.ok) { st.textContent = b.error || "upload failed"; return; }
+    st.textContent = `✓ ${b.name} (${b.count} labels) — listed above`;
+    $("evcsv").value = ""; $("evimgs").value = "";
+    loadCorpora();
+  } catch { st.textContent = "upload failed — network error"; }
 });
 
 $("tpl").addEventListener("click", () => {
@@ -1777,6 +1801,7 @@ async function loadCorpora() {
     ["golden", "Golden images (synthetic, controlled truth)"],
     ["cola", "COLA Cloud pipelines (real registry labels)"],
     ["batch", "Load-test batches (300 labels each)"],
+    ["upload", "Uploaded eval sets (dev/test)"],
   ];
   const host = $("corpora");
   for (const [gid, heading] of GROUPS) {

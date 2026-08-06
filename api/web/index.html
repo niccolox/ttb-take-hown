@@ -30,6 +30,19 @@
             <summary class="navlink">Eval sets</summary>
             <div class="dropdown-content megapanel w-[46rem]">
               <div class="samples megacols" id="corpora"></div>
+              <div id="evalupload" style="border-top:1px solid var(--fallback-b3,#ddd);margin-top:10px;padding-top:10px">
+                <p class="note" style="margin:0 0 6px"><strong>Upload a batch as an eval set</strong> (dev/test) —
+                  CSV manifest + images; replaces any set with the same name.</p>
+                <label for="evname" style="position:absolute;left:-9999px">Eval set name</label>
+                <input id="evname" type="text" placeholder="set name (a-z, 0-9, -)" maxlength="32"
+                       class="input input-sm input-bordered" style="width:11rem">
+                <label for="evcsv" class="filebtn" style="margin-left:6px">CSV</label>
+                <input id="evcsv" type="file" accept=".csv,text/csv" style="position:absolute;left:-9999px">
+                <label for="evimgs" class="filebtn" style="margin-left:6px">Images</label>
+                <input id="evimgs" type="file" accept="image/png,image/jpeg" multiple style="position:absolute;left:-9999px">
+                <button type="button" id="evgo" class="btn btn-sm btn-primary" style="margin-left:6px">Upload</button>
+                <span class="cite" id="evstatus" role="status"></span>
+              </div>
             </div>
           </details>
         </li>
@@ -168,7 +181,7 @@
        target="_blank" rel="noopener">27 CFR part 16 — health warning</a>
   </nav>
 </footer>
-<script src="app.js?v=n10.7"></script><!-- bump ?v= on app.js changes: browsers
+<script src="app.js?v=n10.8"></script><!-- bump ?v= on app.js changes: browsers
   heuristically cache un-versioned statics and can keep pre-refinement code
   running against the new API -->
 </body>

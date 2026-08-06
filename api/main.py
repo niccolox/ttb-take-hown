@@ -430,6 +430,12 @@ def get_corpora() -> dict[str, Path]:
         for d in sorted(cc.iterdir()):
             if (d / "manifest.json").exists():
                 out[f"colacloud_{d.name}"] = d
+    # dev/test batch-uploaded eval sets (POST /api/evalsets/upload)
+    up = _EVAL / "uploads"
+    if up.exists():
+        for d in sorted(up.iterdir()):
+            if (d / "manifest.json").exists():
+                out[f"upload_{d.name}"] = d
     # load-test batches (gitignored; generate_batches.py) — registered when
     # present so the UI can one-click a 300-label physics run
     bt = _EVAL / "batches"
@@ -510,6 +516,14 @@ def corpora():
                      "label": f"COLA Cloud — {t} ({n} approved registry labels)",
                      "shows": "Real approved COLAs pulled from the public registry; "
                               "the registry record is the application ground truth."})
+    for cid, path in get_corpora().items():
+        if not cid.startswith("upload_"):
+            continue
+        n = len(json.loads((path / "manifest.json").read_text()))
+        base.append({"id": cid, "group": "upload",
+                     "label": f"Uploaded — {cid.split('_', 1)[1]} ({n} labels)",
+                     "shows": "Batch-uploaded eval set (dev/test tool); replaces "
+                              "by name on re-upload."})
     shown = 0
     for cid, path in get_corpora().items():
         if not cid.startswith("batch_") or shown >= 3:
@@ -687,6 +701,92 @@ def session_panel(item_idx: int, panel: str):
 def session_clear():
     session_store.clear_session()
     return {"saved": False}
+
+
+@app.post("/api/evalsets/upload")
+def upload_evalset(request: Request, name: str = Form(...),
+                   csv_file: UploadFile = File(..., alias="csv"),
+                   images: list[UploadFile] = File(...)):
+    """Batch-upload a named eval set (CSV manifest + label images) — the
+    client-side CSV import promoted to a PERSISTED corpus that registers
+    live in the Eval sets menu. Dev/test tooling only: prod and stage
+    refuse (config-matrix posture), same CSV dialect as the UI template
+    (filename,beverage_type,brand_name,class_type,alcohol_content,
+    net_contents,back_filename)."""
+    import csv as _csv
+    import re as _re
+    import shutil as _shutil
+    ip = request.client.host if request.client else "unknown"
+    ok, retry_after = rate_limiter.allow(ip)
+    if not ok:
+        return JSONResponse({"error": "Too many requests — wait a moment.",
+                             "code": "rate_limited"}, status_code=429,
+                            headers={"Retry-After": str(max(1, int(retry_after)))})
+    if LABELCHECK_ENV not in ("dev", "test"):
+        return JSONResponse({"error": "eval-set uploads are a dev/test tool",
+                             "code": "uploads_disabled"}, status_code=403)
+    if not _re.fullmatch(r"[a-z0-9][a-z0-9-]{0,31}", name):
+        return JSONResponse({"error": "name must be a slug: [a-z0-9-], "
+                             "max 32 chars", "code": "bad_name"}, status_code=400)
+    raw_csv = csv_file.file.read(64 * 1024 + 1)
+    if len(raw_csv) > 64 * 1024:
+        return JSONResponse({"error": "CSV too large (64KB cap)",
+                             "code": "csv_too_large"}, status_code=413)
+    if len(images) > 100:
+        return JSONResponse({"error": "at most 100 images per upload",
+                             "code": "too_many_images"}, status_code=413)
+    blobs: dict[str, bytes] = {}
+    for up in images:
+        data = up.file.read()
+        if len(data) > MAX_BYTES:
+            return JSONResponse({"error": f"{up.filename}: image too large "
+                                 "— max 8MB", "code": "too_large"},
+                                status_code=413)
+        fname = Path(up.filename or "").name        # strip any path tricks
+        if not _re.fullmatch(r"[A-Za-z0-9._ -]+\.(jpe?g|png)", fname, _re.I):
+            return JSONResponse({"error": f"unsafe image filename: {fname!r}",
+                                 "code": "bad_filename"}, status_code=400)
+        blobs[fname] = data
+    try:
+        rows = list(_csv.DictReader(raw_csv.decode("utf-8-sig").splitlines()))
+    except (UnicodeDecodeError, _csv.Error) as e:
+        return JSONResponse({"error": f"CSV didn't parse: {e}",
+                             "code": "bad_csv"}, status_code=400)
+    items = []
+    for i, row in enumerate(rows, 1):
+        fname = Path((row.get("filename") or "").strip()).name
+        if not fname:
+            return JSONResponse({"error": f"row {i}: missing filename",
+                                 "code": "bad_csv"}, status_code=400)
+        if fname not in blobs:
+            return JSONResponse({"error": f"row {i}: {fname!r} not among the "
+                                 "uploaded images", "code": "missing_image"},
+                                status_code=400)
+        files = [{"file": fname, "panel": "front"}]
+        back = Path((row.get("back_filename") or "").strip()).name
+        if back:
+            if back not in blobs:
+                return JSONResponse({"error": f"row {i}: back {back!r} not "
+                                     "among the uploaded images",
+                                     "code": "missing_image"}, status_code=400)
+            files.append({"file": back, "panel": "back"})
+        items.append({
+            "id": Path(fname).stem, "file": fname, "files": files,
+            "application": {k: (row.get(k) or "").strip() for k in
+                            ("beverage_type", "brand_name", "class_type",
+                             "alcohol_content", "net_contents")},
+            "note": "batch-uploaded eval set (dev/test)"})
+    if not items:
+        return JSONResponse({"error": "CSV had no data rows",
+                             "code": "bad_csv"}, status_code=400)
+    dest = _EVAL / "uploads" / name
+    if dest.exists():
+        _shutil.rmtree(dest)                        # dev tool: replace by name
+    dest.mkdir(parents=True)
+    for fname, data in blobs.items():
+        (dest / fname).write_bytes(data)
+    (dest / "manifest.json").write_text(json.dumps(items, indent=1))
+    return {"name": f"upload_{name}", "count": len(items)}
 
 
 @app.get("/api/pipelines")

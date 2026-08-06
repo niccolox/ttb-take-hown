@@ -9,3 +9,4 @@ api/data/
 api/eval/batches/
 api/web/node_modules
 source/
+api/eval/uploads/
