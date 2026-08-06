@@ -210,7 +210,41 @@ additions) for the container. Two deliberate exceptions when copying
 the emitted config into step 4: drop `NEMOTRON_OCR_URL` (localhost is
 meaningless in ACA — set it only with the GPU upgrade) and drop
 `OPENAI_DEBUG` (prompts contain application values; dev-only on
-laptops). The repo's `.env` is plain `KEY=value` lines — the loaders, compose,
+laptops). **3b · Vault recovery** — when the seeding loop fails with
+`Failed to resolve '<vault>.vault.azure.net'`: the vault does not exist
+at that name. Key Vault names are **globally** unique across all of
+Azure — `$APP-kv` can be taken by anyone, or held by a soft-deleted
+vault — and a freshly created vault can also lag DNS by a minute. This
+block finds-or-creates a vault with a unique suffix, waits until the
+name actually resolves, then re-runs the seed:
+```bash
+# reuse an existing vault in the RG if one exists; else mint a unique name
+KV=$(az keyvault list -g $RG --query "[0].name" -o tsv)
+if [ -z "$KV" ]; then
+  KV="$APP-kv-$(az account show --query id -o tsv | cut -c1-8)"
+  az keyvault create -n "$KV" -g $RG -l $LOC -o none \
+    || az keyvault recover -n "$KV" -o none    # reclaim a soft-deleted name
+fi
+echo "vault: $KV"
+# wait for BOTH the control plane and DNS before touching secrets
+until az keyvault show -n "$KV" -o none 2>/dev/null \
+      && getent hosts "$KV.vault.azure.net" >/dev/null; do
+  echo "waiting for $KV.vault.azure.net…"; sleep 5
+done
+# re-seed (same parse-never-source loop as step 3)
+while IFS='=' read -r K V; do
+  [[ "$K" =~ ^[A-Z][A-Z0-9_]*$ && -n "$V" && "$K" == *KEY* ]] || continue
+  az keyvault secret set --vault-name "$KV" -n "${K//_/-}" --value "$V" -o none
+done < .env
+az keyvault secret list --vault-name "$KV" --query "[].name" -o tsv   # names only
+```
+From here on, use `$KV` wherever the playbook says `$APP-kv` (step 5's
+set-policy and secretrefs). If the seed loop returns **403 Forbidden**
+instead, the vault was created in RBAC mode and your CLI identity needs
+the data-plane role:
+`az role assignment create --assignee $(az ad signed-in-user show --query id -o tsv) --role "Key Vault Secrets Officer" --scope $(az keyvault show -n "$KV" --query id -o tsv)`
+
+The repo's `.env` is plain `KEY=value` lines — the loaders, compose,
 and these parsers all depend on that; keep comments on their own lines
 (a live dry-run of this exact loop caught an unquoted `<placeholder>`
 line that would have broken `source` — hence parse, never source).
