@@ -64,6 +64,14 @@ shipped J3 question assist).
 | set | `off` | any | Everything off — `off` beats `MM_READ` |
 | unset | `fixture` | none | Nothing (fixture is transcription-only and the flag is off) |
 
+**One-value model switch (audit 2026-08-05):** with `AZ_BASE` set once,
+`AZ_OPENAI_MODEL` selects the Azure deployment for the text layers AND
+the vision second read (endpoints are constructed; the resource key is
+shared). `LABELCHECK_VISION_MODEL` overrides vision separately. Live-
+verified with `gpt-5.6-sol`: 2.9 s crop transcription, judge agrees.
+Note the Gov caveat: no GPT-5.x in Azure Government — pin
+`LABELCHECK_VISION_MODEL=gpt-4.1` for Gov-parity work.
+
 Rollback is env-only: unset `LABELCHECK_MM_READ`, `--force-recreate`.
 Old results render unchanged (rows without `mm_reread` show no chip).
 

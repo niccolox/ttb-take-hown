@@ -19,6 +19,9 @@ CROP = b"\xff\xd8fakejpeg"
 
 def _gpt41(monkeypatch):
     monkeypatch.delenv("LABELCHECK_VLM_PROVIDER", raising=False)
+    monkeypatch.delenv("AZ_BASE", raising=False)
+    monkeypatch.delenv("LABELCHECK_VISION_MODEL", raising=False)
+    monkeypatch.delenv("AZ_GPT_5_1_SOL_KEY", raising=False)
     monkeypatch.setenv("AZ_GPT_4_1_URI",
                        "https://r.cognitiveservices.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=v")
     monkeypatch.setenv("AZ_GPT_4_1_KEY", "k41")
@@ -128,3 +131,47 @@ def test_unknown_provider_falls_to_gpt41(monkeypatch):
     monkeypatch.setenv("AZ_GPT_4_1_URI", "https://r/chat")
     monkeypatch.setenv("AZ_GPT_4_1_KEY", "k")
     assert AzureVisionClient().provider == "gpt41"
+
+
+def test_one_value_switch_constructs_endpoints(monkeypatch):
+    """The audit outcome: AZ_BASE set once, AZ_OPENAI_MODEL is the whole
+    switch — text AND vision endpoints are constructed from it."""
+    for k in ("AZ_GPT_4_1_URI", "LABELCHECK_VLM_PROVIDER",
+              "LABELCHECK_VISION_MODEL"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("AZ_BASE", "https://r.cognitiveservices.azure.com/")
+    monkeypatch.setenv("AZ_OPENAI_API_KEY", "k")
+    monkeypatch.setenv("AZ_OPENAI_MODEL", "gpt-5.6-sol")
+    vision = AzureVisionClient()
+    text = azure_openai.AzureOpenAIClient()
+    want = ("https://r.cognitiveservices.azure.com/openai/deployments/"
+            "gpt-5.6-sol/chat/completions?api-version=2025-01-01-preview")
+    assert vision.endpoint == want and text.endpoint == want
+    assert vision.engine_label == "gpt-5.6-sol"
+    # vision-only override stays possible
+    monkeypatch.setenv("LABELCHECK_VISION_MODEL", "gpt-4.1")
+    assert "gpt-4.1" in AzureVisionClient().endpoint
+    assert "gpt-5.6-sol" in azure_openai.AzureOpenAIClient().endpoint
+
+
+def test_gpt5_payload_shape(monkeypatch):
+    """5.x chat deployments reject max_tokens and pin temperature — the
+    vision payload adapts by model prefix (no wasted 400 round trip)."""
+    monkeypatch.delenv("LABELCHECK_VLM_PROVIDER", raising=False)
+    monkeypatch.delenv("LABELCHECK_VISION_MODEL", raising=False)
+    monkeypatch.delenv("AZ_GPT_5_1_SOL_KEY", raising=False)
+    monkeypatch.setenv("AZ_BASE", "https://r.cognitiveservices.azure.com")
+    monkeypatch.setenv("AZ_OPENAI_API_KEY", "k")
+    monkeypatch.setenv("AZ_OPENAI_MODEL", "gpt-5.6-sol")
+    cap = _capture(monkeypatch)
+    r = AzureVisionClient().transcribe_crop(CROP)
+    assert r.status == "ok"
+    assert cap["payload"]["max_completion_tokens"] == 600
+    assert "max_tokens" not in cap["payload"]
+    assert "temperature" not in cap["payload"]
+    # 4.x keeps the legacy shape
+    monkeypatch.setenv("AZ_OPENAI_MODEL", "gpt-4.1")
+    cap = _capture(monkeypatch)
+    AzureVisionClient().transcribe_crop(CROP)
+    assert cap["payload"]["max_tokens"] == 600
+    assert cap["payload"]["temperature"] == 0.0

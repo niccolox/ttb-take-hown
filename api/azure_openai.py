@@ -48,17 +48,32 @@ MAX_OUTPUT_TOKENS = 2400         # summaries are short by design (plan E3) — t
 BREAKER_FAILS = 3
 BREAKER_COOLOFF_S = 30.0
 
+DEFAULT_API_VERSION = "2025-01-01-preview"
+
+
+def _azure_chat_url(base: str, deployment: str) -> str:
+    """Classic-deployment chat URL from a resource base + deployment name.
+    This is what makes model switching a ONE-env-value change (audit
+    2026-08-05): set AZ_BASE once; AZ_OPENAI_MODEL picks the deployment."""
+    ver = os.environ.get("AZ_OPENAI_API_VERSION", DEFAULT_API_VERSION)
+    return (base.rstrip("/") + f"/openai/deployments/{deployment}"
+            f"/chat/completions?api-version={ver}")
+
 
 class AzureOpenAIClient:
     def __init__(self, api_key: str | None = None):
         self.debug = os.environ.get("OPENAI_DEBUG", "").strip().lower() \
             in ("1", "true", "yes", "on")
-        # AZ_GPT_4_1_* (the gpt-4.1 deployment, 2026-08-05) is primary;
-        # AZ_OPENAI_* is the fallback so older configs — including a
-        # running container that predates the new vars — keep working
-        self.endpoint = os.environ.get("AZ_GPT_4_1_URI") \
-            or os.environ.get("AZ_OPENAI_URI", "")
         self.model = os.environ.get("AZ_OPENAI_MODEL", DEFAULT_MODEL)
+        # one-value mode (audit 2026-08-05): with AZ_BASE set, the endpoint
+        # is CONSTRUCTED from the model name — changing AZ_OPENAI_MODEL is
+        # the whole switch. Explicit full URIs remain the legacy fallback.
+        _base = os.environ.get("AZ_BASE", "").strip()
+        if _base:
+            self.endpoint = _azure_chat_url(_base, self.model)
+        else:
+            self.endpoint = os.environ.get("AZ_GPT_4_1_URI") \
+                or os.environ.get("AZ_OPENAI_URI", "")
         self.api_key = api_key if api_key is not None \
             else (os.environ.get("AZ_GPT_4_1_KEY")
                   or os.environ.get("AZ_OPENAI_API_KEY", ""))
@@ -258,10 +273,16 @@ class AzureVisionClient:
                 else (os.environ.get("MISTRAL_OCR_KEY")
                       or os.environ.get("AZ_OPENAI_API_KEY", ""))
         else:                                   # gpt41 (and any unknown value)
-            self.endpoint = os.environ.get("AZ_GPT_4_1_URI", "")
-            self.model = os.environ.get("AZ_OPENAI_MODEL", "gpt-4.1")
+            # LABELCHECK_VISION_MODEL overrides; otherwise the vision model
+            # FOLLOWS AZ_OPENAI_MODEL — one env value switches text+vision
+            self.model = (os.environ.get("LABELCHECK_VISION_MODEL")
+                          or os.environ.get("AZ_OPENAI_MODEL", "gpt-4.1"))
+            _base = os.environ.get("AZ_BASE", "").strip()
+            self.endpoint = _azure_chat_url(_base, self.model) if _base \
+                else os.environ.get("AZ_GPT_4_1_URI", "")
             self.api_key = api_key if api_key is not None \
-                else (os.environ.get("AZ_GPT_4_1_KEY")
+                else (os.environ.get("AZ_GPT_5_1_SOL_KEY")
+                      or os.environ.get("AZ_GPT_4_1_KEY")
                       or os.environ.get("AZ_OPENAI_API_KEY", ""))
         self._breaker_lock = threading.Lock()
         self._breaker = {"question": {"fails": 0, "cool_until": 0.0},
@@ -307,8 +328,13 @@ class AzureVisionClient:
                    "messages": [{"role": "user", "content": [
                        {"type": "text", "text": prompt},
                        {"type": "image_url", "image_url": {"url": data_url}},
-                   ]}],
-                   "max_tokens": max_tokens, "temperature": 0.0}
+                   ]}]}
+        if self.model.startswith("gpt-5"):
+            # 5.x chat deployments reject max_tokens and pin temperature
+            payload["max_completion_tokens"] = max_tokens
+        else:
+            payload["max_tokens"] = max_tokens
+            payload["temperature"] = 0.0
         req = urllib.request.Request(self.endpoint,
                                      data=json.dumps(payload).encode(),
                                      method="POST", headers=self._headers())

@@ -35,6 +35,7 @@ def _env(monkeypatch):
     # names must be cleared or they outrank the monkeypatched fallbacks
     monkeypatch.delenv("AZ_GPT_4_1_URI", raising=False)
     monkeypatch.delenv("AZ_GPT_4_1_KEY", raising=False)
+    monkeypatch.delenv("AZ_BASE", raising=False)
     monkeypatch.setenv("AZ_OPENAI_URI",
                        "https://r.services.ai.azure.com/models/chat/completions?api-version=x")
     monkeypatch.setenv("AZ_OPENAI_API_KEY", "k9")
@@ -66,6 +67,7 @@ def test_silent_without_config(monkeypatch):
     monkeypatch.delenv("AZ_OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("AZ_GPT_4_1_URI", raising=False)
     monkeypatch.delenv("AZ_GPT_4_1_KEY", raising=False)
+    monkeypatch.delenv("AZ_BASE", raising=False)
     c = AzureOpenAIClient()
     assert c.available() is False and c.complete("s", "u") is None
 
@@ -233,6 +235,7 @@ def test_debug_off_is_quiet(monkeypatch, caplog):
 def test_responses_endpoint_autodetected(monkeypatch):
     monkeypatch.delenv("AZ_GPT_4_1_URI", raising=False)
     monkeypatch.delenv("AZ_GPT_4_1_KEY", raising=False)
+    monkeypatch.delenv("AZ_BASE", raising=False)
     monkeypatch.setenv("AZ_OPENAI_URI",
                        "https://r.cognitiveservices.azure.com/openai/responses?api-version=x")
     monkeypatch.setenv("AZ_OPENAI_API_KEY", "k9")
@@ -301,6 +304,7 @@ def test_summary_endpoint_rejects_oversized_overrides(monkeypatch):
 def test_responses_incomplete_retries_with_doubled_cap(monkeypatch):
     monkeypatch.delenv("AZ_GPT_4_1_URI", raising=False)
     monkeypatch.delenv("AZ_GPT_4_1_KEY", raising=False)
+    monkeypatch.delenv("AZ_BASE", raising=False)
     monkeypatch.setenv("AZ_OPENAI_URI", "https://r.x/openai/responses?api-version=v")
     monkeypatch.setenv("AZ_OPENAI_API_KEY", "k9")
     monkeypatch.setenv("AZ_OPENAI_MODEL", "m")
