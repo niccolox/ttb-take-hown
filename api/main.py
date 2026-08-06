@@ -55,6 +55,14 @@ store = ResultStore()                             # single-process (AD-25)
 jobq = JobQueue(store)                            # background layers (N3+)
 from .vlm import NanoVLClient
 vlm_client = NanoVLClient()                       # N5 J3; silent no-op without NVIDIA_API_KEY
+# mm second read startup signal (mm-ocr amendment 34): misconfiguration must
+# be distinguishable from "feature off" without grepping request logs
+from .layers import _mm_enabled as _mm_read_enabled
+if _mm_read_enabled():
+    logging.getLogger("uvicorn.error").info(
+        "mm second read: enabled provider=%s key=%s%s", vlm_client.provider,
+        "present" if vlm_client.api_key else "ABSENT",
+        "" if vlm_client.available("transcribe") else " — layer INACTIVE")
 
 # AD-26 circuit breaker: consecutive sidecar failures short-circuit GPU
 # calls (fast path falls back to paddle; J2 jobs fail fast) until a cooloff.

@@ -242,7 +242,7 @@ def run_j1(rid: str, store, qa_extractor, qa_engine: str, jobq,
                     lambda: run_j2(rid, store, gpu_extractor, gpu_engine,
                                    jobq=jobq, vlm_client=vlm_client),
                     deadline_s=30)
-    elif vlm_client is not None and vlm_client.available():
+    elif _vlm_usable(vlm_client):
         # no J2 needed — chain the VLM fallback reader directly (N5)
         jobq.submit(rid, "vlm-assist",
                     lambda: run_j3(rid, store, vlm_client), deadline_s=45)
@@ -271,6 +271,19 @@ TERMINAL_NOT_DONE = frozenset({"timed_out", "cancelled", "failed",
 def _mm_enabled() -> bool:
     return os.environ.get("LABELCHECK_MM_READ", "").strip().lower() \
         in ("1", "true", "on", "yes")
+
+
+def _vlm_usable(vlm_client) -> bool:
+    """Chain-site availability union (amendment 20): submit the J3 job when
+    EITHER the shipped question mode or the flag-gated transcription mode
+    can run — a cooling question breaker must not starve the mm read, and
+    the fixture provider (transcribe-only) must still get a job."""
+    if vlm_client is None:
+        return False
+    if vlm_client.available():
+        return True
+    return (_mm_enabled() and hasattr(vlm_client, "transcribe_crop")
+            and vlm_client.available("transcribe"))
 
 
 def run_j3(rid: str, store, vlm_client) -> None:
@@ -339,7 +352,13 @@ def run_j3(rid: str, store, vlm_client) -> None:
         transcribed_ok = False
         if mm_on:
             t0 = time.monotonic()
-            r = vlm_client.transcribe_crop(buf.getvalue())
+            expected = (mm_judge.STATUTORY_WARNING
+                        if f["field"] == "government_warning"
+                        else (meta.get("app_data") or {}).get(f["field"]))
+            r = vlm_client.transcribe_crop(
+                buf.getvalue(), context={"field": f["field"],
+                                         "expected": expected,
+                                         "status": f["status"]})
             elapsed_ms = round((time.monotonic() - t0) * 1000)
             if r.status == "error" and r.cause == "oversized":
                 pass                       # registry posture: skip silently
@@ -512,6 +531,6 @@ def run_j2(rid: str, store, gpu_extractor, gpu_engine: str,
 
     # chain the VLM fallback reader (N5) after the re-read settles — it only
     # looks at fields STILL flagged, so J2's upgrades shrink its work
-    if jobq is not None and vlm_client is not None and vlm_client.available():
+    if jobq is not None and _vlm_usable(vlm_client):
         jobq.submit(rid, "vlm-assist",
                     lambda: run_j3(rid, store, vlm_client), deadline_s=45)

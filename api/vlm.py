@@ -73,7 +73,18 @@ class NanoVLClient:
     def __init__(self, api_key: str | None = None):
         self.provider = (os.environ.get("LABELCHECK_VLM_PROVIDER", "")
                          .strip().lower() or "nvidia")
-        if self.provider == "azure":
+        if self.provider == "fixture":
+            # keyless demo provider (mm-ocr amendment 33): transcription
+            # echoes the caller-supplied expected value — keyed by field/
+            # expectation, never crop bytes (crop bytes aren't stable
+            # across platforms). Question mode is DISABLED under fixture
+            # (read_crop → None): the shipped assist never fabricates.
+            # The UI chip carries the fixture label so a leaked demo
+            # config is visibly a demo (amendment 26).
+            self.endpoint = "fixture"
+            self.model = "fixture"
+            self.api_key = "-"
+        elif self.provider == "azure":
             self.endpoint = os.environ.get("AZURE_VLM_ENDPOINT", "")
             self.model = os.environ.get("AZURE_VLM_MODEL", "")
             self.api_key = api_key if api_key is not None \
@@ -98,7 +109,7 @@ class NanoVLClient:
     # -- legacy breaker attribute aliases (question mode) ------------------
     @property
     def _fails(self) -> int:
-        return self._breaker["question"]["fails"]
+        return int(self._breaker["question"]["fails"])
 
     @_fails.setter
     def _fails(self, v: int) -> None:
@@ -126,6 +137,8 @@ class NanoVLClient:
         sites behave byte-identically."""
         if self.provider == "off":
             return False
+        if self.provider == "fixture":
+            return mode == "transcribe"    # question mode disabled under fixture
         if not self.api_key or not self.endpoint:
             return False
         return time.monotonic() >= self._breaker[mode]["cool_until"]
@@ -192,11 +205,18 @@ class NanoVLClient:
         with self._breaker_lock:
             self._breaker[mode]["fails"] = 0
 
-    def transcribe_crop(self, crop_jpeg: bytes) -> MMRead:
+    def transcribe_crop(self, crop_jpeg: bytes,
+                        context: dict | None = None) -> MMRead:
         """Verbatim transcription of one crop, judged elsewhere — this
         method reports honestly and never raises. Unlike read_crop's
         silent-None posture, every failure carries a cause so the debug
-        block can show WHY there is no second read (amendment 8)."""
+        block can show WHY there is no second read (amendment 8).
+        `context` ({field, expected, status}) is advisory metadata for the
+        fixture provider only; real providers ignore it."""
+        if self.provider == "fixture":
+            expected = (context or {}).get("expected") or ""
+            return (MMRead("ok", text=str(expected)) if expected
+                    else MMRead("unreadable"))
         if self.provider == "off" or not self.api_key or not self.endpoint:
             return MMRead("error", cause="unconfigured")
         if not self.available("transcribe"):

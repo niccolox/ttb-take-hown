@@ -86,8 +86,9 @@ class FakeMMVLM:
     def available(self, mode="question"):
         return True
 
-    def transcribe_crop(self, crop_jpeg):
+    def transcribe_crop(self, crop_jpeg, context=None):
         self.transcribes += 1
+        self.last_context = context
         return self.result
 
     def read_crop(self, crop_jpeg, question):
