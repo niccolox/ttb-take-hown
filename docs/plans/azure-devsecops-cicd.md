@@ -237,9 +237,26 @@ for real against the subscription. Standing so far:
   `/healthz` `"ready":true` (rss ~913 MB, telemetry_drops 0) and a
   golden verified END-TO-END on the live URL — spirits_clean settled
   `no_mismatch_found` through the full two-tier pipeline in the cloud.
-  Steps 5–7 (Key Vault references, session storage, posture pre-flight)
-  pending; the URL is long-random-hostname-only until Entra fronts it
+  The URL is long-random-hostname-only until Entra fronts it
   (deploy-security escape hatch, dev tier, synthetic data only).
+- **Step 5 ✓** — app identity granted Key Vault Secrets User on
+  `labelcheck-dev-kv`; four keyvaultref-backed secrets wired as
+  secretrefs (COLACLOUD, AZ-OPENAI-API, AZ-GPT-4-1, AZ-GPT-5-1-SOL)
+  plus the one-value model config (AZ_BASE + AZ_OPENAI_MODEL=gpt-5.6-sol).
+- **Step 6 ✓** — storage account `labelcheckdevsa`, Azure Files share
+  `sessions` mounted at `/app/api/data` via env storage + YAML volume
+  (new revision, healthz re-verified). Caveat: `az containerapp exec`
+  swallows output non-interactively — the SMB write check is configured-
+  but-not-proven; first real session save is the honest test.
+- **Step 7 ✓** — posture battery on the live URL: clean burst 16×400 +
+  4×429 (per-IP limiter answering with Retry-After; the earlier 503s
+  were revision-switchover ingress noise), Host-header spoof rejected
+  at the ACA ingress layer (404 before reaching the app), healthz ready
+  post-mount. Fixture-demo note: photo_lowres produced NO mm chip on
+  this CPU shape — correctly: paddle's troubled rows there are
+  bbox-less (unreachable by any crop reader, the D-0 finding); the mm
+  demo on the CPU shape needs a golden whose troubled row carries a
+  bbox under paddle.
 - **Rotation reminder:** the seeded AZ-* and FOUNDRY keys are the ones
   this workstream exposed fragments of — rotate in the portal, then
   re-run the step-3 seed loop; the vault updates in place.
@@ -346,13 +363,35 @@ pre-flight, abbreviated for dev):
 --image ...@<previous digest>`; tear-down is `az group delete -n $RG`.
 Nothing in dev is precious — that is the point of synthetic-only data.
 
-**GPU upgrade (optional, when dev needs the primary engine):** add a
-GPU workload profile to the ACA environment (or an NC-family VM running
-`docker-compose.gpu.yml`), deploy the Nemotron sidecar with
-`NEMOTRON_INFER_LENGTH=1536` (the adopted default — kills the statutory
-small-print dropout), point the app at it via `NEMOTRON_OCR_URL` and
-`LABELCHECK_EXTRACTOR=nemotron`. Until then, dev-cloud is
-paddle-primary and the J-layer QA story still holds.
+**GPU upgrade — live-probed constraints (2026-08-05) and the route:**
+- **eastus has NO ACA GPU workload profiles** (D/E/Consumption/Flex
+  only), and `labelcheck-dev-env` is Consumption-only besides —
+  profiles cannot be added to it. **No NC/NV GPU VM quota** is visible
+  on the subscription either (the researched A10 VM shape needs a
+  quota request first).
+- **The viable ACA route is a region move:** westus3 / swedencentral /
+  australiaeast carry `Consumption-GPU-NC8as-T4` and
+  `Consumption-GPU-NC24-A100`. Command sequence:
+```bash
+export GLOC=westus3
+az containerapp env create -n labelcheck-gpu-env -g $RG -l $GLOC \
+  --enable-workload-profiles -o none
+az containerapp env workload-profile add -n labelcheck-gpu-env -g $RG \
+  --workload-profile-name gpu-t4 --workload-profile-type Consumption-GPU-NC8as-T4
+# Nemotron sidecar image: REBUILD for the T4 (SM 7.5 — the local build
+# used TORCH_CUDA_ARCH_LIST=8.6 for the RTX 3050 Ti / A10 class):
+#   BUILD_CPP_FORCE=1 TORCH_CUDA_ARCH_LIST="7.5;8.6" pip install …
+# then push (nvcr pytorch base — multi-GB, budget real time) and deploy
+# the sidecar INTERNAL-ingress-only in the same env; the app moves to
+# the same env (Consumption profile) with LABELCHECK_EXTRACTOR=nemotron,
+# NEMOTRON_OCR_URL=http://<sidecar>:8000, NEMOTRON_INFER_LENGTH=1536.
+```
+  OCR must never get external ingress — same-env internal networking is
+  the reason the app moves with it.
+- **Cost note:** T4 consumption bills only while replicas run; the A100
+  profile and the A10 VM (Spot $0.59/hr, quota-gated) are the scale-up
+  options per the hosting-economics research. Until a GPU route is
+  taken, dev-cloud is paddle-primary and the J-layer QA story holds.
 
 **What day one explicitly is NOT:** not test/stage/prod (those follow
 the gated pipeline above), not real data (synthetic/golden only), not
