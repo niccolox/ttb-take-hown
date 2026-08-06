@@ -399,16 +399,29 @@ az containerapp env workload-profile add -n labelcheck-gpu-env -g $RG \
     v2_english weights baked in, vendor tree via named build context
     (three live build failures fixed in sequence: dockerignored COPY
     source → missing hatchling backend → wrong package subdir).
-  - **Push ⏳** — `nemotron-ocr:t4-…` uploading to `labelcheckacr`
-    (multi-GB nvcr base). Queued behind it in one gated chain: sidecar
-    create (gpu-t4 profile, INTERNAL ingress only, 4 CPU/16 Gi,
-    NEMOTRON_INFER_LENGTH=1536) → replica-running gate → app
-    `labelcheck-gpu` from the SAME pinned app digest (Consumption
-    profile, external ingress, LABELCHECK_EXTRACTOR=nemotron,
-    NEMOTRON_OCR_URL=http://nemotron-ocr, fixture mm demo) →
-    FQDN→ALLOWED_HOSTS → healthz gate (first cold start = GPU-node
-    image pull + model load; budgeted ~20 min) → golden verified
-    end-to-end on the GPU URL.
+  - **DEPLOYED ✓ (2026-08-05, late):** the full GPU stack is live in
+    westus3.
+    - Sidecar `nemotron-ocr` @ `sha256:6069da82…` on the gpu-t4
+      profile, INTERNAL ingress only, `NEMOTRON_INFER_LENGTH=1536`.
+    - App **https://labelcheck-gpu.thankfulflower-28b5c59f.westus3.azurecontainerapps.io**
+      — the SAME pinned app digest, nemotron-primary
+      (`NEMOTRON_OCR_URL=http://nemotron-ocr` over env-internal DNS),
+      fixture mm demo, sessions share `lcgpuwestsa` mounted at
+      `/app/api/data`.
+    - Evidence: healthz `"ready":true` with **telemetry_drops: 0**
+      (the mount fix — pre-mount, session saves hit
+      `PermissionError: /app/api/data` and drops counted it, exactly
+      the honest-signal design); golden e2e settled
+      `no_mismatch_found` with **government_warning MATCH and ZERO
+      re-read refinements** — the 1536 no-dropout signature live on
+      the T4, no J2 correction needed.
+    - Ops notes: the app was pre-created before the sidecar (came up
+      paddle-fallback by AD-1 design, flipped to nemotron on the
+      post-sidecar revision); concurrent updates during the chain hit
+      `ContainerAppOperationInProgress` once — waited out the lock and
+      verified the final template carries mount + hosts + extractor.
+      Client-side TLS resets during ARM calls correlated with the
+      multi-GB image push saturating the uplink (retries landed).
 
 **What day one explicitly is NOT:** not test/stage/prod (those follow
 the gated pipeline above), not real data (synthetic/golden only), not
