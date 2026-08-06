@@ -28,12 +28,15 @@ Hard rules, same posture as the VLM client (D3 lineage):
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import os
+import threading
 import time
 import urllib.error
 import urllib.request
+from dataclasses import dataclass
 
 log = logging.getLogger("uvicorn.error")
 
@@ -193,3 +196,204 @@ class AzureOpenAIClient:
             log.info("Azure OpenAI breaker tripped for %.0fs", BREAKER_COOLOFF_S)
         log.info("Azure OpenAI unavailable (silent no-op): %r", e)
         return None
+
+
+# ── vision (the mm second read + J3 question assist) ─────────────────────
+# Successor to api/vlm.py's NanoVLClient (deprecated 2026-08-05): one
+# Azure-centric vision client, default provider = the gpt-4.1 chat
+# deployment (AZ_GPT_4_1_URI accepts image content arrays — same endpoint
+# the text client uses, but a SEPARATE class and SEPARATE breakers: label
+# pixels never meet AzureOpenAIClient, and a vision outage never cools
+# the summary/triage path).
+#
+# Hard rules carried over verbatim: crops only (never a full label),
+# 180 KB budget, suggestion-never-verdict at the callers, silent/typed
+# failure posture, per-mode breakers (question vs transcribe).
+
+MAX_CROP_BYTES = 180_000
+VISION_BREAKER_FAILS = 3
+VISION_BREAKER_COOLOFF_S = 30.0
+TRANSCRIBE_MAX_TOKENS = 600      # the statutory warning alone is ~45 words
+TRANSCRIBE_TIMEOUT_S = 12        # budget-gated fallback contract (run_j3)
+QUESTION_MAX_TOKENS = 160
+QUESTION_TIMEOUT_S = 30
+TRANSCRIBE_PROMPT = ("Transcribe every word printed in this image verbatim, "
+                     "exactly as written. Output only the transcribed text — "
+                     "no commentary, no translation, no corrections.")
+REFUSAL_MARKERS = ("i cannot", "i can't", "unable to", "cannot read",
+                   "no text", "not legible", "illegible", "i'm sorry")
+
+
+@dataclass
+class MMRead:
+    """transcribe_crop result. status: ok | unreadable | error.
+    `cause` names the error class for the debug block: unconfigured |
+    breaker_open | oversized | timeout | transport | schema | truncated."""
+    status: str
+    text: str | None = None
+    cause: str | None = None
+
+
+class AzureVisionClient:
+    """Vision client for run_j3. Providers (LABELCHECK_VLM_PROVIDER):
+    unset/gpt41 — the gpt-4.1 chat deployment (question + transcription);
+    mistral_doc — Mistral Document AI OCR (transcription only);
+    fixture — keyless demo (transcription only, echoes expected values);
+    off — disabled. The legacy nvidia/azure values are served by the
+    DEPRECATED NanoVLClient via the factory in main.py."""
+
+    def __init__(self, api_key: str | None = None):
+        raw = (os.environ.get("LABELCHECK_VLM_PROVIDER", "")
+               .strip().lower() or "gpt41")
+        self.provider = "gpt41" if raw in ("gpt41", "gpt-4.1",
+                                           "azure_openai") else raw
+        if self.provider == "fixture":
+            self.endpoint = self.model = "fixture"
+            self.api_key = "-"
+        elif self.provider == "mistral_doc":
+            self.endpoint = os.environ.get("MISTRAL_OCR_ENDPOINT", "")
+            self.model = os.environ.get("MISTRAL_OCR_MODEL",
+                                        "mistral-document-ai-2512")
+            self.api_key = api_key if api_key is not None \
+                else (os.environ.get("MISTRAL_OCR_KEY")
+                      or os.environ.get("AZ_OPENAI_API_KEY", ""))
+        else:                                   # gpt41 (and any unknown value)
+            self.endpoint = os.environ.get("AZ_GPT_4_1_URI", "")
+            self.model = os.environ.get("AZ_OPENAI_MODEL", "gpt-4.1")
+            self.api_key = api_key if api_key is not None \
+                else (os.environ.get("AZ_GPT_4_1_KEY")
+                      or os.environ.get("AZ_OPENAI_API_KEY", ""))
+        self._breaker_lock = threading.Lock()
+        self._breaker = {"question": {"fails": 0, "cool_until": 0.0},
+                         "transcribe": {"fails": 0, "cool_until": 0.0}}
+
+    @property
+    def engine_label(self) -> str:
+        return self.model or self.provider
+
+    def available(self, mode: str = "question") -> bool:
+        if self.provider == "off":
+            return False
+        if self.provider == "fixture":
+            return mode == "transcribe"
+        if not self.api_key or not self.endpoint:
+            return False
+        if self.provider == "mistral_doc" and mode != "transcribe":
+            return False                        # OCR API — no chat dialect
+        return time.monotonic() >= self._breaker[mode]["cool_until"]
+
+    def _trip(self, mode: str) -> None:
+        with self._breaker_lock:
+            b = self._breaker[mode]
+            b["fails"] += 1
+            if b["fails"] >= VISION_BREAKER_FAILS:
+                b["cool_until"] = time.monotonic() + VISION_BREAKER_COOLOFF_S
+                b["fails"] = 0
+                log.info("vision %s breaker tripped for %.0fs", mode,
+                         VISION_BREAKER_COOLOFF_S)
+
+    def _reset(self, mode: str) -> None:
+        with self._breaker_lock:
+            self._breaker[mode]["fails"] = 0
+
+    def _headers(self) -> dict:
+        return {"Content-Type": "application/json",
+                "Authorization": f"Bearer {self.api_key}",
+                "api-key": self.api_key}
+
+    def _chat(self, prompt: str, data_url: str, max_tokens: int,
+              timeout: float) -> dict:
+        payload = {"model": self.model,
+                   "messages": [{"role": "user", "content": [
+                       {"type": "text", "text": prompt},
+                       {"type": "image_url", "image_url": {"url": data_url}},
+                   ]}],
+                   "max_tokens": max_tokens, "temperature": 0.0}
+        req = urllib.request.Request(self.endpoint,
+                                     data=json.dumps(payload).encode(),
+                                     method="POST", headers=self._headers())
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.load(resp)
+
+    def read_crop(self, crop_jpeg: bytes, question: str) -> str | None:
+        """J3 question assist (gpt41 only). Silent-None posture."""
+        if self.provider != "gpt41" or not self.available() \
+                or len(crop_jpeg) > MAX_CROP_BYTES:
+            return None
+        data_url = "data:image/jpeg;base64," \
+            + base64.b64encode(crop_jpeg).decode()
+        try:
+            body = self._chat(question, data_url,
+                              QUESTION_MAX_TOKENS, QUESTION_TIMEOUT_S)
+            answer = body["choices"][0]["message"]["content"]
+            self._reset("question")
+            return (answer or "").strip() or None
+        except (urllib.error.URLError, OSError, KeyError, IndexError,
+                json.JSONDecodeError, TimeoutError) as e:
+            self._trip("question")
+            log.info("vision assist unavailable (silent no-op): %r", e)
+            return None
+
+    def transcribe_crop(self, crop_jpeg: bytes,
+                        context: dict | None = None) -> MMRead:
+        """Verbatim transcription, judged elsewhere; typed failures."""
+        if self.provider == "fixture":
+            expected = (context or {}).get("expected") or ""
+            return (MMRead("ok", text=str(expected)) if expected
+                    else MMRead("unreadable"))
+        if self.provider == "off" or not self.api_key or not self.endpoint:
+            return MMRead("error", cause="unconfigured")
+        if not self.available("transcribe"):
+            return MMRead("error", cause="breaker_open")
+        if len(crop_jpeg) > MAX_CROP_BYTES:
+            return MMRead("error", cause="oversized")
+        data_url = "data:image/jpeg;base64," \
+            + base64.b64encode(crop_jpeg).decode()
+        try:
+            if self.provider == "mistral_doc":
+                payload = {"model": self.model,
+                           "document": {"type": "image_url",
+                                        "image_url": data_url}}
+                req = urllib.request.Request(
+                    self.endpoint, data=json.dumps(payload).encode(),
+                    method="POST", headers=self._headers())
+                with urllib.request.urlopen(
+                        req, timeout=TRANSCRIBE_TIMEOUT_S) as resp:
+                    body = json.load(resp)
+            else:
+                body = self._chat(TRANSCRIBE_PROMPT, data_url,
+                                  TRANSCRIBE_MAX_TOKENS, TRANSCRIBE_TIMEOUT_S)
+        except (urllib.error.URLError, OSError, TimeoutError,
+                json.JSONDecodeError) as e:
+            self._trip("transcribe")
+            timed_out = isinstance(e, TimeoutError) \
+                or "timed out" in str(e).lower()
+            log.info("vision transcribe failed (%s): %r",
+                     "timeout" if timed_out else "transport", e)
+            return MMRead("error",
+                          cause="timeout" if timed_out else "transport")
+        if self.provider == "mistral_doc":
+            try:
+                text = "\n".join(p.get("markdown") or ""
+                                 for p in body["pages"])
+            except (KeyError, TypeError):
+                self._trip("transcribe")
+                log.info("mistral_doc schema drift: %s", str(body)[:200])
+                return MMRead("error", cause="schema")
+        else:
+            try:
+                choice = body["choices"][0]
+                text = choice["message"]["content"]
+            except (KeyError, IndexError, TypeError):
+                self._trip("transcribe")
+                log.info("vision transcribe schema drift: %s", str(body)[:200])
+                return MMRead("error", cause="schema")
+            if choice.get("finish_reason") == "length":
+                self._reset("transcribe")
+                return MMRead("error", cause="truncated")
+        self._reset("transcribe")
+        text = (text or "").strip()
+        low = text.lower()
+        if not text or any(m in low for m in REFUSAL_MARKERS):
+            return MMRead("unreadable", text=text or None)
+        return MMRead("ok", text=text)

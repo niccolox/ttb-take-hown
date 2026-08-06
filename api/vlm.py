@@ -1,4 +1,11 @@
-"""VLM assist client (PLAN-enrichment N5 layer J3; Azure dialect = plan E1,
+"""DEPRECATED (2026-08-05) — superseded by api.azure_openai.AzureVisionClient.
+
+Kept only so the legacy `nvidia`/`azure` provider values keep working via
+the factory in main.py. New code must not import NanoVLClient. The MMRead
+dataclass and vision constants now live in api/azure_openai.py; the names
+below re-export them for existing imports.
+
+Original doc: VLM assist client (PLAN-enrichment N5 layer J3; Azure dialect = plan E1,
 docs/plans/azure-enrichment-layers.md).
 
 Providers (`LABELCHECK_VLM_PROVIDER=off|nvidia|azure`, unset ⇒ nvidia to
@@ -30,7 +37,6 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
 
 log = logging.getLogger("uvicorn.error")
 
@@ -58,19 +64,16 @@ REFUSAL_MARKERS = ("i cannot", "i can't", "unable to", "cannot read",
                    "no text", "not legible", "illegible", "i'm sorry")
 
 
-@dataclass
-class MMRead:
-    """transcribe_crop result. status: ok | unreadable | error.
-    `cause` names the error class for the debug block (amendment 8):
-    unconfigured | breaker_open | oversized | timeout | transport |
-    schema | truncated."""
-    status: str
-    text: str | None = None
-    cause: str | None = None
+# re-exported from the successor module so existing imports keep working
+from .azure_openai import MMRead  # noqa: E402,F401
 
 
 class NanoVLClient:
     def __init__(self, api_key: str | None = None):
+        import warnings
+        warnings.warn("NanoVLClient is deprecated — use "
+                      "api.azure_openai.AzureVisionClient",
+                      DeprecationWarning, stacklevel=2)
         self.provider = (os.environ.get("LABELCHECK_VLM_PROVIDER", "")
                          .strip().lower() or "nvidia")
         if self.provider == "fixture":

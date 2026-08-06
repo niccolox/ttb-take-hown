@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).parents[2]))
 import api.layers as layers
 from api import vlm
 from api.jobs import Job, ResultStore
+from api.azure_openai import AzureVisionClient
 from api.vlm import NanoVLClient
 
 from .test_mm_reread import APP, _tiny_jpeg
@@ -86,9 +87,10 @@ def test_key_absent_means_zero_egress_even_with_mm_on(monkeypatch):
 def test_union_submits_when_only_transcribe_mode_is_alive(monkeypatch):
     monkeypatch.setenv("LABELCHECK_MM_READ", "1")
     monkeypatch.delenv("LABELCHECK_VLM_PROVIDER", raising=False)
-    monkeypatch.setenv("NVIDIA_API_KEY", "nv1")
-    c = NanoVLClient()
-    c._cool_until = time.monotonic() + 60          # question mode cooling
+    monkeypatch.setenv("AZ_GPT_4_1_URI", "https://r/chat")
+    monkeypatch.setenv("AZ_GPT_4_1_KEY", "k")
+    c = AzureVisionClient()
+    c._breaker["question"]["cool_until"] = time.monotonic() + 60
     assert c.available() is False
     assert layers._vlm_usable(c) is True           # transcribe keeps the job
 
@@ -96,7 +98,7 @@ def test_union_submits_when_only_transcribe_mode_is_alive(monkeypatch):
 def test_union_respects_flag_off(monkeypatch):
     monkeypatch.delenv("LABELCHECK_MM_READ", raising=False)
     monkeypatch.setenv("LABELCHECK_VLM_PROVIDER", "fixture")
-    c = NanoVLClient()
+    c = AzureVisionClient()
     assert layers._vlm_usable(c) is False          # fixture is transcribe-only
     monkeypatch.setenv("LABELCHECK_MM_READ", "1")
     assert layers._vlm_usable(c) is True
@@ -106,7 +108,7 @@ def test_union_respects_flag_off(monkeypatch):
 
 def test_fixture_provider_modes_and_echo(monkeypatch):
     monkeypatch.setenv("LABELCHECK_VLM_PROVIDER", "fixture")
-    c = NanoVLClient()
+    c = AzureVisionClient()
     assert c.available("transcribe") is True and c.available() is False
     assert c.read_crop(b"crop", "Q?") is None      # question mode disabled
     r = c.transcribe_crop(b"crop", context={"expected": "45% Alc./Vol."})
@@ -126,7 +128,7 @@ def test_fixture_end_to_end_into_mm_reread(monkeypatch):
                         lambda *a, **k: (_ for _ in ()).throw(
                             AssertionError("no network under fixture")))
     store = _mm_store()
-    layers.run_j3("r-1", store, NanoVLClient())
+    layers.run_j3("r-1", store, AzureVisionClient())
     fields = {f["field"]: f for f in store.get("r-1").result["fields"]}
     assert fields["alcohol_content"]["mm_reread"]["verdict"] == "agrees"
     assert fields["brand_name"]["mm_reread"]["verdict"] == "sides_with_application"

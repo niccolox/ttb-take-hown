@@ -6,7 +6,8 @@ get a verbatim re-read of their evidence crop by a vision model, judged
 **deterministically** by `api/mm_judge.py` — the model contributes eyes,
 the rules engine contributes the verdict, and no field status ever
 changes. Plan: `docs/plans/mm-ocr-augment.md` (approved /autoplan review
-+ measured D-0 value gate). Provider-neutral successor to
++ measured D-0 value gate). Vision client: `api/azure_openai.py` `AzureVisionClient` (api/vlm.py
+is deprecated). Provider-neutral successor to
 `docs/enable-azure-vlm.md` (which covers the Azure specifics of the J3
 question assist; still valid for those).
 
@@ -55,9 +56,9 @@ shipped J3 question assist).
 | MM_READ | PROVIDER | key | What you get |
 |---|---|---|---|
 | unset | any | any | Byte-identical shipped behavior; zero transcription egress |
-| set | unset ⇒ `nvidia` | absent | Zero egress entirely; startup line says INACTIVE |
-| set | `nvidia` | `NVIDIA_API_KEY` | Second read + question fallback via hosted Nano VL |
-| set | `azure` | `AZURE_VLM_ENDPOINT`+`AZURE_VLM_KEY` (+`AZURE_VLM_MODEL`) | Second read via your Azure vision deployment (GPT-4.1-class recommended — Gov-parity model class; Gov vision-input parity unverified) |
+| set | unset ⇒ `gpt41` | absent | Zero egress entirely; startup line says INACTIVE |
+| set | unset ⇒ `gpt41` | `AZ_GPT_4_1_URI`+`AZ_GPT_4_1_KEY` | **Default:** second read + question assist via the gpt-4.1 chat deployment (image content arrays on the same endpoint; Gov-parity model class, vision-input parity in Gov unverified) |
+| set | `nvidia` / `azure` | (legacy vars) | DEPRECATED — still honored via the old NanoVLClient with a startup warning; migrate to the default or mistral_doc |
 | set | `mistral_doc` | `MISTRAL_OCR_ENDPOINT` (+`MISTRAL_OCR_KEY`, falls back to `AZ_OPENAI_API_KEY`) | Second read via Mistral Document AI on Foundry (transcription-only — question assist off; wire probed live 2026-08-05, `mistral-document-ai-2512`) |
 | set | `fixture` | none | Keyless demo: canned transcriptions, question mode disabled, chips badged |
 | set | `off` | any | Everything off — `off` beats `MM_READ` |

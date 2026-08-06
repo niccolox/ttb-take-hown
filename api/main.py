@@ -54,7 +54,18 @@ pool = ThreadPoolExecutor(max_workers=2)          # fast path ONLY (AD-23)
 store = ResultStore()                             # single-process (AD-25)
 jobq = JobQueue(store)                            # background layers (N3+)
 from .vlm import NanoVLClient
-vlm_client = NanoVLClient()                       # N5 J3; silent no-op without NVIDIA_API_KEY
+# vision client factory: gpt-4.1 (AzureVisionClient) is the default; the
+# legacy nvidia/azure values still work through the DEPRECATED NanoVLClient
+_vlm_provider = os.environ.get("LABELCHECK_VLM_PROVIDER", "").strip().lower()
+if _vlm_provider in ("nvidia", "azure"):
+    logging.getLogger("uvicorn.error").warning(
+        "LABELCHECK_VLM_PROVIDER=%s is deprecated — using legacy "
+        "NanoVLClient; migrate to the gpt-4.1 default (unset) or "
+        "mistral_doc/fixture (docs/enable-second-read.md)", _vlm_provider)
+    vlm_client = NanoVLClient()
+else:
+    from .azure_openai import AzureVisionClient
+    vlm_client = AzureVisionClient()
 # mm second read startup signal (mm-ocr amendment 34): misconfiguration must
 # be distinguishable from "feature off" without grepping request logs
 from .layers import _mm_enabled as _mm_read_enabled
