@@ -183,6 +183,10 @@ gets you moving today.)
 vault, non-secret config rides as plain env vars; nothing typed,
 nothing echoed).
 ```bash
+az keyvault create -n $APP-kv -g $RG -l $LOC -o none
+# wait for real DNS before touching secrets (fresh vaults can lag)
+until az keyvault show -n $APP-kv -o none 2>/dev/null \
+      && getent hosts "$APP-kv.vault.azure.net" >/dev/null; do sleep 5; done
 # parse rather than source — a stray placeholder like FOO=<bar> would
 # break `source`, and parsing executes nothing. Every variable whose
 # name contains KEY is a secret → Key Vault (names hyphenated; step 5's
@@ -210,7 +214,14 @@ additions) for the container. Two deliberate exceptions when copying
 the emitted config into step 4: drop `NEMOTRON_OCR_URL` (localhost is
 meaningless in ACA — set it only with the GPU upgrade) and drop
 `OPENAI_DEBUG` (prompts contain application values; dev-only on
-laptops). **3a · Prove the vault path first:** `RG=$RG LOC=$LOC
+laptops). **Live state (2026-08-05):** this exact flow ran against the
+subscription — vault **`labelcheck-dev-kv`** exists (the plain name was
+free; the original resolve failure was simply that it had never been
+created) holding AZ-GPT-4-1-KEY, AZ-GPT-5-1-SOL-KEY, AZ-OPENAI-API-KEY,
+COLACLOUD-API-KEY, FOUNDRY-API-KEY, with Key Vault Secrets Officer
+granted at the RG scope.
+
+**3a · Prove the vault path first:** `RG=$RG LOC=$LOC
 ./scripts/hello_azure_keyvault.sh` — creates a disposable vault, waits
 for real DNS, round-trips a secret, deletes AND purges. Run live on
 this subscription it caught both failure classes in order: the
